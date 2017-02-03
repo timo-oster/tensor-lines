@@ -21,6 +21,7 @@
 #include <list>
 #include <map>
 #include <queue>
+#include <stack>
 #include <iostream>
 #include <random>
 
@@ -62,6 +63,8 @@ const double red[3] = {255, 0, 0};
 const double yellow[3] = {255, 255, 0};
 const double green[3] = {0, 255, 0};
 const double blue[3] = {0.5, 255, 255};
+
+uint32_t call_count = 0;
 
 class ColorMap
 {
@@ -192,6 +195,7 @@ bcoeffs bezierCoefficients(const mat3d& A,
                            const mat3d& B,
                            const mat3d& C)
 {
+    ++call_count;
     auto result = bcoeffs{};
 
     result[i300] = A.determinant();
@@ -280,63 +284,64 @@ bezierCoefficients(const mat3d& t1, const mat3d& t2, const mat3d& t3,
 }
 
 
-bool eigen_dirs_queue(const TensorInterp& s,
+bool eigen_dirs_stack(const TensorInterp& s,
                       const TensorInterp& t,
                       double epsilon)
 {
-    auto tque = std::queue<Triangle>{};
+    auto tstck = std::stack<Triangle>{};
 
-    tque.push(Triangle{{1, 0, 0}, {0, 1, 0}, {0, 0, 1}});
-    tque.push(Triangle{{0, 1, 0}, {-1, 0, 0}, {0, 0, 1}});
-    tque.push(Triangle{{-1, 0, 0}, {0, -1, 0}, {0, 0, 1}});
-    tque.push(Triangle{{0, -1, 0}, {1, 0, 0}, {0, 0, 1}});
+    tstck.push(Triangle{{1, 0, 0}, {0, 1, 0}, {0, 0, 1}});
+    tstck.push(Triangle{{0, 1, 0}, {-1, 0, 0}, {0, 0, 1}});
+    tstck.push(Triangle{{-1, 0, 0}, {0, -1, 0}, {0, 0, 1}});
+    tstck.push(Triangle{{0, -1, 0}, {1, 0, 0}, {0, 0, 1}});
 
     // auto found = false;
     // auto vmin = 0.0;
     // auto vmax = 0.0;
     // auto vin = false;
 
-    while(!tque.empty())
+    while(!tstck.empty())
     {
-        auto tri = tque.front();
-        tque.pop();
+        auto tri = tstck.top();
+        tstck.pop();
 
+        // @todo: further speedup:
+        // compute coefficients for alpha, beta, gamma on-demand while checking
+        // for different signs. Might skip gamma if alpha and beta already have
+        // different signs.
         auto s_coeffs = bezierCoefficients(
                 s.v1(), s.v2(), s.v3(),
                 tri.v1(), tri.v2(), tri.v3());
-
-        auto t_coeffs = bezierCoefficients(
-                t.v1(), t.v2(), t.v3(),
-                tri.v1(), tri.v2(), tri.v3());
-
-        // auto& draw_var = t_coeffs[0];
-
-        // if(!vin)
-        // {
-        //     auto ma = boost::range::max_element(draw_var);
-        //     auto mi = boost::range::min_element(draw_var);
-        //     vmax = std::max(std::abs(*ma), std::abs(*mi));
-        //     vmin = -vmax;
-        //     vin = true;
-        // }
-
-
-        // draw_interp_tri(alpha_image, tri,
-        //                 draw_var[i300], draw_var[i030], draw_var[i003],
-        //                 vmin*0.01, vmax*0.01);
-        // frame3.display(alpha_image);
-        // frame2.display(image2);
 
         auto s_alpha_sign = same_sign(s_coeffs[0]);
         auto s_beta_sign = same_sign(s_coeffs[1]);
         auto s_gamma_sign = same_sign(s_coeffs[2]);
         // auto s_denom_sign = same_sign(s_coeffs[3]);
 
+        // different signs: parallel vectors not possible
+        if(std::max({s_alpha_sign, s_beta_sign, s_gamma_sign}) *
+            std::min({s_alpha_sign, s_beta_sign, s_gamma_sign}) < 0)
+        {
+            continue;
+        }
+
+        auto t_coeffs = bezierCoefficients(
+                t.v1(), t.v2(), t.v3(),
+                tri.v1(), tri.v2(), tri.v3());
+
         auto t_alpha_sign = same_sign(t_coeffs[0]);
         auto t_beta_sign = same_sign(t_coeffs[1]);
         auto t_gamma_sign = same_sign(t_coeffs[2]);
         // auto t_denom_sign = same_sign(t_coeffs[3]);
 
+        // different signs: parallel vectors not possible
+        if(std::max({t_alpha_sign, t_beta_sign, t_gamma_sign}) *
+            std::min({t_alpha_sign, t_beta_sign, t_gamma_sign}) < 0)
+        {
+            continue;
+        }
+
+        // All same signs: parallel vectors possible
         if(true //s_denom_sign != 0 && t_denom_sign != 0
            && std::abs(s_alpha_sign + s_beta_sign + s_gamma_sign) == 3
            && std::abs(t_alpha_sign + t_beta_sign + t_gamma_sign) == 3)
@@ -347,24 +352,11 @@ bool eigen_dirs_queue(const TensorInterp& s,
             // continue;
         }
 
-        if(( true //s_denom_sign != 0
-                 && std::max({s_alpha_sign, s_beta_sign, s_gamma_sign}) *
-                    std::min({s_alpha_sign, s_beta_sign, s_gamma_sign}) < 0)
-            ||
-                (true // t_denom_sign != 0
-                 && std::max({t_alpha_sign, t_beta_sign, t_gamma_sign}) *
-                    std::min({t_alpha_sign, t_beta_sign, t_gamma_sign}) < 0)
-            )
-        {
-            // draw_tri(image2, frame2, tri, red, false);
-            continue;
-        }
 
-        // recursion ends when triangle is too small
+        // Small triangle and still not sure if parallel eigenvectors possible
+        // or impossible: assume yes
         if((tri.v1() - tri.v2()).norm() < epsilon)
         {
-            // Small triangle and still not sure if parallel eigenvectors
-            // possible or impossible: assume yes
             // draw_tri(image2, frame2, tri, yellow, false);
             return true;
             // found = true;
@@ -374,7 +366,7 @@ bool eigen_dirs_queue(const TensorInterp& s,
         auto tri_subs = tri.split();
         for(const auto& tri_sub: tri_subs)
         {
-            tque.push(tri_sub);
+            tstck.push(tri_sub);
         }
     }
 
@@ -408,7 +400,7 @@ point_list parallel_eigenvector_search_queue(const TensorInterp& s,
         pque.pop();
 
         // image2.fill(0);
-        auto has_dirs = eigen_dirs_queue(pack.s, pack.t, direction_epsilon);
+        auto has_dirs = eigen_dirs_stack(pack.s, pack.t, direction_epsilon);
         // image2.display();
         // if(count == 1)
         // {
@@ -440,7 +432,6 @@ point_list parallel_eigenvector_search_queue(const TensorInterp& s,
             pque.push({s_subs[i], t_subs[i], tri_subs[i]});
         }
     }
-
     return result_points;
 }
 
@@ -607,11 +598,28 @@ int main(int argc, char const *argv[])
     auto result = find_parallel_eigenvectors(s1, s2, s3, t1, t2, t3,
                                              spatial_epsilon, direction_epsilon);
 
+    // std::cout << "Number of calls to bezierCoefficients: " << call_count << std::endl;
+
     std::cout << "Found Parallel Eigenvector points:" << std::endl;
     for(const auto& p: result)
     {
         std::cout << print(p) << std::endl;
     }
+
+    auto call_avg = 0.0;
+    constexpr auto n_runs = 200;
+
+    for(auto i: range(n_runs))
+    {
+        call_count = 0;
+        find_parallel_eigenvectors(mat3d::Random(), mat3d::Random(), mat3d::Random(),
+                                   mat3d::Random(), mat3d::Random(), mat3d::Random(),
+                                   spatial_epsilon, direction_epsilon);
+        call_avg += double(call_count);
+    }
+
+    std::cout << "Average calls to bezierCoefficients: "
+              << (call_avg/n_runs) << std::endl;
 
     // image.save_png("subdivided.png");
     // frame.display(image);
