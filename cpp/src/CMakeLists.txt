@@ -15,7 +15,7 @@ if(WIN32)
     set(Boost_USE_MULTITHREADED ON)
 endif()
 
-find_package(Boost REQUIRED)
+find_package(Boost REQUIRED COMPONENTS program_options)
 if(Boost_FOUND)
     target_link_libraries(parallel_eigenvectors ${Boost_LIBRARIES})
     include_directories(SYSTEM ${Boost_INCLUDE_DIRS})

@@ -1,5 +1,18 @@
+#include "utils.hh"
+#include "BarycentricInterpolator.hh"
+
+#include <CImg.h>
+
 #include <Eigen/Core>
 #include <Eigen/LU>
+
+#include <boost/program_options.hpp>
+#include <boost/range/adaptors.hpp>
+#include <boost/algorithm/cxx11/any_of.hpp>
+#include <boost/algorithm/cxx11/all_of.hpp>
+#include <boost/range/algorithm_ext/insert.hpp>
+#include <boost/range/algorithm/max_element.hpp>
+#include <boost/range/algorithm/min_element.hpp>
 
 #include <utility>
 #include <algorithm>
@@ -10,17 +23,6 @@
 #include <queue>
 #include <iostream>
 #include <random>
-
-#include <boost/range/adaptors.hpp>
-#include <boost/algorithm/cxx11/any_of.hpp>
-#include <boost/algorithm/cxx11/all_of.hpp>
-#include <boost/range/algorithm_ext/insert.hpp>
-#include <boost/range/algorithm/max_element.hpp>
-#include <boost/range/algorithm/min_element.hpp>
-
-#include <CImg.h>
-
-#include "utils.hh"
 
 namespace peigv
 {
@@ -102,77 +104,13 @@ private:
     std::map<double, Color> colors;
 };
 
-template<typename T>
-class BarycetricInterpolator
-{
-public:
-
-    using Self = BarycetricInterpolator;
-
-    explicit BarycetricInterpolator(const T& v1 = T{},
-                                    const T& v2 = T{},
-                                    const T& v3 = T{}):
-            _v1{v1}, _v2{v2}, _v3{v3}
-    { }
-
-    /**
-     * @brief Evaluate the interpolator at a given barycentric coordinate
-     *
-     * It is assumed that pos.sum() == 1.0
-     *
-     * @param pos barycentric coordinate with three components
-     * @return Value and position on the triangle at the given barycentric coordinates
-     */
-    T operator()(const vec3d& pos) const
-    {
-        return pos[0]*_v1 + pos[1]*_v2 + pos[2]*_v3;
-    }
-
-    T& v1() { return _v1; }
-    const T& v1() const { return _v1; }
-    T& v2() { return _v2; }
-    const T& v2() const { return _v2; }
-    T& v3() { return _v3; }
-    const T& v3() const { return _v3; }
-
-    /**
-     * @brief Split the interpolator into 4 new ones representing the parts of
-     *        a subdivided triangle
-     * @return Array of four new interpolators
-     */
-    std::array<Self, 4> split() const
-    {
-        auto v12 = T{(_v1+_v2)/2};
-        auto v13 = T{(_v1+_v3)/2};
-        auto v23 = T{(_v2+_v3)/2};
-        return {
-            Self{_v1, v12, v13},
-            Self{v12, _v2, v23},
-            Self{v13, v23, _v3},
-            Self{v12, v23, v13}
-        };
-    }
-
-private:
-    T _v1;
-    T _v2;
-    T _v3;
-};
-
 using TensorInterp = BarycetricInterpolator<mat3d>;
 using Triangle = BarycetricInterpolator<vec3d>;
-
-struct SubPackage{
-    TensorInterp t;
-    TensorInterp s;
-    Triangle tri;
-};
-
-using PackQueue = std::queue<SubPackage>;
 
 std::array<vec2d, 3> project_tri(const Triangle& tri, bool topdown = true)
 {
     auto proj = Eigen::Matrix<double, 2, 3>{};
+    static const auto sqrt23 = std::sqrt(2.0)/std::sqrt(3.0);
     if(topdown)
     {
         proj << 1, 1, 0,
@@ -181,7 +119,7 @@ std::array<vec2d, 3> project_tri(const Triangle& tri, bool topdown = true)
     else
     {
         proj << 1, -1, 0,
-                -1, -1, 1;
+                -sqrt23, -sqrt23, sqrt23;
     }
     auto result = std::array<vec2d, 3>{
         proj*tri.v1(),
@@ -195,23 +133,23 @@ std::array<vec2d, 3> project_tri(const Triangle& tri, bool topdown = true)
     return result;
 }
 
-void draw_tri(CImg& image, CImgDisplay& frame,
+void draw_tri(CImg& image, CImgDisplay& /*frame*/,
               const Triangle& tri, const double* color,
               bool fill = true, bool topdown=true)
 {
     auto projected = project_tri(tri, topdown);
     if(fill)
     {
-        image.draw_triangle(projected[0].x(), projected[0].y(),
-                            projected[1].x(), projected[1].y(),
-                            projected[2].x(), projected[2].y(),
+        image.draw_triangle(int(projected[0].x()), int(projected[0].y()),
+                            int(projected[1].x()), int(projected[1].y()),
+                            int(projected[2].x()), int(projected[2].y()),
                             color);
     }
     else
     {
-        image.draw_triangle(projected[0].x(), projected[0].y(),
-                            projected[1].x(), projected[1].y(),
-                            projected[2].x(), projected[2].y(),
+        image.draw_triangle(int(projected[0].x()), int(projected[0].y()),
+                            int(projected[1].x()), int(projected[1].y()),
+                            int(projected[2].x()), int(projected[2].y()),
                             color, 1.0, 0xffffffff);
     }
     // frame.display(image);
@@ -232,9 +170,9 @@ void draw_interp_tri(CImg& image, const Triangle& tri,
     auto c2 = cmap(v2);
     auto c3 = cmap(v3);
 
-    image.draw_triangle(projected[0].x(), projected[0].y(),
-                        projected[1].x(), projected[1].y(),
-                        projected[2].x(), projected[2].y(),
+    image.draw_triangle(int(projected[0].x()), int(projected[0].y()),
+                        int(projected[1].x()), int(projected[1].y()),
+                        int(projected[2].x()), int(projected[2].y()),
                         c1.data(), c2.data(), c3.data());
 }
 
@@ -336,9 +274,9 @@ bezierCoefficients(const mat3d& t1, const mat3d& t2, const mat3d& t3,
             (mat3d{} << B.col(0), B.col(1), r2).finished(),
             (mat3d{} << C.col(0), C.col(1), r3).finished());
 
-    auto denom_coeffs = bezierCoefficients(A, B, C);
+    // auto denom_coeffs = bezierCoefficients(A, B, C);
 
-    return {alpha_coeffs, beta_coeffs, gamma_coeffs, denom_coeffs};
+    return {alpha_coeffs, beta_coeffs, gamma_coeffs}; //, denom_coeffs};
 }
 
 
@@ -353,7 +291,7 @@ bool eigen_dirs_queue(const TensorInterp& s,
     tque.push(Triangle{{-1, 0, 0}, {0, -1, 0}, {0, 0, 1}});
     tque.push(Triangle{{0, -1, 0}, {1, 0, 0}, {0, 0, 1}});
 
-    auto found = false;
+    // auto found = false;
     // auto vmin = 0.0;
     // auto vmax = 0.0;
     // auto vin = false;
@@ -392,21 +330,21 @@ bool eigen_dirs_queue(const TensorInterp& s,
         auto s_alpha_sign = same_sign(s_coeffs[0]);
         auto s_beta_sign = same_sign(s_coeffs[1]);
         auto s_gamma_sign = same_sign(s_coeffs[2]);
-        auto s_denom_sign = same_sign(s_coeffs[3]);
+        // auto s_denom_sign = same_sign(s_coeffs[3]);
 
         auto t_alpha_sign = same_sign(t_coeffs[0]);
         auto t_beta_sign = same_sign(t_coeffs[1]);
         auto t_gamma_sign = same_sign(t_coeffs[2]);
-        auto t_denom_sign = same_sign(t_coeffs[3]);
+        // auto t_denom_sign = same_sign(t_coeffs[3]);
 
         if(true //s_denom_sign != 0 && t_denom_sign != 0
            && std::abs(s_alpha_sign + s_beta_sign + s_gamma_sign) == 3
            && std::abs(t_alpha_sign + t_beta_sign + t_gamma_sign) == 3)
         {
-            draw_tri(image2, frame2, tri, green, false);
-            // return true;
-            found = true;
-            continue;
+            // draw_tri(image2, frame2, tri, green, false);
+            return true;
+            // found = true;
+            // continue;
         }
 
         if(( true //s_denom_sign != 0
@@ -418,7 +356,7 @@ bool eigen_dirs_queue(const TensorInterp& s,
                     std::min({t_alpha_sign, t_beta_sign, t_gamma_sign}) < 0)
             )
         {
-            draw_tri(image2, frame2, tri, red, false);
+            // draw_tri(image2, frame2, tri, red, false);
             continue;
         }
 
@@ -426,10 +364,11 @@ bool eigen_dirs_queue(const TensorInterp& s,
         if((tri.v1() - tri.v2()).norm() < epsilon)
         {
             // Small triangle and still not sure if parallel eigenvectors
-            // possible: assume yes
-            draw_tri(image2, frame2, tri, yellow, false);
-            found = true;
-            continue;
+            // possible or impossible: assume yes
+            // draw_tri(image2, frame2, tri, yellow, false);
+            return true;
+            // found = true;
+            // continue;
         }
 
         auto tri_subs = tri.split();
@@ -439,48 +378,55 @@ bool eigen_dirs_queue(const TensorInterp& s,
         }
     }
 
-    // return false;
-    return found;
+    return false;
+    // return found;
 }
 
 
 point_list parallel_eigenvector_search_queue(const TensorInterp& s,
                                              const TensorInterp& t,
                                              const Triangle& tri,
-                                             double epsilon)
+                                             double spatial_epsilon,
+                                             double direction_epsilon)
 {
-    auto pque = PackQueue{};
-    pque.push(SubPackage{s, t, tri});
+    struct SubPackage{
+        TensorInterp t;
+        TensorInterp s;
+        Triangle tri;
+    };
+
+    auto pque = std::queue<SubPackage>{};
+    pque.push({s, t, tri});
 
     auto result_points = point_list{};
 
-    auto count = 1;
+    // auto count = 1;
     while(!pque.empty())
     {
-        frame.display(image);
+        // frame.display(image);
         auto pack = pque.front();
         pque.pop();
 
-        image2.fill(0);
-        auto has_dirs = eigen_dirs_queue(pack.s, pack.t, epsilon);
+        // image2.fill(0);
+        auto has_dirs = eigen_dirs_queue(pack.s, pack.t, direction_epsilon);
         // image2.display();
-        if(count == 1)
-        {
-            image2.save("directions_nodenom.png", count, 6);
-        }
+        // if(count == 1)
+        // {
+        //     image2.save("directions_nodenom.png", count, 6);
+        // }
 
         // frame2.display(image2);
-        ++count;
+        // ++count;
         if(!has_dirs)
         {
-            draw_tri(image, frame, pack.tri, red, true, false);
+            // draw_tri(image, frame, pack.tri, red, false, false);
             continue;
         }
 
-        if((pack.tri.v1() - pack.tri.v2()).norm() < epsilon)
+        if((pack.tri.v1() - pack.tri.v2()).norm() < spatial_epsilon)
         {
-            draw_tri(image, frame, pack.tri, green, true, false);
-            result_points.push_back(tri({1.0/3.0, 1.0/3.0, 1.0/3.0}));
+            // draw_tri(image, frame, pack.tri, green, true, false);
+            result_points.push_back(pack.tri(1.0/3.0, 1.0/3.0, 1.0/3.0));
             continue;
         }
 
@@ -490,7 +436,7 @@ point_list parallel_eigenvector_search_queue(const TensorInterp& s,
 
         for(auto i: range(s_subs.size()))
         {
-            draw_tri(image, frame, tri_subs[i], blue, false, false);
+            // draw_tri(image, frame, tri_subs[i], blue, false, false);
             pque.push({s_subs[i], t_subs[i], tri_subs[i]});
         }
     }
@@ -502,7 +448,7 @@ point_list parallel_eigenvector_search_queue(const TensorInterp& s,
 point_list find_parallel_eigenvectors(
         const mat3d& s1, const mat3d& s2, const mat3d& s3,
         const mat3d& t1, const mat3d& t2, const mat3d& t3,
-        double epsilon)
+        double spatial_epsilon, double direction_epsilon)
 {
     auto start_tri = Triangle{
         vec3d{1, 0, 0},
@@ -510,17 +456,68 @@ point_list find_parallel_eigenvectors(
         vec3d{0, 0, 1}
     };
 
-    return parallel_eigenvector_search_queue(TensorInterp{s1, s2, s3},
-                                             TensorInterp{t1, t2, t3},
-                                             start_tri, epsilon);
+    return parallel_eigenvector_search_queue(
+            TensorInterp{s1, s2, s3}, TensorInterp{t1, t2, t3},
+            start_tri, spatial_epsilon, direction_epsilon);
 }
 
 } // namespace peigv
 
+namespace po = boost::program_options;
+
 int main(int argc, char const *argv[])
 {
     using namespace peigv;
-    auto gen = std::mt19937{7};
+
+    auto random_seed = uint32_t{7};
+    auto spatial_epsilon = 1e-3;
+    auto direction_epsilon = 1e-3;
+
+    try
+    {
+        po::options_description desc("Allowed options");
+        desc.add_options()
+        ("help,h", "produce help message")
+        ("seed,s", po::value<uint32_t>()->required()->default_value(7),
+            "Random seed for tensor generation")
+        ("spatial-epsilon,e", po::value<double>()->required()->default_value(1e-3),
+            "epsilon for spatial subdivision")
+        ("direction-epsilon,d", po::value<double>()->required()->default_value(1e-3),
+            "epsilon for directional subdivision")
+        ;
+
+        auto vm = po::variables_map{};
+        po::store(po::parse_command_line(argc, argv, desc), vm);
+
+        if(vm.empty() || vm.count("help"))
+        {
+            std::cout << desc << "\n";
+            return 0;
+        }
+
+        po::notify(vm);
+
+        random_seed = vm["seed"].as<uint32_t>();
+        spatial_epsilon = vm["spatial-epsilon"].as<double>();
+        direction_epsilon = vm["direction-epsilon"].as<double>();
+    }
+    catch (std::exception& e)
+    {
+        std::cerr << "error: " << e.what() << "\n";
+        return 1;
+    }
+    catch (...)
+    {
+        std::cerr << "Exception of unknown type!\n";
+    }
+    // good seeds:
+    // 7 (3 solutions)
+    // 9 (1 solution)
+    // 10 (3 solutions, two badly conditioned)
+    // 11 (4 solutions, all weirdly shaped)
+    // 16 (5 solutions, one a near curv shape)
+    // 20 (2 solutions, one badly conditioned)
+    auto gen = std::mt19937{random_seed};
     auto rnd = std::uniform_real_distribution<>{-1.0, 1.0};
 
     auto s1 = mat3d{};
@@ -607,9 +604,21 @@ int main(int argc, char const *argv[])
     // frame.display(image);
     // frame2.display(image2);
 
-    find_parallel_eigenvectors(s1, s2, s3, t1, t2, t3, 0.01);
+    auto result = find_parallel_eigenvectors(s1, s2, s3, t1, t2, t3,
+                                             spatial_epsilon, direction_epsilon);
 
-    image.save_png("subdivided.png");
+    std::cout << "Found Parallel Eigenvector points:" << std::endl;
+    for(const auto& p: result)
+    {
+        std::cout << print(p) << std::endl;
+    }
+
+    // image.save_png("subdivided.png");
+    // frame.display(image);
+    // while(!frame.is_closed())
+    // {
+    //     frame.wait();
+    // }
 
     // auto result = bezierCoefficients(t1, t2, t3, r1, r2, r3);
 
