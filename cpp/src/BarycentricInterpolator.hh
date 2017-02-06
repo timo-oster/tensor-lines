@@ -72,6 +72,13 @@ private:
     T _v3;
 };
 
+template<typename T>
+bool operator==(const BarycetricInterpolator<T>& b1,
+                const BarycetricInterpolator<T>& b2)
+{
+    return b1.v1() == b2.v1() && b1.v2() == b2.v2() && b1.v3() == b2.v3();
+}
+
 }
 
 #endif

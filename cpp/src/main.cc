@@ -1,12 +1,17 @@
 #include "utils.hh"
 #include "BarycentricInterpolator.hh"
 
+
+#ifdef DRAW_DEBUG
 #include <CImg.h>
+#endif
 
 #include <Eigen/Core>
 #include <Eigen/LU>
+#include <Eigen/Eigenvalues>
 
 #include <boost/program_options.hpp>
+#include <boost/range.hpp>
 #include <boost/range/adaptors.hpp>
 #include <boost/algorithm/cxx11/any_of.hpp>
 #include <boost/algorithm/cxx11/all_of.hpp>
@@ -20,6 +25,7 @@
 #include <array>
 #include <list>
 #include <map>
+#include <set>
 #include <queue>
 #include <stack>
 #include <iostream>
@@ -35,9 +41,6 @@ using bcoeffs = std::array<double, 10>;
 
 using point_list = std::list<vec3d>;
 
-using CImg = cimg_library::CImg<double>;
-using CImgDisplay = cimg_library::CImgDisplay;
-
 enum BezierIndices : int
 {
     i300 = 0,
@@ -52,6 +55,72 @@ enum BezierIndices : int
     i111
 };
 
+using TensorInterp = BarycetricInterpolator<mat3d>;
+using Triangle = BarycetricInterpolator<vec3d>;
+
+using tri_list = std::list<Triangle>;
+
+struct VecComp
+{
+    const bool operator()(const vec3d& v1, const vec3d& v2)
+    {
+        if(v1.x() == v2.x())
+        {
+            if(v1.y() == v2.y())
+            {
+                if(v1.z() == v2.z())
+                {
+                    return false;
+                }
+                return v1.z() < v2.z();
+            }
+            return v1.y() < v2.y();
+        }
+        return v1.x() < v2.x();
+    }
+};
+
+struct TriComp
+{
+    const bool operator()(const Triangle& t1, const Triangle& t2)
+    {
+        static auto vc = VecComp{};
+
+        if(t1.v1() == t2.v1())
+        {
+            if(t1.v2() == t2.v2())
+            {
+                if(t1.v3() == t2.v3())
+                {
+                    return false;
+                }
+                return vc(t1.v3(), t2.v3());
+            }
+            return vc(t1.v2(), t2.v2());
+        }
+        return vc(t1.v1(), t2.v1());
+    }
+};
+
+double distance(const Triangle& t1, const Triangle& t2)
+{
+    return std::min({
+        (t1.v1()-t2.v1()).norm(),
+        (t1.v2()-t2.v1()).norm(),
+        (t1.v3()-t2.v1()).norm(),
+        (t1.v1()-t2.v2()).norm(),
+        (t1.v2()-t2.v2()).norm(),
+        (t1.v3()-t2.v2()).norm(),
+        (t1.v1()-t2.v3()).norm(),
+        (t1.v2()-t2.v3()).norm(),
+        (t1.v3()-t2.v3()).norm()
+    });
+}
+
+#ifdef DRAW_DEBUG
+using CImg = cimg_library::CImg<double>;
+using CImgDisplay = cimg_library::CImgDisplay;
+
 CImg image(1024, 1024, 1, 3);
 CImg image2(1024, 1024, 1, 3);
 CImg alpha_image(1024, 1024, 1, 3);
@@ -64,7 +133,6 @@ const double yellow[3] = {255, 255, 0};
 const double green[3] = {0, 255, 0};
 const double blue[3] = {0.5, 255, 255};
 
-uint32_t call_count = 0;
 
 class ColorMap
 {
@@ -107,8 +175,6 @@ private:
     std::map<double, Color> colors;
 };
 
-using TensorInterp = BarycetricInterpolator<mat3d>;
-using Triangle = BarycetricInterpolator<vec3d>;
 
 std::array<vec2d, 3> project_tri(const Triangle& tri, bool topdown = true)
 {
@@ -136,6 +202,7 @@ std::array<vec2d, 3> project_tri(const Triangle& tri, bool topdown = true)
     return result;
 }
 
+
 void draw_tri(CImg& image, CImgDisplay& /*frame*/,
               const Triangle& tri, const double* color,
               bool fill = true, bool topdown=true)
@@ -158,6 +225,7 @@ void draw_tri(CImg& image, CImgDisplay& /*frame*/,
     // frame.display(image);
 }
 
+
 void draw_interp_tri(CImg& image, const Triangle& tri,
                      double v1, double v2, double v3,
                      double vmin, double vmax,
@@ -178,6 +246,83 @@ void draw_interp_tri(CImg& image, const Triangle& tri,
                         int(projected[2].x()), int(projected[2].y()),
                         c1.data(), c2.data(), c3.data());
 }
+
+#endif
+
+uint32_t call_count = 0;
+
+// Cluster all points in a list that are closer than a given distance
+std::vector<std::set<Triangle, TriComp> > cluster_tris(const tri_list& tris,
+                                                  double epsilon)
+{
+    using tri_set = std::set<Triangle, TriComp>;
+
+    auto classes = std::vector<tri_set>{};
+    for(const auto& t: tris)
+    {
+        classes.push_back({t});
+    }
+
+    auto has_close_elements = [&](const tri_set& c1, const tri_set& c2)
+    {
+        if(c1 == c2) return false;
+        for(const auto& t1: c1)
+        {
+            for(const auto& t2: c2)
+            {
+                if(distance(t1, t2) <= epsilon)
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
+    };
+
+    auto changed = true;
+    while(changed)
+    {
+        changed = false;
+        for(auto it = classes.begin(); it != classes.end(); ++it)
+        {
+            for(auto jt = it+1; jt != classes.end(); ++jt)
+            {
+                if(has_close_elements(*it, *jt))
+                {
+                    boost::range::insert(*it, *jt);
+                    jt = classes.erase(jt)-1;
+                    changed = true;
+                }
+            }
+        }
+    }
+
+    return classes;
+}
+
+// compute the minimum dot product of (normalized) eigenvectors of s and t
+// double min_eigenvector_cos(const mat3d& s, const mat3d& t)
+// {
+//     auto eigens_s = Eigen::EigenSolver<mat3d>{s};
+//     auto eigens_t = Eigen::EigenSolver<mat3d>{t};
+
+//     auto ev_s = eigens_s.eigenvalues().eval();
+//     auto ev_t = eigens_t.eigenvalues().eval();
+
+//     auto min_cos = std::numeric_limits<double>::infinity();
+//     for(auto i: range(s.cols()))
+//     {
+//         for(auto j: range(t.cols()))
+//         {
+//             if(ev_s.col(i).sum().imag() < std::numeric_limits<double>::epsilon()
+//                && ev_t.col(i).sum().imag() < std::numeric_limits<double>::epsilon())
+//             {
+//                 min_cos = std::min(min_cos, std::abs(ev_s.col(i).dot(ev_t.col(j)).real()));
+//             }
+//         }
+//     }
+//     return min_cos;
+// }
 
 // Check if all coefficients are positive or negative
 // @return 1 for all positive, -1 for all negative, 0 otherwise
@@ -295,15 +440,23 @@ bool eigen_dirs_stack(const TensorInterp& s,
     tstck.push(Triangle{{-1, 0, 0}, {0, -1, 0}, {0, 0, 1}});
     tstck.push(Triangle{{0, -1, 0}, {1, 0, 0}, {0, 0, 1}});
 
+#ifdef DRAW_DEBUG
     // auto found = false;
+#endif
     // auto vmin = 0.0;
     // auto vmax = 0.0;
     // auto vin = false;
 
     while(!tstck.empty())
     {
+#ifdef DRAW_DEBUG
+        // frame2.display(image2);
+#endif
         auto tri = tstck.top();
         tstck.pop();
+
+        // std::cout << "Checking directions between " << print(tri.v1()) <<
+        //           ", " << print(tri.v2()) << ", " << print(tri.v3()) << std::endl;
 
         // @todo: further speedup:
         // compute coefficients for alpha, beta, gamma on-demand while checking
@@ -322,6 +475,9 @@ bool eigen_dirs_stack(const TensorInterp& s,
         if(std::max({s_alpha_sign, s_beta_sign, s_gamma_sign}) *
             std::min({s_alpha_sign, s_beta_sign, s_gamma_sign}) < 0)
         {
+#ifdef DRAW_DEBUG
+            // draw_tri(image2, frame2, tri, red, false);
+#endif
             continue;
         }
 
@@ -338,6 +494,9 @@ bool eigen_dirs_stack(const TensorInterp& s,
         if(std::max({t_alpha_sign, t_beta_sign, t_gamma_sign}) *
             std::min({t_alpha_sign, t_beta_sign, t_gamma_sign}) < 0)
         {
+#ifdef DRAW_DEBUG
+            // draw_tri(image2, frame2, tri, red, false);
+#endif
             continue;
         }
 
@@ -346,10 +505,14 @@ bool eigen_dirs_stack(const TensorInterp& s,
            && std::abs(s_alpha_sign + s_beta_sign + s_gamma_sign) == 3
            && std::abs(t_alpha_sign + t_beta_sign + t_gamma_sign) == 3)
         {
-            // draw_tri(image2, frame2, tri, green, false);
+#ifdef DRAW_DEBUG
+//             draw_tri(image2, frame2, tri, green, false);
+//             found = true;
+//             continue;
             return true;
-            // found = true;
-            // continue;
+#else
+            return true;
+#endif
         }
 
 
@@ -357,29 +520,40 @@ bool eigen_dirs_stack(const TensorInterp& s,
         // or impossible: assume yes
         if((tri.v1() - tri.v2()).norm() < epsilon)
         {
-            // draw_tri(image2, frame2, tri, yellow, false);
+#ifdef DRAW_DEBUG
+//             draw_tri(image2, frame2, tri, yellow, false);
+//             found = true;
+//             continue;
             return true;
-            // found = true;
-            // continue;
+#else
+            return true;
+#endif
         }
 
         auto tri_subs = tri.split();
         for(const auto& tri_sub: tri_subs)
         {
+#ifdef DRAW_DEBUG
+            // draw_tri(image2, frame2, tri_sub, blue, false);
+#endif
             tstck.push(tri_sub);
         }
     }
 
+#ifdef DRAW_DEBUG
+//     return found;
     return false;
-    // return found;
+#else
+    return false;
+#endif
 }
 
 
-point_list parallel_eigenvector_search_queue(const TensorInterp& s,
-                                             const TensorInterp& t,
-                                             const Triangle& tri,
-                                             double spatial_epsilon,
-                                             double direction_epsilon)
+tri_list parallel_eigenvector_search_queue(const TensorInterp& s,
+                                           const TensorInterp& t,
+                                           const Triangle& tri,
+                                           double spatial_epsilon,
+                                           double direction_epsilon)
 {
     struct SubPackage{
         TensorInterp t;
@@ -390,35 +564,43 @@ point_list parallel_eigenvector_search_queue(const TensorInterp& s,
     auto pque = std::queue<SubPackage>{};
     pque.push({s, t, tri});
 
-    auto result_points = point_list{};
+    auto result_tris = tri_list{};
 
     // auto count = 1;
     while(!pque.empty())
     {
-        // frame.display(image);
+#ifdef DRAW_DEBUG
+        frame.display(image);
+#endif
         auto pack = pque.front();
         pque.pop();
 
+#ifdef DRAW_DEBUG
         // image2.fill(0);
+#endif
         auto has_dirs = eigen_dirs_stack(pack.s, pack.t, direction_epsilon);
-        // image2.display();
         // if(count == 1)
         // {
         //     image2.save("directions_nodenom.png", count, 6);
         // }
-
+#ifdef DRAW_DEBUG
         // frame2.display(image2);
+#endif
         // ++count;
         if(!has_dirs)
         {
-            // draw_tri(image, frame, pack.tri, red, false, false);
+#ifdef DRAW_DEBUG
+            draw_tri(image, frame, pack.tri, red, false, false);
+#endif
             continue;
         }
 
         if((pack.tri.v1() - pack.tri.v2()).norm() < spatial_epsilon)
         {
-            // draw_tri(image, frame, pack.tri, green, true, false);
-            result_points.push_back(pack.tri(1.0/3.0, 1.0/3.0, 1.0/3.0));
+#ifdef DRAW_DEBUG
+            draw_tri(image, frame, pack.tri, yellow, false, false);
+#endif
+            result_tris.push_back(pack.tri);
             continue;
         }
 
@@ -428,11 +610,13 @@ point_list parallel_eigenvector_search_queue(const TensorInterp& s,
 
         for(auto i: range(s_subs.size()))
         {
+#ifdef DRAW_DEBUG
             // draw_tri(image, frame, tri_subs[i], blue, false, false);
+#endif
             pque.push({s_subs[i], t_subs[i], tri_subs[i]});
         }
     }
-    return result_points;
+    return result_tris;
 }
 
 
@@ -447,9 +631,52 @@ point_list find_parallel_eigenvectors(
         vec3d{0, 0, 1}
     };
 
-    return parallel_eigenvector_search_queue(
-            TensorInterp{s1, s2, s3}, TensorInterp{t1, t2, t3},
+    auto s_interp = TensorInterp{s1, s2, s3};
+    auto t_interp = TensorInterp{t1, t2, t3};
+
+    auto tris = parallel_eigenvector_search_queue(
+            s_interp, t_interp,
             start_tri, spatial_epsilon, direction_epsilon);
+    auto clustered_tris = cluster_tris(tris, spatial_epsilon/std::sqrt(3));
+
+    auto points = point_list{};
+
+    for(const auto& c: clustered_tris)
+    {
+        // const auto* min_angle_tri = &*(c.cbegin());
+        // auto min_cos = std::numeric_limits<double>::infinity();
+        auto avg_point = vec3d{0., 0., 0.};
+        for(const auto& tri: c)
+        {
+            auto center = tri(1.0/3.0, 1.0/3.0, 1.0/3.0);
+            auto s = s_interp(center.x(), center.y(), center.z());
+            auto t = t_interp(center.x(), center.y(), center.z());
+
+            auto es = Eigen::ComplexEigenSolver<mat3d>(s).eigenvectors().eval();
+            auto et = Eigen::ComplexEigenSolver<mat3d>(t).eigenvectors().eval();
+
+            std::cout << "Position: " << print(center) << std::endl;
+            std::cout << "S: \n" << s << std::endl;
+            std::cout << "T: \n" << t << std::endl;
+            std::cout << "Eigenvectors(S): " << es << std::endl;
+            std::cout << "Eigenvectors(T): " << et << std::endl;
+
+            // compute eigenvectors of s and t and compute minimum angle
+            // auto mc = min_eigenvector_cos(s, t);
+            // if(mc < min_cos)
+            // {
+            //     min_cos = mc;
+            //     min_angle_tri = &tri;
+            // }
+            avg_point = avg_point + center;
+        }
+#ifdef DRAW_DEBUG
+        // draw_tri(image, frame, *min_angle_tri, green, true, false);
+#endif
+        // points.push_back((*min_angle_tri)(1.0/3.0, 1.0/3.0, 1.0/3.0));
+        points.push_back(avg_point/c.size());
+    }
+    return points;
 }
 
 } // namespace peigv
@@ -592,8 +819,10 @@ int main(int argc, char const *argv[])
     //          >> t3(2, 0) >> t3(2, 1) >> t3(2, 2);
     // std::cout << t3 << std::endl;
 
-    // frame.display(image);
+#ifdef DRAW_DEBUG
+    frame.display(image);
     // frame2.display(image2);
+#endif
 
     auto result = find_parallel_eigenvectors(s1, s2, s3, t1, t2, t3,
                                              spatial_epsilon, direction_epsilon);
@@ -601,25 +830,33 @@ int main(int argc, char const *argv[])
     // std::cout << "Number of calls to bezierCoefficients: " << call_count << std::endl;
 
     std::cout << "Found Parallel Eigenvector points:" << std::endl;
+
     for(const auto& p: result)
     {
         std::cout << print(p) << std::endl;
     }
 
-    auto call_avg = 0.0;
-    constexpr auto n_runs = 200;
-
-    for(auto i: range(n_runs))
+#ifdef DRAW_DEBUG
+    while(!frame.is_closed())
     {
-        call_count = 0;
-        find_parallel_eigenvectors(mat3d::Random(), mat3d::Random(), mat3d::Random(),
-                                   mat3d::Random(), mat3d::Random(), mat3d::Random(),
-                                   spatial_epsilon, direction_epsilon);
-        call_avg += double(call_count);
+        frame.wait();
     }
+#endif
 
-    std::cout << "Average calls to bezierCoefficients: "
-              << (call_avg/n_runs) << std::endl;
+    // auto call_avg = 0.0;
+    // constexpr auto n_runs = 200;
+
+    // for(auto i: range(n_runs))
+    // {
+    //     call_count = 0;
+    //     find_parallel_eigenvectors(mat3d::Random(), mat3d::Random(), mat3d::Random(),
+    //                                mat3d::Random(), mat3d::Random(), mat3d::Random(),
+    //                                spatial_epsilon, direction_epsilon);
+    //     call_avg += double(call_count);
+    // }
+
+    // std::cout << "Average calls to bezierCoefficients: "
+    //           << (call_avg/n_runs) << std::endl;
 
     // image.save_png("subdivided.png");
     // frame.display(image);

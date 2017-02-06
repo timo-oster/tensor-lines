@@ -5,6 +5,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 endif()
 
+
 find_package(Eigen3 REQUIRED)
 if(EIGEN3_FOUND)
     include_directories(${EIGEN3_INCLUDE_DIR})
@@ -25,10 +26,14 @@ if(Boost_FOUND)
     endif()
 endif()
 
-find_package(CImg REQUIRED)
-if(CIMG_FOUND)
-    include_directories(SYSTEM ${CIMG_INCLUDE_DIRS})
-    target_link_libraries(parallel_eigenvectors ${CIMG_LIBRARIES})
+option(DRAW_DEBUG "Visualize the recursion algorithm (needs CImg)" OFF)
+if(DRAW_DEBUG)
+    find_package(CImg REQUIRED)
+    if(CIMG_FOUND)
+        include_directories(SYSTEM ${CIMG_INCLUDE_DIRS})
+        target_link_libraries(parallel_eigenvectors ${CIMG_LIBRARIES})
+        target_compile_definitions(parallel_eigenvectors PRIVATE "-DDRAW_DEBUG")
+    endif()
 endif()
 
 find_package(VTK REQUIRED)
