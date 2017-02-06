@@ -1,7 +1,6 @@
 #include "utils.hh"
 #include "BarycentricInterpolator.hh"
 
-
 #ifdef DRAW_DEBUG
 #include <CImg.h>
 #endif

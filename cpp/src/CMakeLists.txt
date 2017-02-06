@@ -36,12 +36,6 @@ if(DRAW_DEBUG)
     endif()
 endif()
 
-find_package(VTK REQUIRED)
-if(VTK_FOUND)
-    include(${VTK_USE_FILE})
-    target_link_libraries(parallel_eigenvectors ${VTK_LIBRARIES})
-endif()
-
 install(TARGETS parallel_eigenvectors
     EXPORT ParallelEigenvectorsTargets
     RUNTIME DESTINATION "${INSTALL_BIN_DIR}" COMPONENT bin)
