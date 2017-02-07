@@ -1,10 +1,6 @@
 #include "utils.hh"
 #include "BarycentricInterpolator.hh"
 
-#ifdef DRAW_DEBUG
-#include <CImg.h>
-#endif
-
 #include <Eigen/Core>
 #include <Eigen/LU>
 #include <Eigen/Eigenvalues>
@@ -29,6 +25,10 @@
 #include <stack>
 #include <iostream>
 #include <random>
+
+#ifdef DRAW_DEBUG
+#include <CImg.h>
+#endif
 
 namespace peigv
 {
