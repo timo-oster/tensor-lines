@@ -66,6 +66,14 @@ public:
         };
     }
 
+    friend std::ostream& operator<<(std::ostream& out, const Self& bc)
+    {
+        out << "{" << bc._v1 << "\n\n"
+            << bc._v2 << "\n\n"
+            << bc._v3 << "}" << std::endl;
+        return out;
+    }
+
 private:
     T _v1;
     T _v2;
