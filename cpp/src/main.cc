@@ -57,9 +57,10 @@ enum BezierIndices : int
 
 using TensorInterp = BarycetricInterpolator<mat3d>;
 using Triangle = BarycetricInterpolator<vec3d>;
+using TriDir = std::pair<vec3d, Triangle>;
 
 using tri_list = std::list<Triangle>;
-using tri_dir_list = std::list< std::pair<vec3d, Triangle> >;
+using tri_dir_list = std::list<TriDir>;
 
 struct VecComp
 {
@@ -100,6 +101,15 @@ struct TriComp
             return vc(t1.v2(), t2.v2());
         }
         return vc(t1.v1(), t2.v1());
+    }
+};
+
+struct TriDirComp
+{
+    const bool operator()(const TriDir& t1, const TriDir& t2)
+    {
+        static auto tc = TriComp{};
+        return tc(t1.second, t2.second);
     }
 };
 
@@ -254,25 +264,25 @@ void draw_interp_tri(CImg& image, const Triangle& tri,
 uint32_t call_count = 0;
 
 // Cluster all points in a list that are closer than a given distance
-std::vector<std::set<Triangle, TriComp> > cluster_tris(const tri_list& tris,
-                                                  double epsilon)
+std::vector<std::set<TriDir, TriDirComp> > cluster_tris(const tri_dir_list& tris,
+                                                        double epsilon)
 {
-    using tri_set = std::set<Triangle, TriComp>;
+    using tri_dir_set = std::set<TriDir, TriDirComp>;
 
-    auto classes = std::vector<tri_set>{};
+    auto classes = std::vector<tri_dir_set>{};
     for(const auto& t: tris)
     {
         classes.push_back({t});
     }
 
-    auto has_close_elements = [&](const tri_set& c1, const tri_set& c2)
+    auto has_close_elements = [&](const tri_dir_set& c1, const tri_dir_set& c2)
     {
         if(c1 == c2) return false;
         for(const auto& t1: c1)
         {
             for(const auto& t2: c2)
             {
-                if(distance(t1, t2) <= epsilon)
+                if(distance(t1.second, t2.second) <= epsilon)
                 {
                     return true;
                 }
@@ -547,19 +557,6 @@ boost::optional<vec3d> eigen_dir_stack(const TensorInterp& s,
                       << std::endl;
 #ifdef DRAW_DEBUG
             draw_tri(image2, tri, yellow, false);
-            frame2.display(image2);
-            auto img_s = eigen_dir_stack_single(s, epsilon);
-            auto img_t = eigen_dir_stack_single(t, epsilon);
-            auto fs = CImgDisplay{img_s, "Candidate directions for S"};
-            fs.show();
-            auto ft = CImgDisplay{img_t, "Candidate directions for T"};
-            ft.show();
-
-            while(!fs.is_closed() && !ft.is_closed())
-            {
-                fs.wait();
-                ft.wait();
-            }
 //             found = true;
 //             continue;
             return tri(1./3., 1./3., 1./3.);
@@ -691,8 +688,7 @@ point_list find_parallel_eigenvectors(
     auto tris = parallel_eigenvector_search_queue(
             s_interp, t_interp,
             start_tri, spatial_epsilon, direction_epsilon);
-    auto trilist = tri_list{};
-    auto clustered_tris = cluster_tris(trilist, spatial_epsilon/std::sqrt(3));
+    auto clustered_tris = cluster_tris(tris, spatial_epsilon/std::sqrt(3));
 
     auto points = point_list{};
 
@@ -700,21 +696,11 @@ point_list find_parallel_eigenvectors(
     {
         const auto* min_angle_tri = &*(c.cbegin());
         auto max_cos = 0.0;
-        // auto avg_point = vec3d{0., 0., 0.};
         for(const auto& tri: c)
         {
-            auto center = tri(1.0/3.0, 1.0/3.0, 1.0/3.0);
+            auto center = tri.second(1.0/3.0, 1.0/3.0, 1.0/3.0);
             auto s = s_interp(center.x(), center.y(), center.z());
             auto t = t_interp(center.x(), center.y(), center.z());
-
-            // auto es = Eigen::ComplexEigenSolver<mat3d>(s).eigenvectors().eval();
-            // auto et = Eigen::ComplexEigenSolver<mat3d>(t).eigenvectors().eval();
-
-            std::cout << "Position: " << print(center) << std::endl;
-            // std::cout << "S: \n" << s << std::endl;
-            // std::cout << "T: \n" << t << std::endl;
-            // std::cout << "Eigenvectors(S): \n" << es << std::endl;
-            // std::cout << "Eigenvectors(T): \n" << et << std::endl;
 
             // compute eigenvectors of s and t and compute minimum angle
             auto mc = max_eigenvector_cos(s, t);
@@ -727,11 +713,11 @@ point_list find_parallel_eigenvectors(
         }
         // std::cout << "Representative triangle: \n" << *min_angle_tri << std::endl;
 #ifdef DRAW_DEBUG
-        draw_tri(image, *min_angle_tri, green, true, false);
+        draw_tri(image, min_angle_tri->second, green, true, false);
         frame.display(image);
 #endif
         // todo: test if really parallel (by multiplying the direction with both tensors)
-        points.push_back((*min_angle_tri)(1.0/3.0, 1.0/3.0, 1.0/3.0));
+        points.push_back((min_angle_tri->second)(1.0/3.0, 1.0/3.0, 1.0/3.0));
         // points.push_back(avg_point/c.size());
     }
     return points;
