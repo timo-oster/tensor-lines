@@ -3,7 +3,7 @@
 
 #include <array>
 
-#include <utils.hh>
+#include "utils.hh"
 
 namespace peigv
 {
@@ -39,6 +39,11 @@ public:
     T operator()(double a, double b, double c) const
     {
         return a*_v1 + b*_v2 + c*_v3;
+    }
+
+    T operator()(const vec3d& pos) const
+    {
+        return pos.x()*_v1 + pos.y()*_v2 + pos.z()*_v3;
     }
 
     T& v1() { return _v1; }

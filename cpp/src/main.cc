@@ -57,10 +57,10 @@ enum BezierIndices : int
 
 using TensorInterp = BarycetricInterpolator<mat3d>;
 using Triangle = BarycetricInterpolator<vec3d>;
-using TriDir = std::pair<vec3d, Triangle>;
+using TriPair = std::pair<Triangle, Triangle>;
 
 using tri_list = std::list<Triangle>;
-using tri_dir_list = std::list<TriDir>;
+using tri_pair_list = std::list<TriPair>;
 
 struct VecComp
 {
@@ -104,9 +104,9 @@ struct TriComp
     }
 };
 
-struct TriDirComp
+struct TriPairComp
 {
-    const bool operator()(const TriDir& t1, const TriDir& t2)
+    const bool operator()(const TriPair& t1, const TriPair& t2)
     {
         static auto tc = TriComp{};
         return tc(t1.second, t2.second);
@@ -140,9 +140,10 @@ CImgDisplay frame2{};
 CImgDisplay frame3{};
 
 const double red[3] = {255, 0, 0};
-const double yellow[3] = {255, 200, 0};
+const double yellow[3] = {255, 127, 0};
 const double green[3] = {0, 255, 0};
 const double blue[3] = {128, 255, 255};
+const double dark_blue[3] = {0, 0, 255};
 const double white[3] = {255, 255, 255};
 
 
@@ -237,6 +238,20 @@ void draw_tri(CImg& image,
     // frame.display(image);
 }
 
+void draw_cross(CImg& image,
+                const vec3d& pos, const double* color,
+                bool topdown=true)
+{
+    static const auto size = 5;
+    auto projected = project_tri(Triangle{pos, pos, pos}, topdown);
+    image.draw_line(int(projected[0].x())-size, int(projected[0].y()),
+                    int(projected[0].x())+size, int(projected[0].y()),
+                    color);
+    image.draw_line(int(projected[0].x()), int(projected[0].y()-size),
+                    int(projected[0].x()), int(projected[0].y()+size),
+                    color);
+}
+
 
 void draw_interp_tri(CImg& image, const Triangle& tri,
                      double v1, double v2, double v3,
@@ -264,10 +279,10 @@ void draw_interp_tri(CImg& image, const Triangle& tri,
 uint32_t call_count = 0;
 
 // Cluster all points in a list that are closer than a given distance
-std::vector<std::set<TriDir, TriDirComp> > cluster_tris(const tri_dir_list& tris,
+std::vector<std::set<TriPair, TriPairComp> > cluster_tris(const tri_pair_list& tris,
                                                         double epsilon)
 {
-    using tri_dir_set = std::set<TriDir, TriDirComp>;
+    using tri_dir_set = std::set<TriPair, TriPairComp>;
 
     auto classes = std::vector<tri_dir_set>{};
     for(const auto& t: tris)
@@ -452,9 +467,9 @@ bezierCoefficients(const mat3d& t1, const mat3d& t2, const mat3d& t3,
 }
 
 
-boost::optional<vec3d> eigen_dir_stack(const TensorInterp& s,
-                                       const TensorInterp& t,
-                                       double epsilon)
+boost::optional<Triangle> eigen_dir_stack(const TensorInterp& s,
+                                          const TensorInterp& t,
+                                          double epsilon)
 {
     auto tstck = std::stack<Triangle>{};
 
@@ -533,9 +548,9 @@ boost::optional<vec3d> eigen_dir_stack(const TensorInterp& s,
             draw_tri(image2, tri, green, false);
 //             found = true;
 //             continue;
-            return tri(1./3., 1./3., 1./3.);
+            return tri;
 #else
-            return tri(1./3., 1./3., 1./3.);
+            return tri;
 #endif
         }
 
@@ -544,24 +559,24 @@ boost::optional<vec3d> eigen_dir_stack(const TensorInterp& s,
         // or impossible: assume yes
         if((tri.v1() - tri.v2()).norm() < epsilon)
         {
-            std::cout << "terminating because of too small triangle\n"
-                      << "Direction: " << print(tri(1./3., 1./3., 1./3.).normalized())
-                      << "\ns_alpha: " << s_alpha_sign
-                      << "\ns_beta: " << s_beta_sign
-                      << "\ns_gamma: " << s_gamma_sign
-                      << "\ns_denom: " << s_denom_sign
-                      << "\nt_alpha: " << t_alpha_sign
-                      << "\nt_beta: " << t_beta_sign
-                      << "\nt_gamma: " << t_gamma_sign
-                      << "\nt_denom: " << t_denom_sign
-                      << std::endl;
+            // std::cout << "terminating because of too small triangle\n"
+            //           << "Direction: " << print(tri(1./3., 1./3., 1./3.).normalized())
+            //           << "\ns_alpha: " << s_alpha_sign
+            //           << "\ns_beta: " << s_beta_sign
+            //           << "\ns_gamma: " << s_gamma_sign
+            //           << "\ns_denom: " << s_denom_sign
+            //           << "\nt_alpha: " << t_alpha_sign
+            //           << "\nt_beta: " << t_beta_sign
+            //           << "\nt_gamma: " << t_gamma_sign
+            //           << "\nt_denom: " << t_denom_sign
+            //           << std::endl;
 #ifdef DRAW_DEBUG
             draw_tri(image2, tri, yellow, false);
 //             found = true;
 //             continue;
-            return tri(1./3., 1./3., 1./3.);
+            return tri;
 #else
-            return tri(1./3., 1./3., 1./3.);
+            return tri;
 #endif
         }
 
@@ -569,7 +584,7 @@ boost::optional<vec3d> eigen_dir_stack(const TensorInterp& s,
         for(const auto& tri_sub: tri_subs)
         {
 #ifdef DRAW_DEBUG
-            draw_tri(image2, tri_sub, blue, false);
+            // draw_tri(image2, tri_sub, blue, false);
 #endif
             tstck.push(tri_sub);
         }
@@ -584,11 +599,11 @@ boost::optional<vec3d> eigen_dir_stack(const TensorInterp& s,
 }
 
 
-tri_dir_list parallel_eigenvector_search_queue(const TensorInterp& s,
-                                               const TensorInterp& t,
-                                               const Triangle& tri,
-                                               double spatial_epsilon,
-                                               double direction_epsilon)
+tri_pair_list parallel_eigenvector_search_queue(const TensorInterp& s,
+                                                const TensorInterp& t,
+                                                const Triangle& tri,
+                                                double spatial_epsilon,
+                                                double direction_epsilon)
 {
     struct SubPackage{
         TensorInterp s;
@@ -599,7 +614,7 @@ tri_dir_list parallel_eigenvector_search_queue(const TensorInterp& s,
     auto pque = std::queue<SubPackage>{};
     pque.push({s, t, tri});
 
-    auto result = tri_dir_list{};
+    auto result = tri_pair_list{};
 
     // auto count = 1;
     while(!pque.empty())
@@ -608,7 +623,7 @@ tri_dir_list parallel_eigenvector_search_queue(const TensorInterp& s,
         pque.pop();
 
 #ifdef DRAW_DEBUG
-        draw_tri(image, pack.tri, white, false, false);
+        // draw_tri(image, pack.tri, white, false, false);
         frame.display(image);
 #endif
         auto dir = eigen_dir_stack(pack.s, pack.t, direction_epsilon);
@@ -651,7 +666,7 @@ tri_dir_list parallel_eigenvector_search_queue(const TensorInterp& s,
 #ifdef DRAW_DEBUG
             draw_tri(image, pack.tri, yellow, false, false);
 #endif
-            result.push_back(std::make_pair(dir.value().normalized(), pack.tri));
+            result.push_back(std::make_pair(dir.value(), pack.tri));
             continue;
         }
 
@@ -662,7 +677,7 @@ tri_dir_list parallel_eigenvector_search_queue(const TensorInterp& s,
         for(auto i: range(s_subs.size()))
         {
 #ifdef DRAW_DEBUG
-            draw_tri(image, tri_subs[i], blue, false, false);
+            // draw_tri(image, tri_subs[i], blue, false, false);
 #endif
             pque.push({s_subs[i], t_subs[i], tri_subs[i]});
         }
@@ -694,31 +709,116 @@ point_list find_parallel_eigenvectors(
 
     for(const auto& c: clustered_tris)
     {
+        std::cout << "\nNew Cluster" << std::endl;
+        std::cout << "===========" << std::endl;
         const auto* min_angle_tri = &*(c.cbegin());
-        auto max_cos = 0.0;
+        auto min_sin = 1.0;
         for(const auto& tri: c)
         {
+            auto img = CImg(1024, 1024, 1, 3);
+            img.fill(0);
+
+            auto samples = std::vector<vec3d>{
+                {1, 0, 0},
+                {0, 1, 0},
+                {0, 0, 1},
+                {0.5, 0.5, 0},
+                {0, 0.5, 0.5},
+                {0.5, 0, 0.5},
+                {1./3., 1./3., 1./3.}
+            };
+
+            draw_cross(img, tri.first(1.0/3.0, 1.0/3.0, 1.0/3.0), blue, true);
+
+            for(const auto& v: samples)
+            {
+                auto pos = tri.second(v);
+                auto s = s_interp(pos);
+                auto t = t_interp(pos);
+                for(const auto& w: samples)
+                {
+                    auto dir = tri.first(w);
+                    auto sr = (s * dir).normalized().eval();
+                    sr = sr.z() > 0 ? (sr/sr.cwiseAbs().sum()).eval() : (-sr/sr.cwiseAbs().sum()).eval();
+                    draw_cross(img, sr, red, true);
+                    auto tr = (t * dir).normalized().eval();
+                    tr = tr.z() > 0 ? (tr/tr.cwiseAbs().sum()).eval() : (-tr/tr.cwiseAbs().sum()).eval();
+                    draw_cross(img, tr, green, true);
+                }
+            }
+
             auto center = tri.second(1.0/3.0, 1.0/3.0, 1.0/3.0);
+            auto dir = tri.first(1.0/3.0, 1.0/3.0, 1.0/3.0);
             auto s = s_interp(center.x(), center.y(), center.z());
             auto t = t_interp(center.x(), center.y(), center.z());
 
+            auto sr = (s * dir).normalized().eval();
+            sr = sr.z() > 0 ? (sr/sr.cwiseAbs().sum()).eval() : (-sr/sr.cwiseAbs().sum()).eval();
+            auto tr = (t * dir).normalized().eval();
+            tr = tr.z() > 0 ? (tr/tr.cwiseAbs().sum()).eval() : (-tr/tr.cwiseAbs().sum()).eval();
+
+            std::cout << "Position: " << print(center) << std::endl;
+            std::cout << "Eigenvector direction: " << print(dir.normalized()) << std::endl;
+            std::cout << "S*r: " << print(sr.normalized()) << std::endl;
+            std::cout << "T*r: " << print(tr.normalized()) << std::endl;
+            std::cout << "sin(angle): " << sr.normalized().cross(tr.normalized()).norm() << std::endl;
+
+            // draw_cross(img, dir, blue, true);
+
+            // auto s1r = (s_interp(tri.second.v1()) * dir).eval();
+            // s1r = s1r.z() < 0 ? (-s1r/s1r.cwiseAbs().sum()).eval() : (s1r/s1r.cwiseAbs().sum()).eval();
+            // auto s2r = (s_interp(tri.second.v2()) * dir).eval();
+            // s2r = s2r.z() < 0 ? (-s2r/s2r.cwiseAbs().sum()).eval() : (s2r/s2r.cwiseAbs().sum()).eval();
+            // auto s3r = (s_interp(tri.second.v3()) * dir).eval();
+            // s3r = s3r.z() < 0 ? (-s3r/s3r.cwiseAbs().sum()).eval() : (s3r/s3r.cwiseAbs().sum()).eval();
+
+            // draw_tri(img, Triangle{s1r, s2r, s3r}, red, true, true);
+
+            // auto t1r = (t_interp(tri.second.v1()) * dir).eval();
+            // t1r = t1r.z() < 0 ? (-t1r/t1r.cwiseAbs().sum()).eval() : (t1r/t1r.cwiseAbs().sum()).eval();
+            // auto t2r = (t_interp(tri.second.v2()) * dir).eval();
+            // t2r = t2r.z() < 0 ? (-t2r/t2r.cwiseAbs().sum()).eval() : (t2r/t2r.cwiseAbs().sum()).eval();
+            // auto t3r = (t_interp(tri.second.v3()) * dir).eval();
+            // t3r = t3r.z() < 0 ? (-t3r/t3r.cwiseAbs().sum()).eval() : (t3r/t3r.cwiseAbs().sum()).eval();
+
+            // draw_tri(img, Triangle{t1r, t2r, t3r}, green, true, true);
+
+            // draw_cross(img, sr, red, true);
+            // draw_cross(img, tr, green, true);
+
+
+
+            img.display("", false);
+
             // compute eigenvectors of s and t and compute minimum angle
-            auto mc = max_eigenvector_cos(s, t);
-            if(mc > max_cos)
+            auto ms = std::abs(sr.normalized().cross(tr.normalized()).norm());
+            if(ms > direction_epsilon*2)
             {
-                max_cos = mc;
+#ifdef DRAW_DEBUG
+                draw_tri(image, tri.second, red, true, false);
+                frame.display(image);
+#endif
+                continue;
+            }
+            if(ms > min_sin)
+            {
+                min_sin = ms;
                 min_angle_tri = &tri;
             }
             // avg_point = avg_point + center;
         }
         // std::cout << "Representative triangle: \n" << *min_angle_tri << std::endl;
+        if(min_sin < 1.)
+        {
 #ifdef DRAW_DEBUG
-        draw_tri(image, min_angle_tri->second, green, true, false);
-        frame.display(image);
+            draw_tri(image, min_angle_tri->second, green, true, false);
+            draw_cross(image, min_angle_tri->second(1./3., 1./3., 1./3.), green, false);
+            frame.display(image);
 #endif
         // todo: test if really parallel (by multiplying the direction with both tensors)
-        points.push_back((min_angle_tri->second)(1.0/3.0, 1.0/3.0, 1.0/3.0));
+            points.push_back((min_angle_tri->second)(1.0/3.0, 1.0/3.0, 1.0/3.0));
         // points.push_back(avg_point/c.size());
+        }
     }
     return points;
 }
@@ -779,6 +879,9 @@ int main(int argc, char const *argv[])
     // 11 (4 solutions, all weirdly shaped)
     // 16 (5 solutions, one a near curv shape)
     // 20 (2 solutions, one badly conditioned)
+    // 24 (2 solutions, 2 others come close to parallel but not enough (0.99))
+    // 29 (no solutions, but one comes very close)
+    // 37 (4 solutions, some line structures)
     auto gen = std::mt19937{random_seed};
     auto rnd = std::uniform_real_distribution<>{-1.0, 1.0};
 
