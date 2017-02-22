@@ -135,9 +135,9 @@ using CImgDisplay = cimg_library::CImgDisplay;
 CImg image(1024, 1024, 1, 3);
 CImg image2(1024, 1024, 1, 3);
 CImg image3(1024, 1024, 1, 3);
-CImgDisplay frame{};
-CImgDisplay frame2{};
-CImgDisplay frame3{};
+CImgDisplay frame{image.width(), image.height()};
+CImgDisplay frame2{image2.width(), image2.height()};
+CImgDisplay frame3{image3.width(), image3.height()};
 
 const double red[3] = {255, 0, 0};
 const double yellow[3] = {255, 127, 0};
@@ -210,7 +210,7 @@ std::array<vec2d, 3> project_tri(const Triangle& tri, bool topdown = true)
     };
     for(auto& p: result)
     {
-        p = (p * 511) + vec2d(image.width()/2, image.height()/2);
+        p = (p * image.width()/2) + vec2d(image.width()/2, image.height()/2);
     }
     return result;
 }
@@ -242,7 +242,7 @@ void draw_cross(CImg& image,
                 const vec3d& pos, const double* color,
                 bool topdown=true)
 {
-    static const auto size = 5;
+    static const auto size = 10;
     auto projected = project_tri(Triangle{pos, pos, pos}, topdown);
     image.draw_line(int(projected[0].x())-size, int(projected[0].y()),
                     int(projected[0].x())+size, int(projected[0].y()),
@@ -624,7 +624,8 @@ tri_pair_list parallel_eigenvector_search_queue(const TensorInterp& s,
 
 #ifdef DRAW_DEBUG
         // draw_tri(image, pack.tri, white, false, false);
-        frame.display(image);
+        // frame.show();
+        // frame.display(image);
 #endif
         auto dir = eigen_dir_stack(pack.s, pack.t, direction_epsilon);
         // if(count == 1)
@@ -715,92 +716,54 @@ point_list find_parallel_eigenvectors(
         auto min_sin = 1.0;
         for(const auto& tri: c)
         {
-            auto img = CImg(1024, 1024, 1, 3);
-            img.fill(0);
-
-            auto samples = std::vector<vec3d>{
-                {1, 0, 0},
-                {0, 1, 0},
-                {0, 0, 1},
-                {0.5, 0.5, 0},
-                {0, 0.5, 0.5},
-                {0.5, 0, 0.5},
-                {1./3., 1./3., 1./3.}
-            };
-
-            draw_cross(img, tri.first(1.0/3.0, 1.0/3.0, 1.0/3.0), blue, true);
-
-            for(const auto& v: samples)
-            {
-                auto pos = tri.second(v);
-                auto s = s_interp(pos);
-                auto t = t_interp(pos);
-                for(const auto& w: samples)
-                {
-                    auto dir = tri.first(w);
-                    auto sr = (s * dir).normalized().eval();
-                    sr = sr.z() > 0 ? (sr/sr.cwiseAbs().sum()).eval() : (-sr/sr.cwiseAbs().sum()).eval();
-                    draw_cross(img, sr, red, true);
-                    auto tr = (t * dir).normalized().eval();
-                    tr = tr.z() > 0 ? (tr/tr.cwiseAbs().sum()).eval() : (-tr/tr.cwiseAbs().sum()).eval();
-                    draw_cross(img, tr, green, true);
-                }
-            }
-
+            auto dir = tri.first(1./3., 1./3., 1./3.);
             auto center = tri.second(1.0/3.0, 1.0/3.0, 1.0/3.0);
-            auto dir = tri.first(1.0/3.0, 1.0/3.0, 1.0/3.0);
             auto s = s_interp(center.x(), center.y(), center.z());
             auto t = t_interp(center.x(), center.y(), center.z());
 
-            auto sr = (s * dir).normalized().eval();
-            sr = sr.z() > 0 ? (sr/sr.cwiseAbs().sum()).eval() : (-sr/sr.cwiseAbs().sum()).eval();
-            auto tr = (t * dir).normalized().eval();
-            tr = tr.z() > 0 ? (tr/tr.cwiseAbs().sum()).eval() : (-tr/tr.cwiseAbs().sum()).eval();
+                        auto norm_dir = [](const vec3d& dir)
+            {
+                return dir.z() > 0 ? (dir/dir.cwiseAbs().sum()).eval() :
+                                     (-dir/dir.cwiseAbs().sum()).eval();
+            };
+
+            auto sr = norm_dir(s * dir);
+            auto tr = norm_dir(t * dir);
+
+            // compute eigenvectors of s and t and compute minimum angle
+            auto ms = sr.normalized().cross(dir.normalized()).squaredNorm()
+                      + tr.normalized().cross(dir.normalized()).squaredNorm();
 
             std::cout << "Position: " << print(center) << std::endl;
             std::cout << "Eigenvector direction: " << print(dir.normalized()) << std::endl;
             std::cout << "S*r: " << print(sr.normalized()) << std::endl;
             std::cout << "T*r: " << print(tr.normalized()) << std::endl;
-            std::cout << "sin(angle): " << sr.normalized().cross(tr.normalized()).norm() << std::endl;
+            std::cout << "sin(angle): " << std::sqrt(ms) << std::endl;
 
-            // draw_cross(img, dir, blue, true);
+            auto tri_s = Triangle{norm_dir(s_interp(tri.second.v1()) * dir),
+                                  norm_dir(s_interp(tri.second.v2()) * dir),
+                                  norm_dir(s_interp(tri.second.v3()) * dir)};
 
-            // auto s1r = (s_interp(tri.second.v1()) * dir).eval();
-            // s1r = s1r.z() < 0 ? (-s1r/s1r.cwiseAbs().sum()).eval() : (s1r/s1r.cwiseAbs().sum()).eval();
-            // auto s2r = (s_interp(tri.second.v2()) * dir).eval();
-            // s2r = s2r.z() < 0 ? (-s2r/s2r.cwiseAbs().sum()).eval() : (s2r/s2r.cwiseAbs().sum()).eval();
-            // auto s3r = (s_interp(tri.second.v3()) * dir).eval();
-            // s3r = s3r.z() < 0 ? (-s3r/s3r.cwiseAbs().sum()).eval() : (s3r/s3r.cwiseAbs().sum()).eval();
+            auto tri_t = Triangle{norm_dir(t_interp(tri.second.v1()) * dir),
+                                  norm_dir(t_interp(tri.second.v2()) * dir),
+                                  norm_dir(t_interp(tri.second.v3()) * dir)};
 
-            // draw_tri(img, Triangle{s1r, s2r, s3r}, red, true, true);
+            // check if the original direction is inside the triangle
+            auto mat_s = mat3d{};
+            mat_s << tri_s.v1(), tri_s.v2(), tri_s.v3();
+            auto coords_s = mat_s.jacobiSvd(Eigen::ComputeFullU|Eigen::ComputeFullV)
+                                 .solve(dir).eval();
 
-            // auto t1r = (t_interp(tri.second.v1()) * dir).eval();
-            // t1r = t1r.z() < 0 ? (-t1r/t1r.cwiseAbs().sum()).eval() : (t1r/t1r.cwiseAbs().sum()).eval();
-            // auto t2r = (t_interp(tri.second.v2()) * dir).eval();
-            // t2r = t2r.z() < 0 ? (-t2r/t2r.cwiseAbs().sum()).eval() : (t2r/t2r.cwiseAbs().sum()).eval();
-            // auto t3r = (t_interp(tri.second.v3()) * dir).eval();
-            // t3r = t3r.z() < 0 ? (-t3r/t3r.cwiseAbs().sum()).eval() : (t3r/t3r.cwiseAbs().sum()).eval();
+            if(coords_s.cwiseSign().sum() != 3) continue;
 
-            // draw_tri(img, Triangle{t1r, t2r, t3r}, green, true, true);
+            auto mat_t = mat3d{};
+            mat_t << tri_t.v1(), tri_t.v2(), tri_t.v3();
+            auto coords_t = mat_t.jacobiSvd(Eigen::ComputeFullU|Eigen::ComputeFullV)
+                                 .solve(dir).eval();
 
-            // draw_cross(img, sr, red, true);
-            // draw_cross(img, tr, green, true);
+            if(coords_t.cwiseSign().sum() != 3) continue;
 
-
-
-            img.display("", false);
-
-            // compute eigenvectors of s and t and compute minimum angle
-            auto ms = std::abs(sr.normalized().cross(tr.normalized()).norm());
-            if(ms > direction_epsilon*2)
-            {
-#ifdef DRAW_DEBUG
-                draw_tri(image, tri.second, red, true, false);
-                frame.display(image);
-#endif
-                continue;
-            }
-            if(ms > min_sin)
+            if(ms < min_sin)
             {
                 min_sin = ms;
                 min_angle_tri = &tri;
@@ -830,6 +793,10 @@ namespace po = boost::program_options;
 int main(int argc, char const *argv[])
 {
     using namespace peigv;
+
+    frame.close();
+    frame2.close();
+    frame3.close();
 
     auto random_seed = uint32_t{7};
     auto spatial_epsilon = 1e-3;
@@ -967,6 +934,7 @@ int main(int argc, char const *argv[])
     // std::cout << t3 << std::endl;
 
 #ifdef DRAW_DEBUG
+    frame.show();
     frame.display(image);
     // frame2.display(image2);
 #endif
@@ -987,6 +955,7 @@ int main(int argc, char const *argv[])
     //                         spatial_epsilon, direction_epsilon);
 
 #ifdef DRAW_DEBUG
+    frame.show();
     while(!frame.is_closed())
     {
         frame.wait();
