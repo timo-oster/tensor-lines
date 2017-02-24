@@ -13,8 +13,8 @@
 
 namespace peigv
 {
-using vec3d      = Eigen::Vector3d;
-
+using vec3d = Eigen::Vector3d;
+using mat3d = Eigen::Matrix3d;
 
 struct MinNotZero{
     template<typename T>
