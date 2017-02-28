@@ -121,81 +121,6 @@ double distance(const Triangle& t1, const Triangle& t2)
     });
 }
 
-#ifdef DRAW_DEBUG
-
-const double red[3] = {255, 0, 0};
-const double yellow[3] = {255, 127, 0};
-const double green[3] = {0, 255, 0};
-const double blue[3] = {128, 255, 255};
-const double dark_blue[3] = {0, 0, 255};
-const double white[3] = {255, 255, 255};
-
-
-std::array<vec2d, 3> project_tri(const Triangle& tri, bool topdown = true)
-{
-    auto proj = Eigen::Matrix<double, 2, 3>{};
-    static const auto sqrt23 = std::sqrt(2.0)/std::sqrt(3.0);
-    if(topdown)
-    {
-        proj << 1, 1, 0,
-                1, -1, 0;
-    }
-    else
-    {
-        proj << 1, -1, 0,
-                -sqrt23, -sqrt23, sqrt23;
-    }
-    auto result = std::array<vec2d, 3>{
-        proj*tri.v1(),
-        proj*tri.v2(),
-        proj*tri.v3()
-    };
-    for(auto& p: result)
-    {
-        p = (p * image.width()/2) + vec2d(image.width()/2, image.height()/2);
-    }
-    return result;
-}
-
-
-void draw_tri(CImg& image,
-              const Triangle& tri, const double* color,
-              bool fill = true, bool topdown=true)
-{
-    auto projected = project_tri(tri, topdown);
-    if(fill)
-    {
-        image.draw_triangle(int(projected[0].x()), int(projected[0].y()),
-                            int(projected[1].x()), int(projected[1].y()),
-                            int(projected[2].x()), int(projected[2].y()),
-                            color);
-    }
-    else
-    {
-        image.draw_triangle(int(projected[0].x()), int(projected[0].y()),
-                            int(projected[1].x()), int(projected[1].y()),
-                            int(projected[2].x()), int(projected[2].y()),
-                            color, 1.0, 0xffffffff);
-    }
-}
-
-
-void draw_cross(CImg& image,
-                const vec3d& pos, const double* color,
-                bool topdown=true)
-{
-    static const auto size = 10;
-    auto projected = project_tri(Triangle{pos, pos, pos}, topdown);
-    image.draw_line(int(projected[0].x())-size, int(projected[0].y()),
-                    int(projected[0].x())+size, int(projected[0].y()),
-                    color);
-    image.draw_line(int(projected[0].x()), int(projected[0].y()-size),
-                    int(projected[0].x()), int(projected[0].y()+size),
-                    color);
-}
-
-#endif
-
 
 // Cluster all points in a list that are closer than a given distance
 std::vector<std::set<TriPair, TriPairComp> >
@@ -270,43 +195,43 @@ bcoeffs bezierCoefficients(const mat3d& A,
     result[i030] = B.determinant();
     result[i003] = C.determinant();
 
-    result[i210] = 1.0 / 3.0 * (
+    result[i210] = 1. / 3. * (
               (mat3d{} << B.col(0), A.col(1), A.col(2)).finished().determinant()
             + (mat3d{} << A.col(0), B.col(1), A.col(2)).finished().determinant()
             + (mat3d{} << A.col(0), A.col(1), B.col(2)).finished().determinant()
             );
 
-    result[i201] = 1.0 / 3.0 * (
+    result[i201] = 1. / 3. * (
               (mat3d{} << C.col(0), A.col(1), A.col(2)).finished().determinant()
             + (mat3d{} << A.col(0), C.col(1), A.col(2)).finished().determinant()
             + (mat3d{} << A.col(0), A.col(1), C.col(2)).finished().determinant()
             );
 
-    result[i120] = 1.0 / 3.0 * (
+    result[i120] = 1. / 3. * (
               (mat3d{} << A.col(0), B.col(1), B.col(2)).finished().determinant()
             + (mat3d{} << B.col(0), A.col(1), B.col(2)).finished().determinant()
             + (mat3d{} << B.col(0), B.col(1), A.col(2)).finished().determinant()
             );
 
-    result[i021] = 1.0 / 3.0 * (
+    result[i021] = 1. / 3. * (
               (mat3d{} << C.col(0), B.col(1), B.col(2)).finished().determinant()
             + (mat3d{} << B.col(0), C.col(1), B.col(2)).finished().determinant()
             + (mat3d{} << B.col(0), B.col(1), C.col(2)).finished().determinant()
             );
 
-    result[i102] = 1.0 / 3.0 * (
+    result[i102] = 1. / 3. * (
               (mat3d{} << A.col(0), C.col(1), C.col(2)).finished().determinant()
             + (mat3d{} << C.col(0), A.col(1), C.col(2)).finished().determinant()
             + (mat3d{} << C.col(0), C.col(1), A.col(2)).finished().determinant()
             );
 
-    result[i012] = 1.0 / 3.0 * (
+    result[i012] = 1. / 3. * (
               (mat3d{} << B.col(0), C.col(1), C.col(2)).finished().determinant()
             + (mat3d{} << C.col(0), B.col(1), C.col(2)).finished().determinant()
             + (mat3d{} << C.col(0), C.col(1), B.col(2)).finished().determinant()
             );
 
-    result[i111] = 1.0 / 6.0 * (
+    result[i111] = 1. / 6. * (
               (mat3d{} << A.col(0), B.col(1), C.col(2)).finished().determinant()
             + (mat3d{} << A.col(0), C.col(1), B.col(2)).finished().determinant()
             + (mat3d{} << B.col(0), A.col(1), C.col(2)).finished().determinant()
@@ -364,19 +289,8 @@ boost::optional<Triangle> eigen_dir_stack(const TensorInterp& s,
     tstck.push(Triangle{{-1, 0, 0}, {0, -1, 0}, {0, 0, 1}});
     tstck.push(Triangle{{0, -1, 0}, {1, 0, 0}, {0, 0, 1}});
 
-#ifdef DRAW_DEBUG
-    // auto found = false;
-    // image2.fill(0);
-#endif
-    // auto vmin = 0.0;
-    // auto vmax = 0.0;
-    // auto vin = false;
-
     while(!tstck.empty())
     {
-#ifdef DRAW_DEBUG
-        // frame2.display(image2);
-#endif
         auto tri = tstck.top();
         tstck.pop();
 
@@ -396,9 +310,6 @@ boost::optional<Triangle> eigen_dir_stack(const TensorInterp& s,
         if(std::max({s_alpha_sign, s_beta_sign, s_gamma_sign}) *
             std::min({s_alpha_sign, s_beta_sign, s_gamma_sign}) < 0)
         {
-#ifdef DRAW_DEBUG
-            // draw_tri(image2, tri, red, false);
-#endif
             continue;
         }
 
@@ -414,9 +325,6 @@ boost::optional<Triangle> eigen_dir_stack(const TensorInterp& s,
         if(std::max({t_alpha_sign, t_beta_sign, t_gamma_sign}) *
             std::min({t_alpha_sign, t_beta_sign, t_gamma_sign}) < 0)
         {
-#ifdef DRAW_DEBUG
-            // draw_tri(image2, tri, red, false);
-#endif
             continue;
         }
 
@@ -424,47 +332,23 @@ boost::optional<Triangle> eigen_dir_stack(const TensorInterp& s,
         if(std::abs(s_alpha_sign + s_beta_sign + s_gamma_sign) == 3
            && std::abs(t_alpha_sign + t_beta_sign + t_gamma_sign) == 3)
         {
-#ifdef DRAW_DEBUG
-            // draw_tri(image2, tri, green, false);
-            // found = true;
-            // continue;
             return tri;
-#else
-            return tri;
-#endif
         }
-
 
         // Small triangle and still not sure if parallel eigenvectors possible
         // or impossible: assume yes
         if((tri.v1() - tri.v2()).norm() < epsilon)
         {
-#ifdef DRAW_DEBUG
-            // draw_tri(image2, tri, yellow, false);
-            // found = true;
-            // continue;
             return tri;
-#else
-            return tri;
-#endif
         }
 
         auto tri_subs = tri.split();
         for(const auto& tri_sub: tri_subs)
         {
-#ifdef DRAW_DEBUG
-            // draw_tri(image2, tri_sub, blue, false);
-#endif
             tstck.push(tri_sub);
         }
     }
-
-#ifdef DRAW_DEBUG
-//     return found;
     return boost::none;
-#else
-    return boost::none;
-#endif
 }
 
 
@@ -490,26 +374,12 @@ tri_pair_list parallel_eigenvector_search_queue(const TensorInterp& s,
         auto pack = pque.front();
         pque.pop();
 
-#ifdef DRAW_DEBUG
-        // draw_tri(image, pack.tri, white, false, false);
-        // frame.show();
-        // frame.display(image);
-#endif
         auto dir = eigen_dir_stack(pack.s, pack.t, direction_epsilon);
 
-        if(!dir)
-        {
-#ifdef DRAW_DEBUG
-            draw_tri(image, pack.tri, red, false, false);
-#endif
-            continue;
-        }
+        if(!dir) continue;
 
         if((pack.tri.v1() - pack.tri.v2()).norm() < spatial_epsilon)
         {
-#ifdef DRAW_DEBUG
-            draw_tri(image, pack.tri, yellow, false, false);
-#endif
             result.push_back(std::make_pair(dir.value(), pack.tri));
             continue;
         }
@@ -520,9 +390,6 @@ tri_pair_list parallel_eigenvector_search_queue(const TensorInterp& s,
 
         for(auto i: range(s_subs.size()))
         {
-#ifdef DRAW_DEBUG
-            // draw_tri(image, tri_subs[i], blue, false, false);
-#endif
             pque.push({s_subs[i], t_subs[i], tri_subs[i]});
         }
     }
@@ -533,14 +400,6 @@ tri_pair_list parallel_eigenvector_search_queue(const TensorInterp& s,
 
 namespace peigv
 {
-
-#ifdef DRAW_DEBUG
-CImg image(1024, 1024, 1, 3);
-// CImg image2(1024, 1024, 1, 3);
-CImgDisplay frame;
-// CImgDisplay frame2{image2.width(), image2.height()};
-#endif
-
 // Find parallel eigenvector points on a triangle given two tensors at each
 // corner
 point_list findParallelEigenvectors(
@@ -549,9 +408,6 @@ point_list findParallelEigenvectors(
         const vec3d& p1, const vec3d& p2, const vec3d& p3,
         double spatial_epsilon, double direction_epsilon)
 {
-#ifdef DRAW_DEBUG
-    image.fill(0);
-#endif
     auto tri = Triangle{p1, p2, p3};
 
     auto start_tri = Triangle{vec3d{1., 0., 0.},
@@ -570,19 +426,16 @@ point_list findParallelEigenvectors(
 
     for(const auto& c: clustered_tris)
     {
-#ifndef NDEBUG
-        std::cout << "\nNew Cluster" << std::endl;
-        std::cout << "===========" << std::endl;
-#endif
         const auto* min_angle_tri = &*(c.cbegin());
-        auto min_sin = 1.0;
+        auto min_sin = 1.;
         for(const auto& tri: c)
         {
             auto dir = tri.first(1./3., 1./3., 1./3.);
-            auto center = tri.second(1.0/3.0, 1.0/3.0, 1.0/3.0);
-            auto s = s_interp(center.x(), center.y(), center.z());
-            auto t = t_interp(center.x(), center.y(), center.z());
+            auto center = tri.second(1./3., 1./3., 1./3.);
+            auto s = s_interp(center);
+            auto t = t_interp(center);
 
+            // Project direction to a pyramid
             auto norm_dir = [](const vec3d& dir)
             {
                 return dir.z() > 0 ? (dir/dir.cwiseAbs().sum()).eval() :
@@ -596,13 +449,6 @@ point_list findParallelEigenvectors(
             // after multiplication with tensors
             auto ms = sr.normalized().cross(dir.normalized()).squaredNorm()
                       + tr.normalized().cross(dir.normalized()).squaredNorm();
-#ifndef NDEBUG
-            std::cout << "Position: " << print(center) << std::endl;
-            std::cout << "Eigenvector direction: " << print(dir.normalized()) << std::endl;
-            std::cout << "S*r: " << print(sr.normalized()) << std::endl;
-            std::cout << "T*r: " << print(tr.normalized()) << std::endl;
-            std::cout << "sin(angle): " << std::sqrt(ms) << std::endl;
-#endif
 
             auto tri_s = Triangle{norm_dir(s_interp(tri.second.v1()) * dir),
                                   norm_dir(s_interp(tri.second.v2()) * dir),
@@ -616,15 +462,17 @@ point_list findParallelEigenvectors(
             // possible results
             auto mat_s = mat3d{};
             mat_s << tri_s.v1(), tri_s.v2(), tri_s.v3();
-            auto coords_s = mat_s.jacobiSvd(Eigen::ComputeFullU|Eigen::ComputeFullV)
-                                 .solve(dir).eval();
+            auto coords_s = mat_s
+                    .jacobiSvd(Eigen::ComputeFullU|Eigen::ComputeFullV)
+                    .solve(dir).eval();
 
             if(coords_s.cwiseSign().sum() != 3) continue;
 
             auto mat_t = mat3d{};
             mat_t << tri_t.v1(), tri_t.v2(), tri_t.v3();
-            auto coords_t = mat_t.jacobiSvd(Eigen::ComputeFullU|Eigen::ComputeFullV)
-                                 .solve(dir).eval();
+            auto coords_t = mat_t
+                    .jacobiSvd(Eigen::ComputeFullU|Eigen::ComputeFullV)
+                    .solve(dir).eval();
 
             if(coords_t.cwiseSign().sum() != 3) continue;
 
@@ -636,13 +484,64 @@ point_list findParallelEigenvectors(
         }
         if(min_sin < 1.)
         {
-#ifdef DRAW_DEBUG
-            draw_tri(image, min_angle_tri->second, green, true, false);
-            draw_cross(image, min_angle_tri->second(1./3., 1./3., 1./3.), green, false);
-            frame.display(image);
-#endif
-            auto result_center = (min_angle_tri->second)(1.0/3.0, 1.0/3.0, 1.0/3.0);
-            points.push_back(tri(result_center));
+            // We want to know which eigenvector of each tensor field we have
+            // found (i.e. corresponding to largest, middle, or smallest
+            // eigenvalue)
+            // Therefore we explicitly compute the eigenvalues at the result
+            // position and check which ones the found eigenvector direction
+            // corresponds to.
+            auto result_center = (min_angle_tri->second)(1./3., 1./3., 1./3.);
+            auto result_dir = (min_angle_tri->first)(1./3., 1./3., 1./3.)
+                                    .normalized();
+
+            auto s = s_interp(result_center);
+            auto t = t_interp(result_center);
+
+            // Get eigenvalues from our computed direction
+            auto s_real_eigv = (s * result_dir).dot(result_dir);
+            auto t_real_eigv = (t * result_dir).dot(result_dir);
+
+            // Compute all eigenvalues using Eigen
+            auto s_eigvs = s.eigenvalues().eval();
+            auto t_eigvs = t.eigenvalues().eval();
+
+            // Find index of eigenvalue that is closest to the one we computed
+            using vec3c = decltype(s_eigvs);
+            auto s_closest_index = vec3d::Index{0};
+            (s_eigvs - vec3c::Ones() * s_real_eigv)
+                    .cwiseAbs().minCoeff(&s_closest_index);
+
+            auto t_closest_index = vec3d::Index{0};
+            (t_eigvs - vec3c::Ones() * t_real_eigv)
+                    .cwiseAbs().minCoeff(&t_closest_index);
+
+            // Find which of the (real) eigenvalues ours is
+            auto larger_not_complex = [](double ref,
+                                         const std::complex<double>& val)
+            {
+                if(val.imag() != 0) return 0;
+                if(std::abs(ref) >= std::abs(val.real())) return 0;
+                return 1;
+            };
+            auto s_order = s_eigvs.unaryExpr(
+                    [&](const std::complex<double>& val)
+                    {
+                        return larger_not_complex(
+                                s_eigvs[s_closest_index].real(), val);
+                    }).sum();
+            auto t_order = t_eigvs.unaryExpr(
+                    [&](const std::complex<double>& val)
+                    {
+                        return larger_not_complex(
+                                t_eigvs[t_closest_index].real(), val);
+                    }).sum();
+
+            points.push_back({tri(result_center),
+                              ERank(s_order),
+                              ERank(t_order),
+                              result_dir,
+                              s_real_eigv,
+                              t_real_eigv});
         }
     }
     return points;

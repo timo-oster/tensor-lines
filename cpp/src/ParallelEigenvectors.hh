@@ -12,17 +12,30 @@
 namespace peigv
 {
 
-#ifdef DRAW_DEBUG
-using CImg = cimg_library::CImg<double>;
-using CImgDisplay = cimg_library::CImgDisplay;
+/**
+ * Rank of an eigenvector (when ordering by absolute eigenvalue)
+ */
+enum class ERank: int
+{
+    First = 0,
+    Second = 1,
+    Third = 2
+};
 
-extern CImg image;
-// extern CImg image2;
-extern CImgDisplay frame;
-// extern CImgDisplay frame2;
-#endif
+/**
+ * Parallel eigenvector point.
+ */
+struct peigvPoint
+{
+    vec3d pos; ///< position
+    ERank s_rank; ///< rank of eigenvector of tensor field S
+    ERank t_rank; ///< rank of eigenvector of tensor field T
+    vec3d eivec; ///< Eigenvector direction
+    double s_eival; ///< Eigenvalue for tensor field S
+    double t_eival; ///< Eigenvalue for tensor field T
+};
 
-using point_list = std::list<vec3d>;
+using point_list = std::list<peigvPoint>;
 
 point_list findParallelEigenvectors(
         const mat3d& s1, const mat3d& s2, const mat3d& s3,

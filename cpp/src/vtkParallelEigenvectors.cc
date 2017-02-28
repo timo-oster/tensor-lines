@@ -11,6 +11,8 @@
 #include <vtkGenericCell.h>
 #include <vtkCellArray.h>
 #include <vtkMergePoints.h>
+#include <vtkDoubleArray.h>
+#include <vtkPointData.h>
 
 #include <vtkCommand.h>
 #include <vtkInformation.h>
@@ -206,6 +208,23 @@ int vtkParallelEigenvectors::RequestData(
     auto locator = vtkSmartPointer<vtkMergePoints>::New();
     locator->InitPointInsertion(output->GetPoints(), input->GetBounds());
 
+    auto eig_rank1 = vtkSmartPointer<vtkDoubleArray>::New();
+    eig_rank1->SetName("Rank1");
+    output->GetPointData()->AddArray(eig_rank1);
+    auto eig_rank2 = vtkSmartPointer<vtkDoubleArray>::New();
+    eig_rank2->SetName("Rank2");
+    output->GetPointData()->AddArray(eig_rank2);
+    auto eival1 = vtkSmartPointer<vtkDoubleArray>::New();
+    eival1->SetName("Eigenvalue 1");
+    output->GetPointData()->AddArray(eival1);
+    auto eival2 = vtkSmartPointer<vtkDoubleArray>::New();
+    eival2->SetName("Eigenvalue 2");
+    output->GetPointData()->AddArray(eival2);
+    auto eivec = vtkSmartPointer<vtkDoubleArray>::New();
+    eivec->SetName("Eigenvector");
+    eivec->SetNumberOfComponents(3);
+    output->GetPointData()->SetVectors(eivec);
+
     auto it = vtkSmartPointer<vtkCellIterator>(input->NewCellIterator());
     auto current_cell = 0;
     for(it->InitTraversal(); !it->IsDoneWithTraversal(); it->GoToNextCell())
@@ -242,7 +261,12 @@ int vtkParallelEigenvectors::RequestData(
                     this->_spatial_epsilon, this->_direction_epsilon);
             for(const auto& p: points)
             {
-                auto pid = locator->InsertNextPoint(p.data());
+                auto pid = locator->InsertNextPoint(p.pos.data());
+                eig_rank1->InsertNextValue(double(p.s_rank));
+                eig_rank2->InsertNextValue(double(p.t_rank));
+                eival1->InsertNextValue(p.s_eival);
+                eival2->InsertNextValue(p.t_eival);
+                eivec->InsertNextTuple(p.eivec.data());
                 output->InsertNextCell(VTK_VERTEX, 1, &pid);
             }
         };
