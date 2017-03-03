@@ -30,6 +30,24 @@ public:
         _direction_epsilon = value;
     }
 
+    double GetClusterEpsilon()
+    {
+        return _cluster_epsilon;
+    }
+    void SetClusterEpsilon(double value)
+    {
+        _cluster_epsilon = value;
+    }
+
+    double GetParallelityEpsilon()
+    {
+        return _parallelity_epsilon;
+    }
+    void SetParallelityEpsilon(double value)
+    {
+        _parallelity_epsilon = value;
+    }
+
     // Description:
     // Get the output data object for a port on this algorithm.
     vtkPolyData* GetOutput();
@@ -104,6 +122,8 @@ private:
 
     double _spatial_epsilon = 1e-6;
     double _direction_epsilon = 1e-6;
+    double _cluster_epsilon = 1e-4;
+    double _parallelity_epsilon = 1e-6;
 } ;
 
 #endif

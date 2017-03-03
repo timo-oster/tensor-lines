@@ -10,7 +10,6 @@
 #include <ostream>
 #include <sstream>
 
-
 namespace peigv
 {
 using vec3d = Eigen::Vector3d;

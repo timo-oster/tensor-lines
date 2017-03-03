@@ -20,6 +20,16 @@
 
 namespace po = boost::program_options;
 
+peigv::mat3d input_matrix(const std::string& name)
+{
+    std::cout << "Enter values for 3x3 matrix " << name << std::endl;
+    auto result = peigv::mat3d{};
+    std::cin >> result(0, 0) >> result(0, 1) >> result(0, 2)
+             >> result(1, 0) >> result(1, 1) >> result(1, 2)
+             >> result(2, 0) >> result(2, 1) >> result(2, 2);
+    return result;
+}
+
 template<typename R, typename G>
 peigv::mat3d rand_matrix(R& rnd, G& gen)
 {
@@ -35,22 +45,25 @@ int main(int argc, char const *argv[])
     using namespace peigv;
 
     auto random_seed = uint32_t{42};
-    auto num_subdivisions = uint32_t{8};
+    auto num_subdivisions = int32_t{8};
     auto out_name = std::string{"Grid.vtk"};
+    auto interactive = false;
 
     try
     {
         po::options_description desc("Allowed options");
         desc.add_options()
         ("help,h", "produce help message")
-        ("seed,s",
-            po::value<uint32_t>()->required()->default_value(random_seed),
+        ("random,r",
+            po::value<uint32_t>(&random_seed),
             "Random seed for tensor generation")
+        ("interactive,i",
+            "Interactive mode (read matrices from stdin)")
         ("subdivision-level,l",
-            po::value<uint32_t>()->required()->default_value(num_subdivisions),
+            po::value<int32_t>(&num_subdivisions)->required()->default_value(num_subdivisions),
             "Number of times the tetrahedron is subdivided")
         ("output,o",
-            po::value<std::string>()->required()->default_value(out_name),
+            po::value<std::string>(&out_name)->required()->default_value(out_name),
             "Name of the output file")
         ;
 
@@ -65,10 +78,11 @@ int main(int argc, char const *argv[])
 
         po::notify(vm);
 
-        random_seed = vm["seed"].as<uint32_t>();
-        num_subdivisions = vm["subdivision-level"].as<uint32_t>();
-        out_name = vm["output"].as<std::string>();
-
+        if(vm.count("random") > 0 && vm.count("interactive") > 0)
+        {
+            throw std::logic_error("Conflicting options --random and --interactive");
+        }
+        if(vm.count("interactive")) interactive = true;
     }
     catch (std::exception& e)
     {
@@ -109,34 +123,41 @@ int main(int argc, char const *argv[])
     t_field->SetNumberOfTuples(points->GetNumberOfPoints());
     for(auto i: range(points->GetNumberOfPoints()))
     {
-        s_field->SetTuple(i, rand_matrix(rnd, gen).data());
-        t_field->SetTuple(i, rand_matrix(rnd, gen).data());
+        if(interactive)
+        {
+            s_field->SetTuple(
+                    i, input_matrix(make_string() << "S" << (i+1)).data());
+            t_field->SetTuple(
+                    i, input_matrix(make_string() << "T" << (i+1)).data());
+        }
+        else
+        {
+            s_field->SetTuple(i, rand_matrix(rnd, gen).data());
+            t_field->SetTuple(i, rand_matrix(rnd, gen).data());
+        }
     }
     grid->GetPointData()->SetTensors(s_field);
     grid->GetPointData()->AddArray(t_field);
 
     auto sub_filter = vtkSmartPointer<vtkSubdivideTetra>::New();
-    sub_filter->SetInputData(grid);
 
-    auto new_grid = vtkSmartPointer<vtkUnstructuredGrid>(
-            vtkUnstructuredGrid::SafeDownCast(
-                sub_filter->GetOutputDataObject(0)));
-
-    sub_filter->Update();
-
-    for(auto i: range(num_subdivisions-1))
+    for(auto i: range(num_subdivisions))
     {
-        grid->DeepCopy(new_grid);
         sub_filter->SetInputData(grid);
-        new_grid = vtkSmartPointer<vtkUnstructuredGrid>(
-            vtkUnstructuredGrid::SafeDownCast(
-                sub_filter->GetOutputDataObject(0)));
+
+        auto new_grid = vtkSmartPointer<vtkUnstructuredGrid>(
+                vtkUnstructuredGrid::SafeDownCast(
+                    sub_filter->GetOutputDataObject(0)));
+
         sub_filter->Update();
+
+        grid->DeepCopy(new_grid);
     }
 
     auto inwriter = vtkSmartPointer<vtkUnstructuredGridWriter>::New();
-    inwriter->SetInputData(new_grid);
+    inwriter->SetInputData(grid);
     inwriter->SetFileName(out_name.c_str());
+    inwriter->SetFileTypeToBinary();
     inwriter->Write();
 
     return 0;

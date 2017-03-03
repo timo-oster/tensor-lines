@@ -73,9 +73,9 @@ public:
 
     friend std::ostream& operator<<(std::ostream& out, const Self& bc)
     {
-        out << "{" << bc._v1 << "\n\n"
+        out << "{\n" << bc._v1 << "\n\n"
             << bc._v2 << "\n\n"
-            << bc._v3 << "}" << std::endl;
+            << bc._v3 << "\n}" << std::endl;
         return out;
     }
 

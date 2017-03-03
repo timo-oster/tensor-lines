@@ -23,6 +23,16 @@
 #include <queue>
 #include <stack>
 
+#include <vtkPolyData.h>
+#include <vtkPolyDataWriter.h>
+#include <vtkSmartPointer.h>
+#include <vtkPoints.h>
+#include <vtkDoubleArray.h>
+#include <vtkCellData.h>
+#include <vtkIdList.h>
+#include <vtkMergePoints.h>
+#include <vtkCellArray.h>
+
 namespace
 {
 
@@ -167,7 +177,6 @@ cluster_tris(const tri_pair_list& tris, double epsilon)
             }
         }
     }
-
     return classes;
 }
 
@@ -358,11 +367,39 @@ tri_pair_list parallel_eigenvector_search_queue(const TensorInterp& s,
                                                 double spatial_epsilon,
                                                 double direction_epsilon)
 {
+    static int file_counter = 0;
+
     struct SubPackage{
         TensorInterp s;
         TensorInterp t;
         Triangle tri;
     };
+
+    // auto triangles = vtkSmartPointer<vtkPolyData>::New();
+    // auto points = vtkSmartPointer<vtkPoints>::New();
+    // triangles->SetPoints(points);
+    // auto tag = vtkSmartPointer<vtkDoubleArray>::New();
+    // tag->SetName("Class");
+    // triangles->Allocate();
+    // triangles->GetCellData()->SetScalars(tag);
+    // // auto locator = vtkSmartPointer<vtkMergePoints>::New();
+    // // auto bounds = std::array<double, 6>{0, 1, 0, 1, 0, 1};
+    // // locator->InitPointInsertion(points, bounds.data());
+    // auto tris = vtkSmartPointer<vtkCellArray>::New();
+    // triangles->SetPolys(tris);
+
+    // auto add_tri = [&](const Triangle& tri, double cl)
+    // {
+    //     auto pid1 = points->InsertNextPoint(tri.v1().data());
+    //     auto pid2 = points->InsertNextPoint(tri.v2().data());
+    //     auto pid3 = points->InsertNextPoint(tri.v3().data());
+    //     auto cell = vtkSmartPointer<vtkIdList>::New();
+    //     cell->InsertNextId(pid1);
+    //     cell->InsertNextId(pid2);
+    //     cell->InsertNextId(pid3);
+    //     auto cid = triangles->InsertNextCell(VTK_TRIANGLE, cell);
+    //     tag->InsertValue(cid, cl);
+    // };
 
     auto pque = std::queue<SubPackage>{};
     pque.push({s, t, tri});
@@ -374,15 +411,33 @@ tri_pair_list parallel_eigenvector_search_queue(const TensorInterp& s,
         auto pack = pque.front();
         pque.pop();
 
+        // std::cout << "Spatial Triangle: " << pack.tri << std::endl;
+
+        // std::cout << "S Tensors: " << pack.s << std::endl;
+        // std::cout << "T Tensors: " << pack.t << std::endl;
+
         auto dir = eigen_dir_stack(pack.s, pack.t, direction_epsilon);
 
-        if(!dir) continue;
+        if(!dir)
+        {
+            // std::cout << "Found no eigenvector directions." << std::endl;
+            // add_tri(pack.tri, 0.);
+            continue;
+        }
 
         if((pack.tri.v1() - pack.tri.v2()).norm() < spatial_epsilon)
         {
+            // std::cout << "Triangle too small, assuming location "
+                      // << print(pack.tri(1./3., 1./3., 1./3.))
+                      // << " is valid." << std::endl;
+            // add_tri(pack.tri, 1.);
             result.push_back(std::make_pair(dir.value(), pack.tri));
             continue;
         }
+
+        // std::cout << "Found candidate point: "
+                  // << print(pack.tri(1./3., 1./3., 1./3.))
+                  // << ", splitting" << std::endl;
 
         auto s_subs = pack.s.split();
         auto t_subs = pack.t.split();
@@ -393,6 +448,15 @@ tri_pair_list parallel_eigenvector_search_queue(const TensorInterp& s,
             pque.push({s_subs[i], t_subs[i], tri_subs[i]});
         }
     }
+    // if(result.size() > 10)
+    // {
+    //     std::cout << "Number of found candidate points: " << result.size() << std::endl;
+    //     auto writer = vtkSmartPointer<vtkPolyDataWriter>::New();
+    //     writer->SetFileName(std::string(make_string() << "Subdivision_" << file_counter++ << ".vtk").c_str());
+    //     writer->SetInputData(triangles);
+    //     writer->Write();
+    // }
+
     return result;
 }
 
@@ -406,7 +470,8 @@ point_list findParallelEigenvectors(
         const mat3d& s1, const mat3d& s2, const mat3d& s3,
         const mat3d& t1, const mat3d& t2, const mat3d& t3,
         const vec3d& p1, const vec3d& p2, const vec3d& p3,
-        double spatial_epsilon, double direction_epsilon)
+        double spatial_epsilon, double direction_epsilon,
+        double cluster_epsilon, double parallelity_epsilon)
 {
     auto tri = Triangle{p1, p2, p3};
 
@@ -420,7 +485,7 @@ point_list findParallelEigenvectors(
     auto tris = parallel_eigenvector_search_queue(
             s_interp, t_interp,
             start_tri, spatial_epsilon, direction_epsilon);
-    auto clustered_tris = cluster_tris(tris, spatial_epsilon/std::sqrt(3));
+    auto clustered_tris = cluster_tris(tris, cluster_epsilon);
 
     auto points = point_list{};
 
@@ -435,6 +500,9 @@ point_list findParallelEigenvectors(
             auto s = s_interp(center);
             auto t = t_interp(center);
 
+            std::cout << "Checking candidate point " << print(center)
+                      << "...";
+
             // Project direction to a pyramid
             auto norm_dir = [](const vec3d& dir)
             {
@@ -447,8 +515,8 @@ point_list findParallelEigenvectors(
 
             // compute error as sum of deviations from input direction
             // after multiplication with tensors
-            auto ms = sr.normalized().cross(dir.normalized()).squaredNorm()
-                      + tr.normalized().cross(dir.normalized()).squaredNorm();
+            auto ms = sr.normalized().cross(dir.normalized()).norm()
+                      + tr.normalized().cross(dir.normalized()).norm();
 
             auto tri_s = Triangle{norm_dir(s_interp(tri.second.v1()) * dir),
                                   norm_dir(s_interp(tri.second.v2()) * dir),
@@ -458,23 +526,43 @@ point_list findParallelEigenvectors(
                                   norm_dir(t_interp(tri.second.v2()) * dir),
                                   norm_dir(t_interp(tri.second.v3()) * dir)};
 
+            // check if the error measure is low enough to consider the point a
+            // parallel eigenvector point
+
+            if(ms > parallelity_epsilon)
+            {
+                std::cout << "rejected with error " << ms << std::endl;
+                continue;
+            }
+
             // check if the original direction is inside the triangle of
             // possible results
-            auto mat_s = mat3d{};
-            mat_s << tri_s.v1(), tri_s.v2(), tri_s.v3();
-            auto coords_s = mat_s
-                    .jacobiSvd(Eigen::ComputeFullU|Eigen::ComputeFullV)
-                    .solve(dir).eval();
 
-            if(coords_s.cwiseSign().sum() != 3) continue;
+            // auto mat_s = mat3d{};
+            // mat_s << tri_s.v1(), tri_s.v2(), tri_s.v3();
+            // auto coords_s = mat_s
+            //         .jacobiSvd(Eigen::ComputeFullU|Eigen::ComputeFullV)
+            //         .solve(dir).eval();
 
-            auto mat_t = mat3d{};
-            mat_t << tri_t.v1(), tri_t.v2(), tri_t.v3();
-            auto coords_t = mat_t
-                    .jacobiSvd(Eigen::ComputeFullU|Eigen::ComputeFullV)
-                    .solve(dir).eval();
+            // if(coords_s.cwiseSign().sum() != 3)
+            // {
+            //     std::cout << "rejected" << std::endl;
+            //     continue;
+            // }
 
-            if(coords_t.cwiseSign().sum() != 3) continue;
+            // auto mat_t = mat3d{};
+            // mat_t << tri_t.v1(), tri_t.v2(), tri_t.v3();
+            // auto coords_t = mat_t
+            //         .jacobiSvd(Eigen::ComputeFullU|Eigen::ComputeFullV)
+            //         .solve(dir).eval();
+
+            // if(coords_t.cwiseSign().sum() != 3)
+            // {
+            //     std::cout << "rejected" << std::endl;
+            //     continue;
+            // }
+
+            std::cout << "accepted with error " << ms << std::endl;
 
             if(ms < min_sin)
             {
@@ -536,6 +624,21 @@ point_list findParallelEigenvectors(
                                 t_eigvs[t_closest_index].real(), val);
                     }).sum();
 
+            std::cout << "Final Eigenvector point: "
+                      << print(result_center) << std::endl;
+            std::cout << "Final Eigenvector direction: "
+                      << print(result_dir) << std::endl;
+            std::cout << "Final S Eigenvalue: "
+                      << s_real_eigv << std::endl;
+            std::cout << "Final T Eigenvalue: "
+                      << t_real_eigv << std::endl;
+            std::cout << "Final S Matrix: \n" << s << std::endl;
+            std::cout << "Final T Matrix: \n" << t << std::endl;
+            auto errvec = Eigen::Matrix<double, 6, 1>{};
+            errvec.topRows<3>() = (s*result_dir).cross(result_dir);
+            errvec.bottomRows<3>() = (t*result_dir).cross(result_dir);
+            std::cout << "Error vector: \n" << errvec << std::endl;
+
             points.push_back({tri(result_center),
                               ERank(s_order),
                               ERank(t_order),
@@ -553,12 +656,14 @@ point_list findParallelEigenvectors(
 point_list findParallelEigenvectors(
         const mat3d& s1, const mat3d& s2, const mat3d& s3,
         const mat3d& t1, const mat3d& t2, const mat3d& t3,
-        double spatial_epsilon, double direction_epsilon)
+        double spatial_epsilon, double direction_epsilon,
+        double cluster_epsilon, double parallelity_epsilon)
 {
     return findParallelEigenvectors(
             s1, s2, s3, t1, t2, t3,
             vec3d{1, 0, 0}, vec3d{0, 1, 0}, vec3d{0, 0, 1},
-            spatial_epsilon, direction_epsilon);
+            spatial_epsilon, direction_epsilon,
+            cluster_epsilon, parallelity_epsilon);
 }
 
 } // namespace peigv
