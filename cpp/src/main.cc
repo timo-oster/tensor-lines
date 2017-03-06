@@ -42,6 +42,8 @@ int main(int argc, char const *argv[])
     auto cluster_epsilon = 1e-3;
     auto parallelity_epsilon = 1e-3;
     auto out_name = std::string{"Parallel_Eigenvectors.vtk"};
+    auto s_field_name = std::string{"S"};
+    auto t_field_name = std::string{"T"};
 
     try
     {
@@ -58,6 +60,10 @@ int main(int argc, char const *argv[])
             "epsilon for eigenvector parallelity")
         ("input-file,i", po::value<std::string>(&input_file)->required(),
             "name of the input file (VTK format)")
+        ("s-field-name,s", po::value<std::string>(&s_field_name)->required()->default_value(s_field_name),
+            "name of the first input tensor field")
+        ("t_field_name,t", po::value<std::string>(&t_field_name)->required()->default_value(t_field_name),
+            "name of the second input tensor field")
         ("output,o",
             po::value<std::string>(&out_name)->required()->default_value(out_name),
             "Name of the output file")
@@ -98,13 +104,15 @@ int main(int argc, char const *argv[])
     auto vtkpeigv = vtkSmartPointer<vtkParallelEigenvectors>::New();
     vtkpeigv->SetSpatialEpsilon(spatial_epsilon);
     vtkpeigv->SetDirectionEpsilon(direction_epsilon);
+    vtkpeigv->SetClusterEpsilon(cluster_epsilon);
+    vtkpeigv->SetParallelityEpsilon(parallelity_epsilon);
     vtkpeigv->AddObserver(vtkCommand::ProgressEvent, progressCallback);
 
     vtkpeigv->SetInputConnection(0, reader->GetOutputPort(0));
     vtkpeigv->SetInputArrayToProcess(
-            0, 0, 0, vtkDataObject::FIELD_ASSOCIATION_POINTS, "S");
+            0, 0, 0, vtkDataObject::FIELD_ASSOCIATION_POINTS, s_field_name.c_str());
     vtkpeigv->SetInputArrayToProcess(
-            1, 0, 0, vtkDataObject::FIELD_ASSOCIATION_POINTS, "T");
+            1, 0, 0, vtkDataObject::FIELD_ASSOCIATION_POINTS, t_field_name.c_str());
 
     auto outwriter = vtkSmartPointer<vtkPolyDataWriter>::New();
     outwriter->SetInputConnection(0, vtkpeigv->GetOutputPort(0));
