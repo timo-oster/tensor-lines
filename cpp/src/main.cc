@@ -29,7 +29,8 @@ void ProgressFunction(vtkObject* caller,
                       void* vtkNotUsed(callData) )
 {
   auto* filter = static_cast<vtkParallelEigenvectors*>(caller);
-  std::cout << "Progress: " << std::setprecision(2) << (filter->GetProgress()*100) << "%    \r";
+  std::cout << "Progress: " << std::setprecision(2)
+            << (filter->GetProgress()*100) << "%    \r";
 }
 
 int main(int argc, char const *argv[])
@@ -49,40 +50,53 @@ int main(int argc, char const *argv[])
     {
         auto desc = po::options_description("Allowed options");
         desc.add_options()
-        ("help,h", "produce help message")
-        ("spatial-epsilon,e", po::value<double>(&spatial_epsilon)->required()->default_value(spatial_epsilon),
-            "epsilon for spatial subdivision")
-        ("direction-epsilon,d", po::value<double>(&direction_epsilon)->required()->default_value(direction_epsilon),
-            "epsilon for directional subdivision")
-        ("cluster-epsilon,c", po::value<double>(&cluster_epsilon)->required()->default_value(cluster_epsilon),
-            "epsilon for clustering")
-        ("parallelity-epsilon,p", po::value<double>(&parallelity_epsilon)->required()->default_value(parallelity_epsilon),
-            "epsilon for eigenvector parallelity")
-        ("input-file,i", po::value<std::string>(&input_file)->required(),
-            "name of the input file (VTK format)")
-        ("s-field-name,s", po::value<std::string>(&s_field_name)->required()->default_value(s_field_name),
-            "name of the first input tensor field")
-        ("t_field_name,t", po::value<std::string>(&t_field_name)->required()->default_value(t_field_name),
-            "name of the second input tensor field")
-        ("output,o",
-            po::value<std::string>(&out_name)->required()->default_value(out_name),
-            "Name of the output file")
-        ;
+            ("help,h", "produce help message")
+            ("spatial-epsilon,e",
+                po::value<double>(&spatial_epsilon)
+                    ->required()->default_value(spatial_epsilon),
+                "epsilon for spatial subdivision")
+            ("direction-epsilon,d",
+                po::value<double>(&direction_epsilon)
+                    ->required()->default_value(direction_epsilon),
+                "epsilon for directional subdivision")
+            ("cluster-epsilon,c",
+                po::value<double>(&cluster_epsilon)
+                    ->required()->default_value(cluster_epsilon),
+                "epsilon for clustering")
+            ("parallelity-epsilon,p",
+                po::value<double>(&parallelity_epsilon)
+                    ->required()->default_value(parallelity_epsilon),
+                "epsilon for eigenvector parallelity")
+            ("input-file,i",
+                po::value<std::string>(&input_file)->required(),
+                "name of the input file (VTK format)")
+            ("s-field-name,s",
+                po::value<std::string>(&s_field_name)
+                    ->required()->default_value(s_field_name),
+                "name of the first input tensor field")
+            ("t_field_name,t",
+                po::value<std::string>(&t_field_name)
+                    ->required()->default_value(t_field_name),
+                "name of the second input tensor field")
+            ("output,o",
+                po::value<std::string>(&out_name)
+                    ->required()->default_value(out_name),
+                "Name of the output file");
 
         auto podesc = po::positional_options_description{};
         podesc.add("input-file", 1);
 
         auto vm = po::variables_map{};
-        po::store(po::command_line_parser(argc, argv)
-                  .options(desc).positional(podesc).run(),
-                  vm);
+        po::store(
+                po::command_line_parser(argc, argv)
+                    .options(desc).positional(podesc).run(),
+                vm);
 
         if(vm.empty() || vm.count("help"))
         {
             std::cout << desc << "\n";
             return 0;
         }
-
         po::notify(vm);
     }
     catch (std::exception& e)
@@ -110,9 +124,11 @@ int main(int argc, char const *argv[])
 
     vtkpeigv->SetInputConnection(0, reader->GetOutputPort(0));
     vtkpeigv->SetInputArrayToProcess(
-            0, 0, 0, vtkDataObject::FIELD_ASSOCIATION_POINTS, s_field_name.c_str());
+            0, 0, 0, vtkDataObject::FIELD_ASSOCIATION_POINTS,
+            s_field_name.c_str());
     vtkpeigv->SetInputArrayToProcess(
-            1, 0, 0, vtkDataObject::FIELD_ASSOCIATION_POINTS, t_field_name.c_str());
+            1, 0, 0, vtkDataObject::FIELD_ASSOCIATION_POINTS,
+            t_field_name.c_str());
 
     auto outwriter = vtkSmartPointer<vtkPolyDataWriter>::New();
     outwriter->SetInputConnection(0, vtkpeigv->GetOutputPort(0));

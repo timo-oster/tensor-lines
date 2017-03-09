@@ -26,7 +26,11 @@
 
 #include <map>
 #include <vector>
+#include <list>
 #include <iostream>
+#include <future>
+
+#include <ctpl_stl.h>
 
 vtkStandardNewMacro(vtkParallelEigenvectors);
 
@@ -46,12 +50,6 @@ vtkParallelEigenvectors::vtkParallelEigenvectors()
 vtkParallelEigenvectors::~vtkParallelEigenvectors()
 {
 }
-
-
-// void vtkParallelEigenvectors::PrintSelf(ostream& os, vtkIndent indent)
-// {
-//     this->Superclass::PrintSelf(os, indent);
-// }
 
 
 vtkPolyData* vtkParallelEigenvectors::GetOutput()
@@ -252,10 +250,6 @@ int vtkParallelEigenvectors::RequestData(
     eivec->SetNumberOfComponents(3);
     output->GetPointData()->SetVectors(eivec);
 
-    auto n_neighbors = vtkSmartPointer<vtkDoubleArray>::New();
-    n_neighbors->SetName("Neighbor Cells");
-    output->GetPointData()->AddArray(n_neighbors);
-
     // Output 2 for debug purposes
     auto opoints = vtkSmartPointer<vtkPoints>::New();
     opoints->DeepCopy(input->GetPoints());
@@ -281,10 +275,28 @@ int vtkParallelEigenvectors::RequestData(
     // Structure for mapping cell IDs to parallel eigenvector points
     auto cell_map = std::map<vtkIdType, vtkSmartPointer<vtkIdList>>{};
 
-    auto ref_vec = vec3d::Random().eval();
+    // auto ref_vec = Vec3d::Random().eval();
+
+    ctpl::thread_pool tpool(8);
+    auto futures = std::list<
+                        std::pair<vtkIdType,
+                                  std::future<peigv::PointList>
+                        >
+                    >{};
+
+    auto find_pev_points = [](int /*tid*/,
+                              const Mat3d& s1, const Mat3d& s2, const Mat3d& s3,
+                              const Mat3d& t1, const Mat3d& t2, const Mat3d& t3,
+                              const Vec3d& p1, const Vec3d& p2, const Vec3d& p3,
+                              double spatial_epsilon, double direction_epsilon,
+                              double cluster_epsilon, double parallelity_epsilon)
+    {
+        return peigv::findParallelEigenvectors(s1, s2, s3, t1, t2, t3, p1, p2, p3,
+                                               spatial_epsilon, direction_epsilon,
+                                               cluster_epsilon, parallelity_epsilon);
+    };
 
     auto it = vtkSmartPointer<vtkCellIterator>(input->NewCellIterator());
-    auto current_cell = 0;
     for(it->InitTraversal(); !it->IsDoneWithTraversal(); it->GoToNextCell())
     {
         if(it->GetCellType() != VTK_TETRA)
@@ -296,89 +308,93 @@ int vtkParallelEigenvectors::RequestData(
         auto* point_ids = it->GetPointIds();
         assert(it->GetNumberOfPoints() == 4);
 
-        std::cout << "Processing Cell " << it->GetCellId() << "\n";
+        // std::cout << "Processing Cell " << it->GetCellId() << "\n";
 
-        using mat3dm = Eigen::Map<peigv::mat3d>;
-        using vec3dm = Eigen::Map<peigv::vec3d>;
+        using Mat3dm = Eigen::Map<peigv::Mat3d>;
+        using Vec3dm = Eigen::Map<peigv::Vec3d>;
 
         // Add parallel eigenvector points on the face with the given indices
         // to the output dataset
         auto add_peigv_points = [&](int i1, int i2, int i3)
         {
-            auto p1 = vec3d{vec3dm{cell_points->GetPoint(i1)}};
-            auto p2 = vec3d{vec3dm{cell_points->GetPoint(i2)}};
-            auto p3 = vec3d{vec3dm{cell_points->GetPoint(i3)}};
+            auto p1 = Vec3d{Vec3dm{cell_points->GetPoint(i1)}};
+            auto p2 = Vec3d{Vec3dm{cell_points->GetPoint(i2)}};
+            auto p3 = Vec3d{Vec3dm{cell_points->GetPoint(i3)}};
 
             // Compute face normal
-            auto normal = vec3d{(p1 - p2).cross(p3 - p2).normalized()};
+            // auto normal = Vec3d{(p1 - p2).cross(p3 - p2).normalized()};
 
             // Only process each face once
             // if(normal.dot(ref_vec) < 0) return;
 
-            auto s1 = mat3d{mat3dm{array1->GetTuple(point_ids->GetId(i1))}};
-            auto s2 = mat3d{mat3dm{array1->GetTuple(point_ids->GetId(i2))}};
-            auto s3 = mat3d{mat3dm{array1->GetTuple(point_ids->GetId(i3))}};
+            auto s1 = Mat3d{Mat3dm{array1->GetTuple(point_ids->GetId(i1))}};
+            auto s2 = Mat3d{Mat3dm{array1->GetTuple(point_ids->GetId(i2))}};
+            auto s3 = Mat3d{Mat3dm{array1->GetTuple(point_ids->GetId(i3))}};
 
-            auto t1 = mat3d{mat3dm{array2->GetTuple(point_ids->GetId(i1))}};
-            auto t2 = mat3d{mat3dm{array2->GetTuple(point_ids->GetId(i2))}};
-            auto t3 = mat3d{mat3dm{array2->GetTuple(point_ids->GetId(i3))}};
+            auto t1 = Mat3d{Mat3dm{array2->GetTuple(point_ids->GetId(i1))}};
+            auto t2 = Mat3d{Mat3dm{array2->GetTuple(point_ids->GetId(i2))}};
+            auto t3 = Mat3d{Mat3dm{array2->GetTuple(point_ids->GetId(i3))}};
 
-            auto face = vtkSmartPointer<vtkIdList>::New();
-            face->SetNumberOfIds(3);
-            face->SetId(0, point_ids->GetId(i1));
-            face->SetId(1, point_ids->GetId(i2));
-            face->SetId(2, point_ids->GetId(i3));
+            // auto face = vtkSmartPointer<vtkIdList>::New();
+            // face->SetNumberOfIds(3);
+            // face->SetId(0, point_ids->GetId(i1));
+            // face->SetId(1, point_ids->GetId(i2));
+            // face->SetId(2, point_ids->GetId(i3));
 
-            auto cells = vtkSmartPointer<vtkIdList>::New();
-            input->GetCellNeighbors(it->GetCellId(), face, cells);
+            // auto cells = vtkSmartPointer<vtkIdList>::New();
+            // input->GetCellNeighbors(it->GetCellId(), face, cells);
 
-            auto points = peigv::findParallelEigenvectors(
+            auto handle = tpool.push(
+                    find_pev_points,
                     s1, s2, s3, t1, t2, t3, p1, p2, p3,
                     this->GetSpatialEpsilon(), this->GetDirectionEpsilon(),
-                    this->GetClusterEpsilon(), this->GetParallelityEpsilon());
-            if(!points.empty())
-            {
-                // std::cout << "\nCell has " << cells->GetNumberOfIds() << " neighboring cells for face" << std::endl;
-                // std::cout << "\nFound " << points.size() << " points" << std::endl;
-            }
-            for(const auto& p: points)
-            {
-                auto pid = output->GetPoints()->InsertNextPoint(p.pos.data());
-                eig_rank1->InsertValue(pid, double(p.s_rank));
-                eig_rank2->InsertValue(pid, double(p.t_rank));
-                eival1->InsertValue(pid, p.s_eival);
-                eival2->InsertValue(pid, p.t_eival);
-                eivec->InsertTuple(pid, p.eivec.data());
-                n_neighbors->InsertValue(pid, double(cells->GetNumberOfIds()));
-                output->InsertNextCell(VTK_VERTEX, 1, &pid);
-                if(!cell_map[it->GetCellId()].Get())
-                {
-                    cell_map[it->GetCellId()] = vtkSmartPointer<vtkIdList>::New();
-                }
-                cell_map[it->GetCellId()]->InsertNextId(pid);
-                // for(auto i: range(cells->GetNumberOfIds()))
-                // {
-                //     if(!cell_map[cells->GetId(i)].Get())
-                //     {
-                //         cell_map[cells->GetId(i)] = vtkSmartPointer<vtkIdList>::New();
-                //     }
-                //     cell_map[cells->GetId(i)]->InsertNextId(pid);
-                //     std::cout << "Neighbor Cell: " << cells->GetId(i) << std::endl;
-                // }
-            }
-        };
-        std::cout << "\nFace 1: " << std::endl;
-        add_peigv_points(0, 1, 2);
-        std::cout << "\nFace 2: " << std::endl;
-        add_peigv_points(1, 3, 2);
-        std::cout << "\nFace 3: " << std::endl;
-        add_peigv_points(0, 3, 1);
-        std::cout << "\nFace 4: " << std::endl;
-        add_peigv_points(0, 2, 3);
+                    this->GetClusterEpsilon(),  this->GetParallelityEpsilon());
 
-        ++current_cell;
-        this->UpdateProgress(double(current_cell)
-                             / double(input->GetNumberOfCells()));
+            futures.push_back(std::make_pair(it->GetCellId(), std::move(handle)));
+        };
+        add_peigv_points(0, 1, 2);
+        add_peigv_points(1, 3, 2);
+        add_peigv_points(0, 3, 1);
+        add_peigv_points(0, 2, 3);
+    }
+
+    auto progress = 0.;
+    auto step = 1. / double(futures.size());
+    for(auto& v: futures)
+    {
+        if(!v.second.valid())
+        {
+            std::cout << "Got an invalid future for cell " << v.first << std::endl;
+            continue;
+        }
+        auto cid = v.first;
+        auto points = v.second.get();
+        for(const auto& p: points)
+        {
+            auto pid = output->GetPoints()->InsertNextPoint(p.pos.data());
+            eig_rank1->InsertValue(pid, double(p.s_rank));
+            eig_rank2->InsertValue(pid, double(p.t_rank));
+            eival1->InsertValue(pid, p.s_eival);
+            eival2->InsertValue(pid, p.t_eival);
+            eivec->InsertTuple(pid, p.eivec.data());
+            output->InsertNextCell(VTK_VERTEX, 1, &pid);
+            if(!cell_map[cid].Get())
+            {
+                cell_map[cid] = vtkSmartPointer<vtkIdList>::New();
+            }
+            cell_map[cid]->InsertNextId(pid);
+            // for(auto i: range(cells->GetNumberOfIds()))
+            // {
+            //     if(!cell_map[cells->GetId(i)].Get())
+            //     {
+            //         cell_map[cells->GetId(i)] = vtkSmartPointer<vtkIdList>::New();
+            //     }
+            //     cell_map[cells->GetId(i)]->InsertNextId(pid);
+            //     std::cout << "Neighbor Cell: " << cells->GetId(i) << std::endl;
+            // }
+        }
+        progress += step;
+        this->UpdateProgress(progress);
     }
 
     // For cells with exactly two parallel eigenvector points, connect them
@@ -403,6 +419,5 @@ int vtkParallelEigenvectors::RequestData(
             std::cout << "Cell has " << c.second->GetNumberOfIds() << " points" << std::endl;
         }
     }
-
     return 1;
 }

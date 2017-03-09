@@ -12,8 +12,8 @@
 
 namespace peigv
 {
-using vec3d = Eigen::Vector3d;
-using mat3d = Eigen::Matrix3d;
+using Vec3d = Eigen::Vector3d;
+using Mat3d = Eigen::Matrix3d;
 
 struct MinNotZero{
     template<typename T>
@@ -70,10 +70,10 @@ inline typename std::make_unsigned<T>::type as_unsigned(T t)
 
 
 template<typename T, typename U, typename V = int>
-inline decltype(boost::irange<
-            decltype(true ? std::declval<T>() : std::declval<U>())>(
-                std::declval<T>(), std::declval<U>(), std::declval<V>()))
-range(T start, U end, V step = 1)
+inline auto range(T start, U end, V step = 1)
+-> decltype(boost::irange<
+    decltype(true ? std::declval<T>() : std::declval<U>())>(
+        std::declval<T>(), std::declval<U>(), std::declval<V>()))
 {
     using D = decltype(true ? start : end);
     return boost::irange<D>(start, end, step);
@@ -81,8 +81,8 @@ range(T start, U end, V step = 1)
 
 
 template<typename T>
-inline decltype(boost::irange(std::declval<T>(), std::declval<T>()))
-range(T end)
+inline auto range(T end)
+-> decltype(boost::irange(std::declval<T>(), std::declval<T>()))
 {
     return boost::irange(T{0}, end);
 }

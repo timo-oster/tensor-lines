@@ -28,11 +28,19 @@ if(Boost_FOUND)
     endif()
 endif()
 
-find_package(VTK REQUIRED)
+find_package(VTK COMPONENTS vtkFiltersModeling vtkIOLegacy)
 if(VTK_FOUND)
     include(${VTK_USE_FILE})
     target_link_libraries(parallel_eigenvectors ${VTK_LIBRARIES})
     target_link_libraries(generate_tet_dataset ${VTK_LIBRARIES})
+endif()
+
+# todo: make parallelization and ctpl optional
+find_package(CTPL REQUIRED)
+if(CTPL_FOUND)
+    include_directories(SYSTEM ${CTPL_INCLUDE_DIRS})
+    target_compile_options(parallel_eigenvectors PRIVATE ${CTPL_COMPILER_FLAGS})
+    target_link_libraries(parallel_eigenvectors ${CTPL_LINKER_FLAGS})
 endif()
 
 install(TARGETS parallel_eigenvectors

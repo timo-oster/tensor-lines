@@ -41,7 +41,7 @@ public:
         return a*_v1 + b*_v2 + c*_v3;
     }
 
-    T operator()(const vec3d& pos) const
+    T operator()(const Vec3d& pos) const
     {
         return pos.x()*_v1 + pos.y()*_v2 + pos.z()*_v3;
     }
@@ -69,6 +69,18 @@ public:
             Self{v13, v23, _v3},
             Self{v12, v23, v13}
         };
+    }
+
+    friend bool operator==(const Self& b1, const Self& b2)
+    {
+        return b1._v1 == b2._v1
+                && b1._v2 == b2._v2
+                && b1._v3 == b2._v3;
+    }
+
+    friend bool operator!=(const Self& b1, const Self& b2)
+    {
+        return !(b1 == b2);
     }
 
     friend std::ostream& operator<<(std::ostream& out, const Self& bc)

@@ -15,15 +15,14 @@
 #include <vtkDoubleArray.h>
 #include <vtkUnstructuredGridWriter.h>
 #include <vtkSubdivideTetra.h>
-
 #include <vtkCellIterator.h>
 
 namespace po = boost::program_options;
 
-peigv::mat3d input_matrix(const std::string& name)
+peigv::Mat3d inputMatrix(const std::string& name)
 {
     std::cout << "Enter values for 3x3 matrix " << name << std::endl;
-    auto result = peigv::mat3d{};
+    auto result = peigv::Mat3d{};
     std::cin >> result(0, 0) >> result(0, 1) >> result(0, 2)
              >> result(1, 0) >> result(1, 1) >> result(1, 2)
              >> result(2, 0) >> result(2, 1) >> result(2, 2);
@@ -31,9 +30,9 @@ peigv::mat3d input_matrix(const std::string& name)
 }
 
 template<typename R, typename G>
-peigv::mat3d rand_matrix(R& rnd, G& gen)
+peigv::Mat3d randMatrix(R& rnd, G& gen)
 {
-    auto result = peigv::mat3d{};
+    auto result = peigv::Mat3d{};
     result << rnd(gen), rnd(gen), rnd(gen),
               rnd(gen), rnd(gen), rnd(gen),
               rnd(gen), rnd(gen), rnd(gen);
@@ -126,14 +125,14 @@ int main(int argc, char const *argv[])
         if(interactive)
         {
             s_field->SetTuple(
-                    i, input_matrix(make_string() << "S" << (i+1)).data());
+                    i, inputMatrix(make_string() << "S" << (i+1)).data());
             t_field->SetTuple(
-                    i, input_matrix(make_string() << "T" << (i+1)).data());
+                    i, inputMatrix(make_string() << "T" << (i+1)).data());
         }
         else
         {
-            s_field->SetTuple(i, rand_matrix(rnd, gen).data());
-            t_field->SetTuple(i, rand_matrix(rnd, gen).data());
+            s_field->SetTuple(i, randMatrix(rnd, gen).data());
+            t_field->SetTuple(i, randMatrix(rnd, gen).data());
         }
     }
     grid->GetPointData()->SetTensors(s_field);
@@ -141,7 +140,7 @@ int main(int argc, char const *argv[])
 
     auto sub_filter = vtkSmartPointer<vtkSubdivideTetra>::New();
 
-    for(auto i: range(num_subdivisions))
+    for(auto _: range(num_subdivisions))
     {
         sub_filter->SetInputData(grid);
 
