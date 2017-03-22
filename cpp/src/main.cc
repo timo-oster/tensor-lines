@@ -10,6 +10,8 @@
 #include <vtkPoints.h>
 #include <vtkPointData.h>
 #include <vtkDoubleArray.h>
+#include <vtkCleanPolyData.h>
+#include <vtkStripper.h>
 #include <vtkUnstructuredGridReader.h>
 #include <vtkUnstructuredGridWriter.h>
 #include <vtkPolyDataWriter.h>
@@ -42,6 +44,7 @@ int main(int argc, char const *argv[])
     auto direction_epsilon = 1e-3;
     auto cluster_epsilon = 1e-3;
     auto parallelity_epsilon = 1e-3;
+    auto min_tensor_norm = 1e-3;
     auto out_name = std::string{"Parallel_Eigenvectors.vtk"};
     auto s_field_name = std::string{"S"};
     auto t_field_name = std::string{"T"};
@@ -67,6 +70,10 @@ int main(int argc, char const *argv[])
                 po::value<double>(&parallelity_epsilon)
                     ->required()->default_value(parallelity_epsilon),
                 "epsilon for eigenvector parallelity")
+            ("min-tensor-norm,m",
+             po::value<double>(&min_tensor_norm)
+                ->required()->default_value(min_tensor_norm),
+                "minimum norm of tensors necessary for a cell to be considered")
             ("input-file,i",
                 po::value<std::string>(&input_file)->required(),
                 "name of the input file (VTK format)")
@@ -120,6 +127,7 @@ int main(int argc, char const *argv[])
     vtkpeigv->SetDirectionEpsilon(direction_epsilon);
     vtkpeigv->SetClusterEpsilon(cluster_epsilon);
     vtkpeigv->SetParallelityEpsilon(parallelity_epsilon);
+    vtkpeigv->SetMinTensorNorm(min_tensor_norm);
     vtkpeigv->AddObserver(vtkCommand::ProgressEvent, progressCallback);
 
     vtkpeigv->SetInputConnection(0, reader->GetOutputPort(0));
@@ -130,19 +138,25 @@ int main(int argc, char const *argv[])
             1, 0, 0, vtkDataObject::FIELD_ASSOCIATION_POINTS,
             t_field_name.c_str());
 
+    // Merge duplicate/close points
+    auto cleaner = vtkSmartPointer<vtkCleanPolyData>::New();
+    cleaner->SetTolerance(cluster_epsilon);
+    cleaner->ConvertLinesToPointsOn();
+    cleaner->PointMergingOn();
+    cleaner->SetInputConnection(0, vtkpeigv->GetOutputPort(0));
+
+    // Merge line segments to longer line strips
+    auto stripper = vtkSmartPointer<vtkStripper>::New();
+    stripper->JoinContiguousSegmentsOn();
+    stripper->SetMaximumLength(10000);
+    stripper->SetInputConnection(0, cleaner->GetOutputPort(0));
+
     auto outwriter = vtkSmartPointer<vtkPolyDataWriter>::New();
-    outwriter->SetInputConnection(0, vtkpeigv->GetOutputPort(0));
+    outwriter->SetInputConnection(0, stripper->GetOutputPort(0));
     outwriter->SetFileName(out_name.c_str());
     outwriter->SetFileTypeToBinary();
     outwriter->Update();
     outwriter->Write();
-
-    auto out2writer = vtkSmartPointer<vtkUnstructuredGridWriter>::New();
-    out2writer->SetInputConnection(0, vtkpeigv->GetOutputPort(1));
-    out2writer->SetFileName("Point_Cells.vtk");
-    out2writer->SetFileTypeToBinary();
-    out2writer->Update();
-    out2writer->Write();
 
     return 0;
 }

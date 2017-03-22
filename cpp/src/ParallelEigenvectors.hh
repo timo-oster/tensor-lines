@@ -30,6 +30,8 @@ struct PeigvPoint
     Vec3d eivec; ///< Eigenvector direction
     double s_eival; ///< Eigenvalue for tensor field S
     double t_eival; ///< Eigenvalue for tensor field T
+    bool s_has_imaginary; //< S has any imaginary eigenvalues at the position
+    bool t_has_imaginary; //< T has any imaginary eigenvalues at the position
 };
 
 using PointList = std::list<PeigvPoint>;

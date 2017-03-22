@@ -37,7 +37,7 @@ vtkStandardNewMacro(vtkParallelEigenvectors);
 vtkParallelEigenvectors::vtkParallelEigenvectors()
 {
   this->SetNumberOfInputPorts(1);
-  this->SetNumberOfOutputPorts(2);
+  this->SetNumberOfOutputPorts(1);
   this->SetInputArrayToProcess(0, 0, 0,
                                vtkDataObject::FIELD_ASSOCIATION_POINTS,
                                vtkDataSetAttributes::TENSORS);
@@ -101,10 +101,6 @@ int vtkParallelEigenvectors::FillOutputPortInformation(
     {
         info->Set(vtkDataObject::DATA_TYPE_NAME(), "vtkPolyData");
     }
-    else if(port == 1)
-    {
-        info->Set(vtkDataObject::DATA_TYPE_NAME(), "vtkUnstructuredGrid");
-    }
     return 1;
 }
 
@@ -129,10 +125,6 @@ int vtkParallelEigenvectors::RequestDataObject(
     auto* output = vtkPolyData::SafeDownCast(
             outInfo->Get(vtkDataObject::DATA_OBJECT()));
 
-    auto* outInfo2 = outputVector->GetInformationObject(1);
-    auto* output2 = vtkUnstructuredGrid::SafeDownCast(
-            outInfo2->Get(vtkDataObject::DATA_OBJECT()));
-
     if(!output)
     {
         output = vtkPolyData::New();
@@ -141,15 +133,6 @@ int vtkParallelEigenvectors::RequestDataObject(
 
         this->GetOutputPortInformation(0)->Set(
                 vtkDataObject::DATA_EXTENT_TYPE(), output->GetExtentType());
-    }
-    if(!output2)
-    {
-        output2 = vtkUnstructuredGrid::New();
-        outInfo2->Set(vtkDataObject::DATA_OBJECT(), output2);
-        output2->FastDelete();
-
-        this->GetOutputPortInformation(1)->Set(
-                vtkDataObject::DATA_EXTENT_TYPE(), output2->GetExtentType());
     }
 
     return 1;
@@ -191,13 +174,14 @@ int vtkParallelEigenvectors::RequestData(
 {
     using namespace peigv;
 
+    // vtk Tensors are stored in row major order by convention
+    using Mat3d = Eigen::Matrix<double, 3, 3, Eigen::RowMajor, 3, 3>;
+    using Mat3dm = Eigen::Map<Mat3d>;
+    using Vec3dm = Eigen::Map<peigv::Vec3d>;
+
     auto* outInfo = outputVector->GetInformationObject(0);
     auto* output = vtkPolyData::SafeDownCast(
             outInfo->Get(vtkDataObject::DATA_OBJECT()));
-
-    auto* outInfo2 = outputVector->GetInformationObject(1);
-    auto* output2 = vtkUnstructuredGrid::SafeDownCast(
-            outInfo2->Get(vtkDataObject::DATA_OBJECT()));
 
     auto* inInfo = inputVector[0]->GetInformationObject(0);
     auto* input = vtkUnstructuredGrid::SafeDownCast(
@@ -228,10 +212,6 @@ int vtkParallelEigenvectors::RequestData(
     output->SetPoints(vtkPoints::New());
     output->SetVerts(vtkCellArray::New());
 
-    // Filter for automatically merging identical points
-    // auto locator = vtkSmartPointer<vtkMergePoints>::New();
-    // locator->InitPointInsertion(output->GetPoints(), input->GetBounds());
-
     // Output arrays for point information
     auto eig_rank1 = vtkSmartPointer<vtkDoubleArray>::New();
     eig_rank1->SetName("Rank1");
@@ -249,35 +229,17 @@ int vtkParallelEigenvectors::RequestData(
     eivec->SetName("Eigenvector");
     eivec->SetNumberOfComponents(3);
     output->GetPointData()->SetVectors(eivec);
-
-    // Output 2 for debug purposes
-    auto opoints = vtkSmartPointer<vtkPoints>::New();
-    opoints->DeepCopy(input->GetPoints());
-    output2->SetPoints(opoints);
-    auto osfield = vtkSmartPointer<vtkDoubleArray>::New();
-    osfield->SetName(array1->GetName());
-    osfield->DeepCopy(array1);
-    output2->GetPointData()->AddArray(osfield);
-    auto otfield = vtkSmartPointer<vtkDoubleArray>::New();
-    otfield->SetName(array2->GetName());
-    otfield->DeepCopy(array2);
-    output2->GetPointData()->AddArray(otfield);
-    auto origID = vtkSmartPointer<vtkDoubleArray>::New();
-    origID->SetName("Original Cell ID");
-    output2->GetCellData()->AddArray(origID);
-    auto npoints_field = vtkSmartPointer<vtkDoubleArray>::New();
-    npoints_field->SetName("NPoints");
-    output2->GetCellData()->SetScalars(npoints_field);
-
-    output2->Allocate();
-
+    auto imag1 = vtkSmartPointer<vtkDoubleArray>::New();
+    imag1->SetName("Imaginary 1");
+    output->GetPointData()->AddArray(imag1);
+    auto imag2 = vtkSmartPointer<vtkDoubleArray>::New();
+    imag2->SetName("Imaginary 2");
+    output->GetPointData()->AddArray(imag2);
 
     // Structure for mapping cell IDs to parallel eigenvector points
     auto cell_map = std::map<vtkIdType, vtkSmartPointer<vtkIdList>>{};
 
-    // auto ref_vec = Vec3d::Random().eval();
-
-    ctpl::thread_pool tpool(8);
+    ctpl::thread_pool tpool(4);
     auto futures = std::list<
                         std::pair<vtkIdType,
                                   std::future<peigv::PointList>
@@ -296,6 +258,9 @@ int vtkParallelEigenvectors::RequestData(
                                                cluster_epsilon, parallelity_epsilon);
     };
 
+    auto progress = 0.;
+    auto step = 1. / double(input->GetNumberOfCells()*4);
+
     auto it = vtkSmartPointer<vtkCellIterator>(input->NewCellIterator());
     for(it->InitTraversal(); !it->IsDoneWithTraversal(); it->GoToNextCell())
     {
@@ -308,11 +273,6 @@ int vtkParallelEigenvectors::RequestData(
         auto* point_ids = it->GetPointIds();
         assert(it->GetNumberOfPoints() == 4);
 
-        // std::cout << "Processing Cell " << it->GetCellId() << "\n";
-
-        using Mat3dm = Eigen::Map<peigv::Mat3d>;
-        using Vec3dm = Eigen::Map<peigv::Vec3d>;
-
         // Add parallel eigenvector points on the face with the given indices
         // to the output dataset
         auto add_peigv_points = [&](int i1, int i2, int i3)
@@ -320,12 +280,6 @@ int vtkParallelEigenvectors::RequestData(
             auto p1 = Vec3d{Vec3dm{cell_points->GetPoint(i1)}};
             auto p2 = Vec3d{Vec3dm{cell_points->GetPoint(i2)}};
             auto p3 = Vec3d{Vec3dm{cell_points->GetPoint(i3)}};
-
-            // Compute face normal
-            // auto normal = Vec3d{(p1 - p2).cross(p3 - p2).normalized()};
-
-            // Only process each face once
-            // if(normal.dot(ref_vec) < 0) return;
 
             auto s1 = Mat3d{Mat3dm{array1->GetTuple(point_ids->GetId(i1))}};
             auto s2 = Mat3d{Mat3dm{array1->GetTuple(point_ids->GetId(i2))}};
@@ -335,14 +289,18 @@ int vtkParallelEigenvectors::RequestData(
             auto t2 = Mat3d{Mat3dm{array2->GetTuple(point_ids->GetId(i2))}};
             auto t3 = Mat3d{Mat3dm{array2->GetTuple(point_ids->GetId(i3))}};
 
-            // auto face = vtkSmartPointer<vtkIdList>::New();
-            // face->SetNumberOfIds(3);
-            // face->SetId(0, point_ids->GetId(i1));
-            // face->SetId(1, point_ids->GetId(i2));
-            // face->SetId(2, point_ids->GetId(i3));
-
-            // auto cells = vtkSmartPointer<vtkIdList>::New();
-            // input->GetCellNeighbors(it->GetCellId(), face, cells);
+            // Only process faces where all tensors are above the threshold
+            if(s1.norm() < this->GetMinTensorNorm()
+               || s2.norm() < this->GetMinTensorNorm()
+               || s3.norm() < this->GetMinTensorNorm()
+               || t1.norm() < this->GetMinTensorNorm()
+               || t2.norm() < this->GetMinTensorNorm()
+               || t3.norm() < this->GetMinTensorNorm())
+            {
+                progress += step;
+                this->UpdateProgress(progress);
+                return;
+            }
 
             auto handle = tpool.push(
                     find_pev_points,
@@ -356,10 +314,52 @@ int vtkParallelEigenvectors::RequestData(
         add_peigv_points(1, 3, 2);
         add_peigv_points(0, 3, 1);
         add_peigv_points(0, 2, 3);
+
+        // Wait for some completed tasks here so the waiting list doesn't get
+        // too long and clogs up memory
+        while(futures.size() > 256)
+        {
+            for(auto it = std::begin(futures); it != std::end(futures); ++it)
+            {
+                auto& v = *it;
+                if(!v.second.valid())
+                {
+                    std::cout << "Got an invalid future for cell " << v.first << std::endl;
+                    continue;
+                }
+                if(v.second.wait_for(std::chrono::milliseconds{1}) != std::future_status::ready)
+                {
+                    continue;
+                }
+                auto cid = v.first;
+                auto points = v.second.get();
+                for(const auto& p: points)
+                {
+                    auto pid = output->GetPoints()->InsertNextPoint(p.pos.data());
+                    eig_rank1->InsertValue(pid, double(p.s_rank));
+                    eig_rank2->InsertValue(pid, double(p.t_rank));
+                    eival1->InsertValue(pid, p.s_eival);
+                    eival2->InsertValue(pid, p.t_eival);
+                    eivec->InsertTuple(pid, p.eivec.data());
+                    imag1->InsertValue(pid, p.s_has_imaginary ? 1. : 0.);
+                    imag2->InsertValue(pid, p.t_has_imaginary ? 1. : 0.);
+                    output->InsertNextCell(VTK_VERTEX, 1, &pid);
+                    if(!cell_map[cid].Get())
+                    {
+                        cell_map[cid] = vtkSmartPointer<vtkIdList>::New();
+                    }
+                    cell_map[cid]->InsertNextId(pid);
+                }
+                progress += step;
+                this->UpdateProgress(progress);
+                it = futures.erase(it);
+                --it;
+                // futures.pop_front();
+            }
+        }
     }
 
-    auto progress = 0.;
-    auto step = 1. / double(futures.size());
+    // Wait for the remaining tasks to complete
     for(auto& v: futures)
     {
         if(!v.second.valid())
@@ -377,21 +377,14 @@ int vtkParallelEigenvectors::RequestData(
             eival1->InsertValue(pid, p.s_eival);
             eival2->InsertValue(pid, p.t_eival);
             eivec->InsertTuple(pid, p.eivec.data());
+            imag1->InsertValue(pid, p.s_has_imaginary ? 1. : 0.);
+            imag2->InsertValue(pid, p.t_has_imaginary ? 1. : 0.);
             output->InsertNextCell(VTK_VERTEX, 1, &pid);
             if(!cell_map[cid].Get())
             {
                 cell_map[cid] = vtkSmartPointer<vtkIdList>::New();
             }
             cell_map[cid]->InsertNextId(pid);
-            // for(auto i: range(cells->GetNumberOfIds()))
-            // {
-            //     if(!cell_map[cells->GetId(i)].Get())
-            //     {
-            //         cell_map[cells->GetId(i)] = vtkSmartPointer<vtkIdList>::New();
-            //     }
-            //     cell_map[cells->GetId(i)]->InsertNextId(pid);
-            //     std::cout << "Neighbor Cell: " << cells->GetId(i) << std::endl;
-            // }
         }
         progress += step;
         this->UpdateProgress(progress);
@@ -401,22 +394,40 @@ int vtkParallelEigenvectors::RequestData(
     // with a line
     output->SetLines(vtkCellArray::New());
 
+    auto cell_points = vtkSmartPointer<vtkIdList>::New();
+
     for(const auto& c: cell_map)
     {
-        auto points = vtkSmartPointer<vtkIdList>::New();
-        input->GetCellPoints(c.first, points);
-        auto cid = output2->InsertNextCell(input->GetCellType(c.first),
-                                           points);
-        npoints_field->InsertValue(cid, double(c.second->GetNumberOfIds()));
-        origID->InsertValue(cid, double(c.first));
-
         if(c.second->GetNumberOfIds() == 2)
         {
             output->InsertNextCell(VTK_LINE, c.second);
         }
         else
         {
-            std::cout << "Cell has " << c.second->GetNumberOfIds() << " points" << std::endl;
+            std::cout << "Cell " << c.first
+            << " has " << c.second->GetNumberOfIds() << " points" << std::endl;
+            input->GetCellPoints(c.first, cell_points);
+            auto s1 = Mat3d{Mat3dm{array1->GetTuple(cell_points->GetId(0))}};
+            auto s2 = Mat3d{Mat3dm{array1->GetTuple(cell_points->GetId(1))}};
+            auto s3 = Mat3d{Mat3dm{array1->GetTuple(cell_points->GetId(2))}};
+            auto s4 = Mat3d{Mat3dm{array1->GetTuple(cell_points->GetId(3))}};
+
+            auto t1 = Mat3d{Mat3dm{array2->GetTuple(cell_points->GetId(0))}};
+            auto t2 = Mat3d{Mat3dm{array2->GetTuple(cell_points->GetId(1))}};
+            auto t3 = Mat3d{Mat3dm{array2->GetTuple(cell_points->GetId(2))}};
+            auto t4 = Mat3d{Mat3dm{array2->GetTuple(cell_points->GetId(3))}};
+
+            auto fmt = Eigen::IOFormat(Eigen::FullPrecision, 0,
+                                       " ", "\n", "", "", "", "");
+
+            std::cout << "S1: \n" << s1.format(fmt) << std::endl;
+            std::cout << "T1: \n" << t1.format(fmt) << std::endl;
+            std::cout << "S2: \n" << s2.format(fmt) << std::endl;
+            std::cout << "T2: \n" << t2.format(fmt) << std::endl;
+            std::cout << "S3: \n" << s3.format(fmt) << std::endl;
+            std::cout << "T3: \n" << t3.format(fmt) << std::endl;
+            std::cout << "S4: \n" << s4.format(fmt) << std::endl;
+            std::cout << "T4: \n" << t4.format(fmt) << std::endl;
         }
     }
     return 1;

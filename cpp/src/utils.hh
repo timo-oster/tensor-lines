@@ -54,6 +54,11 @@ negator<Predicate> negate(Predicate predicate)
     return negator<Predicate>{predicate};
 }
 
+template<typename T>
+int sgn(T val)
+{
+    return (T{0} < val) - (val < T{0});
+}
 
 template<class T>
 inline typename std::make_signed<T>::type as_signed(T t)

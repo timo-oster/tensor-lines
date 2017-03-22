@@ -14,7 +14,7 @@ public:
     vtkParallelEigenvectors(const vtkParallelEigenvectors&) = delete;
     void operator= (const vtkParallelEigenvectors&) = delete;
 
-    double GetSpatialEpsilon()
+    double GetSpatialEpsilon() const
     {
         return _spatial_epsilon;
     }
@@ -23,7 +23,7 @@ public:
         _spatial_epsilon = value;
     }
 
-    double GetDirectionEpsilon()
+    double GetDirectionEpsilon() const
     {
         return _direction_epsilon;
     }
@@ -32,7 +32,7 @@ public:
         _direction_epsilon = value;
     }
 
-    double GetClusterEpsilon()
+    double GetClusterEpsilon() const
     {
         return _cluster_epsilon;
     }
@@ -41,13 +41,22 @@ public:
         _cluster_epsilon = value;
     }
 
-    double GetParallelityEpsilon()
+    double GetParallelityEpsilon() const
     {
         return _parallelity_epsilon;
     }
     void SetParallelityEpsilon(double value)
     {
         _parallelity_epsilon = value;
+    }
+
+    double GetMinTensorNorm() const
+    {
+        return _min_tensor_norm;
+    }
+    void SetMinTensorNorm(double value)
+    {
+        _min_tensor_norm = value;
     }
 
     // Get the output data object for a port on this algorithm.
@@ -96,6 +105,7 @@ private:
     double _direction_epsilon = 1e-6;
     double _cluster_epsilon = 1e-4;
     double _parallelity_epsilon = 1e-6;
+    double _min_tensor_norm = 1e-3;
 } ;
 
 #endif
