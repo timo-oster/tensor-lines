@@ -19,10 +19,12 @@
 
 namespace po = boost::program_options;
 
-peigv::Mat3d inputMatrix(const std::string& name)
+using Mat3d = Eigen::Matrix<double, 3, 3, Eigen::RowMajor>;
+
+Mat3d inputMatrix(const std::string& name)
 {
     std::cout << "Enter values for 3x3 matrix " << name << std::endl;
-    auto result = peigv::Mat3d{};
+    auto result = Mat3d{};
     std::cin >> result(0, 0) >> result(0, 1) >> result(0, 2)
              >> result(1, 0) >> result(1, 1) >> result(1, 2)
              >> result(2, 0) >> result(2, 1) >> result(2, 2);
@@ -30,9 +32,9 @@ peigv::Mat3d inputMatrix(const std::string& name)
 }
 
 template<typename R, typename G>
-peigv::Mat3d randMatrix(R& rnd, G& gen)
+Mat3d randMatrix(R& rnd, G& gen)
 {
-    auto result = peigv::Mat3d{};
+    auto result = Mat3d{};
     result << rnd(gen), rnd(gen), rnd(gen),
               rnd(gen), rnd(gen), rnd(gen),
               rnd(gen), rnd(gen), rnd(gen);
