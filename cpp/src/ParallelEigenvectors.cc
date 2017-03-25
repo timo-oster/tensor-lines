@@ -322,11 +322,9 @@ bezierCoefficients(const Mat3d& t1, const Mat3d& t2, const Mat3d& t3,
  */
 boost::optional<Triangle> findEigenDir(const TensorInterp& s,
                                        const TensorInterp& t,
-                                       double epsilon,
-                                       int* num_subdivisions = nullptr)
+                                       double epsilon)
 {
     auto tstck = std::stack<Triangle>{};
-    epsilon *= epsilon;
 
     tstck.push(Triangle{{1, 0, 0}, {0, 1, 0}, {0, 0, 1}});
     tstck.push(Triangle{{0, 1, 0}, {-1, 0, 0}, {0, 0, 1}});
@@ -382,14 +380,11 @@ boost::optional<Triangle> findEigenDir(const TensorInterp& s,
 
         // Small triangle and still not sure if parallel eigenvectors possible
         // or impossible: assume yes
-        if((tri.v1() - tri.v2()).squaredNorm() < epsilon)
+        if((tri.v1() - tri.v2()).norm() < epsilon)
         {
             return tri;
         }
 
-        if(num_subdivisions) *num_subdivisions += 1;
-
-        auto i = 0;
         for(const auto& t: tri.split())
         {
             tstck.push(t);
@@ -403,9 +398,7 @@ TriPairList parallelEigenvectorSearch(const TensorInterp& s,
                                       const TensorInterp& t,
                                       const Triangle& tri,
                                       double spatial_epsilon,
-                                      double direction_epsilon,
-                                      int* num_subdivisions = nullptr,
-                                      int* num_direction_subdivisions = nullptr)
+                                      double direction_epsilon)
 {
     struct SubPackage
     {
@@ -414,14 +407,10 @@ TriPairList parallelEigenvectorSearch(const TensorInterp& s,
         Triangle tri;
     };
 
-    spatial_epsilon *= spatial_epsilon;
-
     auto pque = std::queue<SubPackage>{};
     pque.push({s, t, tri});
 
     auto result = TriPairList{};
-
-    auto total_dir_subs = 0;
 
     while(!pque.empty())
     {
@@ -433,18 +422,16 @@ TriPairList parallelEigenvectorSearch(const TensorInterp& s,
                       << "Too many subdivisions." << std::endl;
             return result;
         }
-        auto dir = findEigenDir(pack.s, pack.t, direction_epsilon,
-                                &total_dir_subs);
+        auto dir = findEigenDir(pack.s, pack.t, direction_epsilon);
 
         if(!dir) continue;
 
-        if((pack.tri.v1() - pack.tri.v2()).squaredNorm() < spatial_epsilon)
+        if((pack.tri.v1() - pack.tri.v2()).norm() < spatial_epsilon)
         {
             result.push_back({dir.value(), pack.tri});
             continue;
         }
 
-        if(num_subdivisions) *num_subdivisions += 1;
         auto s_subs = pack.s.split();
         auto t_subs = pack.t.split();
         auto tri_subs = pack.tri.split();
@@ -454,9 +441,6 @@ TriPairList parallelEigenvectorSearch(const TensorInterp& s,
             pque.push({s_subs[i], t_subs[i], tri_subs[i]});
         }
     }
-
-    if(num_direction_subdivisions) *num_direction_subdivisions = total_dir_subs;
-
     return result;
 }
 
@@ -491,13 +475,9 @@ PointList findParallelEigenvectors(
     auto s_interp = TensorInterp{s1, s2, s3};
     auto t_interp = TensorInterp{t1, t2, t3};
 
-    auto num_subdiv = 0;
-    auto num_dir_subdiv = 0;
-
     auto tris = parallelEigenvectorSearch(
             s_interp, t_interp,
-            start_tri, spatial_epsilon, direction_epsilon,
-            &num_subdiv, &num_dir_subdiv);
+            start_tri, spatial_epsilon, direction_epsilon);
 
     auto clustered_tris = clusterTris(tris, cluster_epsilon);
 
