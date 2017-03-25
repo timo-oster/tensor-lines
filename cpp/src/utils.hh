@@ -76,11 +76,14 @@ inline typename std::make_unsigned<T>::type as_unsigned(T t)
 
 template<typename T, typename U, typename V = int>
 inline auto range(T start, U end, V step = 1)
--> decltype(boost::irange<
-    decltype(true ? std::declval<T>() : std::declval<U>())>(
-        std::declval<T>(), std::declval<U>(), std::declval<V>()))
+-> decltype(
+    boost::irange<
+        typename std::decay<
+            decltype(true ? std::declval<T>() : std::declval<U>())
+        >::type>(
+            std::declval<T>(), std::declval<U>(), std::declval<V>()))
 {
-    using D = decltype(true ? start : end);
+    using D = typename std::decay<decltype(true ? start : end)>::type;
     return boost::irange<D>(start, end, step);
 }
 
