@@ -27,6 +27,7 @@
 #include <map>
 #include <vector>
 #include <list>
+#include <unordered_set>
 #include <iostream>
 #include <future>
 
@@ -343,7 +344,6 @@ int vtkParallelEigenvectors::RequestData(
                     eivec->InsertTuple(pid, p.eivec.data());
                     imag1->InsertValue(pid, p.s_has_imaginary ? 1. : 0.);
                     imag2->InsertValue(pid, p.t_has_imaginary ? 1. : 0.);
-                    output->InsertNextCell(VTK_VERTEX, 1, &pid);
                     if(!cell_map[cid].Get())
                     {
                         cell_map[cid] = vtkSmartPointer<vtkIdList>::New();
@@ -354,7 +354,6 @@ int vtkParallelEigenvectors::RequestData(
                 this->UpdateProgress(progress);
                 it = futures.erase(it);
                 --it;
-                // futures.pop_front();
             }
         }
     }
@@ -379,7 +378,6 @@ int vtkParallelEigenvectors::RequestData(
             eivec->InsertTuple(pid, p.eivec.data());
             imag1->InsertValue(pid, p.s_has_imaginary ? 1. : 0.);
             imag2->InsertValue(pid, p.t_has_imaginary ? 1. : 0.);
-            output->InsertNextCell(VTK_VERTEX, 1, &pid);
             if(!cell_map[cid].Get())
             {
                 cell_map[cid] = vtkSmartPointer<vtkIdList>::New();
@@ -390,22 +388,76 @@ int vtkParallelEigenvectors::RequestData(
         this->UpdateProgress(progress);
     }
 
-    // For cells with exactly two parallel eigenvector points, connect them
-    // with a line
     output->SetLines(vtkCellArray::New());
 
     auto cell_points = vtkSmartPointer<vtkIdList>::New();
 
     for(const auto& c: cell_map)
     {
-        if(c.second->GetNumberOfIds() == 2)
+        auto point_list = c.second;
+        auto npoints = point_list->GetNumberOfIds();
+        // For cells with exactly two parallel eigenvector points, connect them
+        // with a line
+        if(npoints == 2)
         {
-            output->InsertNextCell(VTK_LINE, c.second);
+            output->InsertNextCell(VTK_LINE, point_list);
         }
         else
         {
+            // Match points by eigenvector direction
+
+            using Matrix3X = Eigen::Matrix3Xd;
+            using MatrixX = Eigen::MatrixXd;
+
+            // Get eigenvectors of cell points
+            auto eigdirs = Matrix3X(3, npoints).eval();
+            for(auto i: range(npoints))
+            {
+                eigdirs.col(i) = Vec3dm{eivec->GetTuple(point_list->GetId(i))};
+            }
+
+            // Compute pairwise vector deviations
+            auto dist = MatrixX::Ones(npoints, npoints).eval();
+            for(auto i: range(npoints))
+            {
+                for(auto j: range(i + 1, npoints))
+                {
+                    dist(i, j) = eigdirs.col(i)
+                                        .cross(eigdirs.col(j))
+                                        .squaredNorm();
+                }
+            }
+
+            // Greedily find closest two vectors and connect
+            auto unlinked = std::unordered_set<vtkIdType>{};
+            for(auto i: range(npoints))
+            {
+                unlinked.insert(point_list->GetId(i));
+            }
+            while(dist.sum() > 0.)
+            {
+                auto row = Matrix3X::Index{};
+                auto col = Matrix3X::Index{};
+                dist.minCoeff(&row, &col);
+                auto line = vtkSmartPointer<vtkIdList>::New();
+                line->InsertNextId(point_list->GetId(row));
+                line->InsertNextId(point_list->GetId(col));
+                output->InsertNextCell(VTK_LINE, line);
+                dist.col(col).setZero();
+                dist.col(row).setZero();
+                dist.row(col).setZero();
+                dist.row(row).setZero();
+                unlinked.erase(row);
+                unlinked.erase(col);
+            }
+
+            // Add vertex for last unlinked point if any
+            for(auto i: unlinked)
+            {
+                output->InsertNextCell(VTK_VERTEX, 1, point_list->GetPointer(i));
+            }
             std::cout << "Cell " << c.first
-            << " has " << c.second->GetNumberOfIds() << " points" << std::endl;
+            << " has " << npoints << " points" << std::endl;
             input->GetCellPoints(c.first, cell_points);
             auto s1 = Mat3d{Mat3dm{array1->GetTuple(cell_points->GetId(0))}};
             auto s2 = Mat3d{Mat3dm{array1->GetTuple(cell_points->GetId(1))}};
