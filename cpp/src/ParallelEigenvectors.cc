@@ -28,12 +28,12 @@ using namespace peigv;
 enum BezierIndices: int
 {
     i300 = 0,
+    i030,
+    i003,
     i210,
     i201,
-    i030,
     i120,
     i021,
-    i003,
     i102,
     i012,
     i111
