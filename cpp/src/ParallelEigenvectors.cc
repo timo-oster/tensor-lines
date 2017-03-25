@@ -324,8 +324,11 @@ boost::optional<Triangle> findEigenDir(const TensorInterp& s,
                                        const TensorInterp& t,
                                        double epsilon)
 {
+    // Stack for direction triangles that still have to be processed
+    // results in a depth-first search
     auto tstck = std::stack<Triangle>{};
 
+    // Start with four triangles covering all directions in a hemisphere
     tstck.push(Triangle{{1, 0, 0}, {0, 1, 0}, {0, 0, 1}});
     tstck.push(Triangle{{0, 1, 0}, {-1, 0, 0}, {0, 0, 1}});
     tstck.push(Triangle{{-1, 0, 0}, {0, -1, 0}, {0, 0, 1}});
@@ -348,6 +351,7 @@ boost::optional<Triangle> findEigenDir(const TensorInterp& s,
         s_signs[1] = sameSign(s_coeffs[1]);
         auto ma = std::max(s_signs[0], s_signs[1]);
         auto mi = std::min(s_signs[0], s_signs[1]);
+        // early termination if two signs are already different
         if(ma * mi < 0) continue;
 
         s_signs[2] = sameSign(s_coeffs[2]);
@@ -378,13 +382,14 @@ boost::optional<Triangle> findEigenDir(const TensorInterp& s,
             return tri;
         }
 
-        // Small triangle and still not sure if parallel eigenvectors possible
-        // or impossible: assume yes
+        // Small triangle and still not sure if parallel eigenvectors
+        // impossible: accept direction as candidate
         if((tri.v1() - tri.v2()).norm() < epsilon)
         {
             return tri;
         }
 
+        // Subdivide triangle
         for(const auto& t: tri.split())
         {
             tstck.push(t);
@@ -407,6 +412,8 @@ TriPairList parallelEigenvectorSearch(const TensorInterp& s,
         Triangle tri;
     };
 
+    // Queue for sub-triangles that still have to be processed
+    // results in a breadth-first search
     auto pque = std::queue<SubPackage>{};
     pque.push({s, t, tri});
 
@@ -424,14 +431,18 @@ TriPairList parallelEigenvectorSearch(const TensorInterp& s,
         }
         auto dir = findEigenDir(pack.s, pack.t, direction_epsilon);
 
+        // No possible eigenvector directions found: discard triangle
         if(!dir) continue;
 
+        // Triangle at subdivision limit and still viable eigenvector directions:
+        // accept as parallel eigenvector point candidate
         if((pack.tri.v1() - pack.tri.v2()).norm() < spatial_epsilon)
         {
             result.push_back({dir.value(), pack.tri});
             continue;
         }
 
+        // Subdivide triangle
         auto s_subs = pack.s.split();
         auto t_subs = pack.t.split();
         auto tri_subs = pack.tri.split();
