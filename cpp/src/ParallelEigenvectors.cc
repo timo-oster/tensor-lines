@@ -602,8 +602,8 @@ PointList findParallelEigenvectors(
                               result_dir,
                               s_real_eigv,
                               t_real_eigv,
-                              s_eigvs.imag().sum() > 0,
-                              t_eigvs.imag().sum() > 0});
+                              s_eigvs.sum().imag() != 0,
+                              t_eigvs.sum().imag() != 0});
         }
     }
     auto end = high_resolution_clock::now();
