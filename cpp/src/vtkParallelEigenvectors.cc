@@ -30,6 +30,7 @@
 #include <unordered_set>
 #include <iostream>
 #include <future>
+#include <chrono>
 
 #include <ctpl_stl.h>
 
@@ -259,6 +260,12 @@ int vtkParallelEigenvectors::RequestData(
                                                cluster_epsilon, parallelity_epsilon);
     };
 
+    using namespace std::chrono;
+    using seconds = duration<double, std::chrono::seconds::period>;
+    using milliseconds = duration<double, std::chrono::milliseconds::period>;
+
+    auto start = high_resolution_clock::now();
+
     auto progress = 0.;
     auto step = 1. / double(input->GetNumberOfCells()*4);
 
@@ -388,6 +395,8 @@ int vtkParallelEigenvectors::RequestData(
         this->UpdateProgress(progress);
     }
 
+    auto end_pointsearch = high_resolution_clock::now();
+
     output->SetLines(vtkCellArray::New());
 
     auto cell_points = vtkSmartPointer<vtkIdList>::New();
@@ -432,21 +441,24 @@ int vtkParallelEigenvectors::RequestData(
             auto unlinked = std::unordered_set<vtkIdType>{};
             for(auto i: range(npoints))
             {
-                unlinked.insert(point_list->GetId(i));
+                unlinked.insert(i);
             }
-            while(dist.sum() > 0.)
+            while(dist.sum() < npoints * npoints)
             {
+                std::cout << dist << "\n" << std::endl;
                 auto row = Matrix3X::Index{};
                 auto col = Matrix3X::Index{};
                 dist.minCoeff(&row, &col);
+                std::cout << "Min row: " << row << ", min col: " << col << std::endl;
                 auto line = vtkSmartPointer<vtkIdList>::New();
-                line->InsertNextId(point_list->GetId(row));
-                line->InsertNextId(point_list->GetId(col));
+                line->SetNumberOfIds(2);
+                line->InsertId(0, point_list->GetId(row));
+                line->InsertId(1, point_list->GetId(col));
                 output->InsertNextCell(VTK_LINE, line);
-                dist.col(col).setZero();
-                dist.col(row).setZero();
-                dist.row(col).setZero();
-                dist.row(row).setZero();
+                dist.col(col).setOnes();
+                dist.col(row).setOnes();
+                dist.row(col).setOnes();
+                dist.row(row).setOnes();
                 unlinked.erase(row);
                 unlinked.erase(col);
             }
@@ -482,5 +494,23 @@ int vtkParallelEigenvectors::RequestData(
             std::cout << "T4: \n" << t4.format(fmt) << std::endl;
         }
     }
+
+    auto end_all = high_resolution_clock::now();
+    auto duration_all = seconds(end_all - start);
+    auto duration_pointsearch = seconds(end_pointsearch - start);
+
+    std::cout << "Processed dataset in "
+              << duration_all.count() << " seconds" << std::endl;
+    std::cout << "Point search time: "
+              << duration_pointsearch.count() << " seconds" << std::endl;
+    std::cout << "Postprocessing time: "
+              << milliseconds(duration_all - duration_pointsearch).count()
+              << " milliseconds" << std::endl;
+    std::cout << "Number of faces processed: ~" << input->GetNumberOfCells()*4/2
+              << " * 2" << std::endl;
+    std::cout << "Average time per face: "
+              << (milliseconds(duration_pointsearch) / (input->GetNumberOfCells()*4)).count()
+              << " milliseconds" << std::endl;
+
     return 1;
 }
