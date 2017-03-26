@@ -1,9 +1,9 @@
 #ifndef CPP_BARYCENTRIC_INTERPOLATOR_HH
 #define CPP_BARYCENTRIC_INTERPOLATOR_HH
 
-#include <array>
-
 #include "utils.hh"
+
+#include <array>
 
 namespace peigv
 {
@@ -67,7 +67,7 @@ public:
             Self{_v1, v12, v13},
             Self{v12, _v2, v23},
             Self{v13, v23, _v3},
-            Self{v12, v23, v13}
+            Self{v23, v13, v12}
         };
     }
 

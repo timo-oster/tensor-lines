@@ -1,7 +1,7 @@
 #include "ParallelEigenvectors.hh"
 
 #include "BarycentricInterpolator.hh"
-
+#include "BezierTriangle.hh"
 
 #include <Eigen/LU>
 #include <Eigen/Eigenvalues>
@@ -23,124 +23,112 @@ namespace
 using namespace peigv;
 
 /**
- * Names for coefficients of a cubic Bézier triangle
+ * Struct for computing coefficients of a cubic Bézier triangle
  */
-enum BezierIndices: int
-{
-    i300 = 0,
-    i030,
-    i003,
-    i210,
-    i201,
-    i120,
-    i021,
-    i102,
-    i012,
-    i111
-};
+// struct BCoeffs
+// {
+//     double operator[](int i) const
+//     {
+//         switch(i)
+//         {
+//             case i300:
+//             {
+//                 return A.determinant();
+//             }
+//             case i030:
+//             {
+//                 return B.determinant();
+//             }
+//             case i003:
+//             {
+//                 return C.determinant();
+
+//             }
+//             case i210:
+//             {
+//                 return 1. / 3. * (
+//                       (Mat3d{} << B.col(0), A.col(1), A.col(2)).finished().determinant()
+//                     + (Mat3d{} << A.col(0), B.col(1), A.col(2)).finished().determinant()
+//                     + (Mat3d{} << A.col(0), A.col(1), B.col(2)).finished().determinant()
+//                     );
+
+//             }
+//             case i201:
+//             {
+//                 return 1. / 3. * (
+//                       (Mat3d{} << C.col(0), A.col(1), A.col(2)).finished().determinant()
+//                     + (Mat3d{} << A.col(0), C.col(1), A.col(2)).finished().determinant()
+//                     + (Mat3d{} << A.col(0), A.col(1), C.col(2)).finished().determinant()
+//                     );
+
+//             }
+//             case i120:
+//             {
+//                 return 1. / 3. * (
+//                       (Mat3d{} << A.col(0), B.col(1), B.col(2)).finished().determinant()
+//                     + (Mat3d{} << B.col(0), A.col(1), B.col(2)).finished().determinant()
+//                     + (Mat3d{} << B.col(0), B.col(1), A.col(2)).finished().determinant()
+//                     );
+
+//             }
+//             case i021:
+//             {
+//                 return 1. / 3. * (
+//                       (Mat3d{} << C.col(0), B.col(1), B.col(2)).finished().determinant()
+//                     + (Mat3d{} << B.col(0), C.col(1), B.col(2)).finished().determinant()
+//                     + (Mat3d{} << B.col(0), B.col(1), C.col(2)).finished().determinant()
+//                     );
+
+//             }
+//             case i102:
+//             {
+//                 return 1. / 3. * (
+//                       (Mat3d{} << A.col(0), C.col(1), C.col(2)).finished().determinant()
+//                     + (Mat3d{} << C.col(0), A.col(1), C.col(2)).finished().determinant()
+//                     + (Mat3d{} << C.col(0), C.col(1), A.col(2)).finished().determinant()
+//                     );
+
+//             }
+//             case i012:
+//             {
+//                 return 1. / 3. * (
+//                       (Mat3d{} << B.col(0), C.col(1), C.col(2)).finished().determinant()
+//                     + (Mat3d{} << C.col(0), B.col(1), C.col(2)).finished().determinant()
+//                     + (Mat3d{} << C.col(0), C.col(1), B.col(2)).finished().determinant()
+//                     );
+
+//             }
+//             case i111:
+//             {
+//                 return 1. / 6. * (
+//                       (Mat3d{} << A.col(0), B.col(1), C.col(2)).finished().determinant()
+//                     + (Mat3d{} << A.col(0), C.col(1), B.col(2)).finished().determinant()
+//                     + (Mat3d{} << B.col(0), A.col(1), C.col(2)).finished().determinant()
+//                     + (Mat3d{} << B.col(0), C.col(1), A.col(2)).finished().determinant()
+//                     + (Mat3d{} << C.col(0), A.col(1), B.col(2)).finished().determinant()
+//                     + (Mat3d{} << C.col(0), B.col(1), A.col(2)).finished().determinant()
+//                     );
+//             }
+//             default:
+//                 return 0.;
+//         }
+//     }
+
+//     static constexpr std::size_t size()
+//     {
+//         return 10;
+//     }
+
+//     Mat3d A;
+//     Mat3d B;
+//     Mat3d C;
+// };
 
 
 /**
- * Struct for computing coefficients of a cubic Bézier triangle
+ * Cubic polynomial of degree 3 in barycentric coordinates
  */
-struct BCoeffs
-{
-    double operator[](int i) const
-    {
-        switch(i)
-        {
-            case i300:
-            {
-                return A.determinant();
-            }
-            case i030:
-            {
-                return B.determinant();
-            }
-            case i003:
-            {
-                return C.determinant();
-
-            }
-            case i210:
-            {
-                return 1. / 3. * (
-                      (Mat3d{} << B.col(0), A.col(1), A.col(2)).finished().determinant()
-                    + (Mat3d{} << A.col(0), B.col(1), A.col(2)).finished().determinant()
-                    + (Mat3d{} << A.col(0), A.col(1), B.col(2)).finished().determinant()
-                    );
-
-            }
-            case i201:
-            {
-                return 1. / 3. * (
-                      (Mat3d{} << C.col(0), A.col(1), A.col(2)).finished().determinant()
-                    + (Mat3d{} << A.col(0), C.col(1), A.col(2)).finished().determinant()
-                    + (Mat3d{} << A.col(0), A.col(1), C.col(2)).finished().determinant()
-                    );
-
-            }
-            case i120:
-            {
-                return 1. / 3. * (
-                      (Mat3d{} << A.col(0), B.col(1), B.col(2)).finished().determinant()
-                    + (Mat3d{} << B.col(0), A.col(1), B.col(2)).finished().determinant()
-                    + (Mat3d{} << B.col(0), B.col(1), A.col(2)).finished().determinant()
-                    );
-
-            }
-            case i021:
-            {
-                return 1. / 3. * (
-                      (Mat3d{} << C.col(0), B.col(1), B.col(2)).finished().determinant()
-                    + (Mat3d{} << B.col(0), C.col(1), B.col(2)).finished().determinant()
-                    + (Mat3d{} << B.col(0), B.col(1), C.col(2)).finished().determinant()
-                    );
-
-            }
-            case i102:
-            {
-                return 1. / 3. * (
-                      (Mat3d{} << A.col(0), C.col(1), C.col(2)).finished().determinant()
-                    + (Mat3d{} << C.col(0), A.col(1), C.col(2)).finished().determinant()
-                    + (Mat3d{} << C.col(0), C.col(1), A.col(2)).finished().determinant()
-                    );
-
-            }
-            case i012:
-            {
-                return 1. / 3. * (
-                      (Mat3d{} << B.col(0), C.col(1), C.col(2)).finished().determinant()
-                    + (Mat3d{} << C.col(0), B.col(1), C.col(2)).finished().determinant()
-                    + (Mat3d{} << C.col(0), C.col(1), B.col(2)).finished().determinant()
-                    );
-
-            }
-            case i111:
-            {
-                return 1. / 6. * (
-                      (Mat3d{} << A.col(0), B.col(1), C.col(2)).finished().determinant()
-                    + (Mat3d{} << A.col(0), C.col(1), B.col(2)).finished().determinant()
-                    + (Mat3d{} << B.col(0), A.col(1), C.col(2)).finished().determinant()
-                    + (Mat3d{} << B.col(0), C.col(1), A.col(2)).finished().determinant()
-                    + (Mat3d{} << C.col(0), A.col(1), B.col(2)).finished().determinant()
-                    + (Mat3d{} << C.col(0), B.col(1), A.col(2)).finished().determinant()
-                    );
-            }
-            default:
-                return 0.;
-        }
-    }
-
-    static constexpr std::size_t size()
-    {
-        return 10;
-    }
-
-    Mat3d A;
-    Mat3d B;
-    Mat3d C;
-};
+using BezierTriangle = BezierTriangle<double>;
 
 
 /**
@@ -257,26 +245,66 @@ clusterTris(const TriPairList& tris, double epsilon)
  *
  * @return 1 for all positive, -1 for all negative, 0 otherwise
  */
-int sameSign(const BCoeffs& coeffs)
+int sameSign(const BezierTriangle& coeffs)
 {
-    auto c = coeffs[0];
-    auto min = c;
-    auto max = c;
-    for(auto i: range(1, BCoeffs::size()))
-    {
-        c = coeffs[i];
-        min = c < min ? c : min;
-        max = c > max ? c : max;
-        if(min * max < 0)
-        {
-            return 0;
-        }
-    }
-    return sgn(min);
+    auto ma = coeffs.coefficients().maxCoeff();
+    auto mi = coeffs.coefficients().minCoeff();
+    return mi*ma > 0 ? sgn(ma) : 0;
 }
 
 
-std::array<BCoeffs, 3>
+BezierTriangle computeBezierTriangle(const Mat3d& A,
+                                     const Mat3d& B,
+                                     const Mat3d& C)
+{
+    auto result = BezierTriangle::Coeffs{};
+
+    result(BezierTriangle::i300) = A.determinant();
+    result(BezierTriangle::i030) = B.determinant();
+    result(BezierTriangle::i003) = C.determinant();
+    result(BezierTriangle::i210) = 1. / 3. * (
+              (Mat3d{} << B.col(0), A.col(1), A.col(2)).finished().determinant()
+            + (Mat3d{} << A.col(0), B.col(1), A.col(2)).finished().determinant()
+            + (Mat3d{} << A.col(0), A.col(1), B.col(2)).finished().determinant()
+            );
+    result(BezierTriangle::i201) = 1. / 3. * (
+              (Mat3d{} << C.col(0), A.col(1), A.col(2)).finished().determinant()
+            + (Mat3d{} << A.col(0), C.col(1), A.col(2)).finished().determinant()
+            + (Mat3d{} << A.col(0), A.col(1), C.col(2)).finished().determinant()
+            );
+    result(BezierTriangle::i120) = 1. / 3. * (
+              (Mat3d{} << A.col(0), B.col(1), B.col(2)).finished().determinant()
+            + (Mat3d{} << B.col(0), A.col(1), B.col(2)).finished().determinant()
+            + (Mat3d{} << B.col(0), B.col(1), A.col(2)).finished().determinant()
+            );
+    result(BezierTriangle::i021) = 1. / 3. * (
+              (Mat3d{} << C.col(0), B.col(1), B.col(2)).finished().determinant()
+            + (Mat3d{} << B.col(0), C.col(1), B.col(2)).finished().determinant()
+            + (Mat3d{} << B.col(0), B.col(1), C.col(2)).finished().determinant()
+            );
+    result(BezierTriangle::i102) = 1. / 3. * (
+              (Mat3d{} << A.col(0), C.col(1), C.col(2)).finished().determinant()
+            + (Mat3d{} << C.col(0), A.col(1), C.col(2)).finished().determinant()
+            + (Mat3d{} << C.col(0), C.col(1), A.col(2)).finished().determinant()
+            );
+    result(BezierTriangle::i012) = 1. / 3. * (
+              (Mat3d{} << B.col(0), C.col(1), C.col(2)).finished().determinant()
+            + (Mat3d{} << C.col(0), B.col(1), C.col(2)).finished().determinant()
+            + (Mat3d{} << C.col(0), C.col(1), B.col(2)).finished().determinant()
+            );
+    result(BezierTriangle::i111) = 1. / 6. * (
+              (Mat3d{} << A.col(0), B.col(1), C.col(2)).finished().determinant()
+            + (Mat3d{} << A.col(0), C.col(1), B.col(2)).finished().determinant()
+            + (Mat3d{} << B.col(0), A.col(1), C.col(2)).finished().determinant()
+            + (Mat3d{} << B.col(0), C.col(1), A.col(2)).finished().determinant()
+            + (Mat3d{} << C.col(0), A.col(1), B.col(2)).finished().determinant()
+            + (Mat3d{} << C.col(0), B.col(1), A.col(2)).finished().determinant()
+            );
+    return BezierTriangle{result};
+}
+
+
+std::array<BezierTriangle, 3>
 bezierCoefficients(const Mat3d& t1, const Mat3d& t2, const Mat3d& t3,
                    const Vec3d& r1, const Vec3d& r2, const Vec3d& r3)
 {
@@ -289,22 +317,22 @@ bezierCoefficients(const Mat3d& t1, const Mat3d& t2, const Mat3d& t3,
     auto C = Mat3d{};
     C << t1 * r3, t2 * r3, t3 * r3;
 
-    auto alpha_coeffs = BCoeffs{
+    auto alpha_coeffs = computeBezierTriangle(
             (Mat3d{} << r1, A.col(1), A.col(2)).finished(),
             (Mat3d{} << r2, B.col(1), B.col(2)).finished(),
-            (Mat3d{} << r3, C.col(1), C.col(2)).finished()};
+            (Mat3d{} << r3, C.col(1), C.col(2)).finished());
 
-    auto beta_coeffs = BCoeffs{
+    auto beta_coeffs = computeBezierTriangle(
             (Mat3d{} << A.col(0), r1, A.col(2)).finished(),
             (Mat3d{} << B.col(0), r2, B.col(2)).finished(),
-            (Mat3d{} << C.col(0), r3, C.col(2)).finished()};
+            (Mat3d{} << C.col(0), r3, C.col(2)).finished());
 
-    auto gamma_coeffs = BCoeffs{
+    auto gamma_coeffs = computeBezierTriangle(
             (Mat3d{} << A.col(0), A.col(1), r1).finished(),
             (Mat3d{} << B.col(0), B.col(1), r2).finished(),
-            (Mat3d{} << C.col(0), C.col(1), r3).finished()};
+            (Mat3d{} << C.col(0), C.col(1), r3).finished());
 
-    // auto denom_coeffs = bezierCoefficients(A, B, C);
+    // auto denom_coeffs = computeBezierTriangle(A, B, C);
 
     return {alpha_coeffs, beta_coeffs, gamma_coeffs};
 }
@@ -324,75 +352,109 @@ boost::optional<Triangle> findEigenDir(const TensorInterp& s,
                                        const TensorInterp& t,
                                        double epsilon)
 {
+    struct SubPackage
+    {
+        Triangle tri;
+        BezierTriangle s_alpha;
+        BezierTriangle s_beta;
+        BezierTriangle s_gamma;
+        BezierTriangle t_alpha;
+        BezierTriangle t_beta;
+        BezierTriangle t_gamma;
+
+        std::array<SubPackage, 4> split() const
+        {
+            auto tri_sub = tri.split();
+            auto s_alpha_sub = s_alpha.split();
+            auto s_beta_sub = s_beta.split();
+            auto s_gamma_sub = s_gamma.split();
+            auto t_alpha_sub = t_alpha.split();
+            auto t_beta_sub = t_beta.split();
+            auto t_gamma_sub = t_gamma.split();
+            return {
+                SubPackage{tri_sub[0],
+                    s_alpha_sub[0], s_beta_sub[0], s_gamma_sub[0],
+                    t_alpha_sub[0], t_beta_sub[0], t_gamma_sub[0]},
+                SubPackage{tri_sub[1],
+                    s_alpha_sub[1], s_beta_sub[1], s_gamma_sub[1],
+                    t_alpha_sub[1], t_beta_sub[1], t_gamma_sub[1]},
+                SubPackage{tri_sub[2],
+                    s_alpha_sub[2], s_beta_sub[2], s_gamma_sub[2],
+                    t_alpha_sub[2], t_beta_sub[2], t_gamma_sub[2]},
+                SubPackage{tri_sub[3],
+                    s_alpha_sub[3], s_beta_sub[3], s_gamma_sub[3],
+                    t_alpha_sub[3], t_beta_sub[3], t_gamma_sub[3]}
+            };
+        }
+    };
+
     // Stack for direction triangles that still have to be processed
     // results in a depth-first search
-    auto tstck = std::stack<Triangle>{};
+    auto tstck = std::stack<SubPackage>{};
+
+    auto init_tri = [&](const Triangle& tri)
+    {
+        auto s_coeffs = bezierCoefficients(s.v1(), s.v2(), s.v3(),
+                                           tri.v1(), tri.v2(), tri.v3());
+        auto t_coeffs = bezierCoefficients(t.v1(), t.v2(), t.v3(),
+                                           tri.v1(), tri.v2(), tri.v3());
+        tstck.push(SubPackage{
+            tri,
+            s_coeffs[0], s_coeffs[1], s_coeffs[2],
+            t_coeffs[0], t_coeffs[1], t_coeffs[2]
+        });
+    };
 
     // Start with four triangles covering all directions in a hemisphere
-    tstck.push(Triangle{{1, 0, 0}, {0, 1, 0}, {0, 0, 1}});
-    tstck.push(Triangle{{0, 1, 0}, {-1, 0, 0}, {0, 0, 1}});
-    tstck.push(Triangle{{-1, 0, 0}, {0, -1, 0}, {0, 0, 1}});
-    tstck.push(Triangle{{0, -1, 0}, {1, 0, 0}, {0, 0, 1}});
+    init_tri(Triangle{{1, 0, 0}, {0, 1, 0}, {0, 0, 1}});
+    init_tri(Triangle{{0, 1, 0}, {-1, 0, 0}, {0, 0, 1}});
+    init_tri(Triangle{{-1, 0, 0}, {0, -1, 0}, {0, 0, 1}});
+    init_tri(Triangle{{0, -1, 0}, {1, 0, 0}, {0, 0, 1}});
 
     while(!tstck.empty())
     {
-        auto tri = tstck.top();
+        auto pack = tstck.top();
         tstck.pop();
 
-        // Compute Bézier coefficients of eigenvector coordinate functions and
-        // check for different signs
+        auto s_signs = std::array<int, 3>{sameSign(pack.s_alpha),
+                                          sameSign(pack.s_beta),
+                                          sameSign(pack.s_gamma)};
+        auto t_signs = std::array<int, 3>{sameSign(pack.t_alpha),
+                                          sameSign(pack.t_beta),
+                                          sameSign(pack.t_gamma)};
 
-        auto s_coeffs = bezierCoefficients(
-                s.v1(), s.v2(), s.v3(),
-                tri.v1(), tri.v2(), tri.v3());
-
-        auto s_signs = std::array<int, 3>{0, 0, 0};
-        s_signs[0] = sameSign(s_coeffs[0]);
-        s_signs[1] = sameSign(s_coeffs[1]);
-        auto ma = std::max(s_signs[0], s_signs[1]);
-        auto mi = std::min(s_signs[0], s_signs[1]);
-        // early termination if two signs are already different
-        if(ma * mi < 0) continue;
-
-        s_signs[2] = sameSign(s_coeffs[2]);
-        ma = std::max(ma, s_signs[2]);
-        mi = std::min(mi, s_signs[2]);
-        if(ma * mi < 0) continue;
-
-        auto t_coeffs = bezierCoefficients(
-                t.v1(), t.v2(), t.v3(),
-                tri.v1(), tri.v2(), tri.v3());
-
-        auto t_signs = std::array<int, 3>{0, 0, 0};
-        t_signs[0] = sameSign(t_coeffs[0]);
-        t_signs[1] = sameSign(t_coeffs[1]);
-        ma = std::max(t_signs[0], t_signs[1]);
-        mi = std::min(t_signs[0], t_signs[1]);
-        if(ma * mi < 0) continue;
-
-        t_signs[2] = sameSign(t_coeffs[2]);
-        ma = std::max(ma, t_signs[2]);
-        mi = std::min(mi, t_signs[2]);
-        if(ma * mi < 0) continue;
+        // Bezier coefficients have different signs: parallel eigenvectors
+        // not possible
+        auto s_minmax = std::minmax_element(std::begin(s_signs),
+                                            std::end(s_signs));
+        auto t_minmax = std::minmax_element(std::begin(t_signs),
+                                            std::end(t_signs));
+        if((*s_minmax.first) * (*s_minmax.second) < 0
+           || (*t_minmax.first) * (*t_minmax.second) < 0)
+        {
+            continue;
+        }
 
         // All same signs: parallel eigenvectors possible
-        if(std::abs(std::accumulate(s_signs.begin(), s_signs.end(), 0)) == 3
-           && std::abs(std::accumulate(t_signs.begin(), t_signs.end(), 0)) == 3)
+        if(std::abs(std::accumulate(std::begin(s_signs),
+                                    std::end(s_signs), 0)) == 3
+           && std::abs(std::accumulate(std::begin(t_signs),
+                                       std::end(t_signs), 0)) == 3)
         {
-            return tri;
+            return pack.tri;
         }
 
         // Small triangle and still not sure if parallel eigenvectors
         // impossible: accept direction as candidate
-        if((tri.v1() - tri.v2()).norm() < epsilon)
+        if((pack.tri.v1() - pack.tri.v2()).norm() < epsilon)
         {
-            return tri;
+            return pack.tri;
         }
 
         // Subdivide triangle
-        for(const auto& t: tri.split())
+        for(const auto& p: pack.split())
         {
-            tstck.push(t);
+            tstck.push(p);
         }
     }
     return boost::none;
@@ -468,7 +530,6 @@ PointList findParallelEigenvectors(
         double cluster_epsilon, double parallelity_epsilon)
 {
     using namespace std::chrono;
-    using seconds = duration<double, seconds::period>;
     using milliseconds = duration<double, milliseconds::period>;
 
     static auto total_times = milliseconds(0.);
