@@ -68,12 +68,6 @@ struct FaceHash
     }
 };
 
-struct FaceData
-{
-    TriFace face;
-    std::array<Mat3d, 3> s_tensors;
-    std::array<Mat3d, 3> t_tensors;
-};
 
 using FaceMap = std::unordered_map<TriFace, std::vector<vtkIdType>, FaceHash>;
 

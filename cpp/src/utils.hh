@@ -1,5 +1,5 @@
-#ifndef PEIGV_UTILS_INCLUDED
-#define PEIGV_UTILS_INCLUDED
+#ifndef CPP_UTILS_HH
+#define CPP_UTILS_HH
 
 #include <Eigen/Core>
 #include <boost/range/irange.hpp>
@@ -14,6 +14,7 @@ namespace pev
 {
 using Vec3d = Eigen::Vector3d;
 using Mat3d = Eigen::Matrix3d;
+
 
 struct MinNotZero{
     template<typename T>
@@ -54,11 +55,13 @@ negator<Predicate> negate(Predicate predicate)
     return negator<Predicate>{predicate};
 }
 
+
 template<typename T>
 int sgn(T val)
 {
     return (T{0} < val) - (val < T{0});
 }
+
 
 template<class T>
 inline typename std::make_signed<T>::type as_signed(T t)
@@ -158,6 +161,7 @@ std::string print(const T& in)
     return out.str();
 }
 
+
 struct make_string
 {
     std::stringstream ss;
@@ -172,4 +176,4 @@ struct make_string
 
 }
 
-#endif // PEIGV_UTILS_INCLUDED
+#endif // CPP_UTILS_HH

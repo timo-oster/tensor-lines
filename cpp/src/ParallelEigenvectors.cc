@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <utility>
 #include <array>
+#include <vector>
 #include <map>
 #include <queue>
 #include <stack>
@@ -23,7 +24,7 @@ namespace
 using namespace pev;
 
 /**
- * Cubic polynomial of degree 3 in barycentric coordinates
+ * Cubic trivariate polynomial in barycentric coordinates
  */
 using BezierTriangle = BezierTriangle<double>;
 
@@ -68,12 +69,11 @@ struct TriPair
 /**
  * List of parallel eigenvector point candidates
  */
-using TriPairList = std::list<TriPair>;
+using TriPairList = std::vector<TriPair>;
 
 
 /**
- * @brief (simplified) distance between two triangles
- * @details Computes smallest distance between two triangle corners
+ * (Simplified) distance between two triangles
  */
 double distance(const Triangle& t1, const Triangle& t2)
 {
@@ -89,10 +89,10 @@ double distance(const Triangle& t1, const Triangle& t2)
  *
  * @return List of clusters (each cluster is a list of candidates)
  */
-std::list<TriPairList>
+std::vector<TriPairList>
 clusterTris(const TriPairList& tris, double epsilon)
 {
-    auto classes = std::list<TriPairList>{};
+    auto classes = std::vector<TriPairList>{};
     for(const auto& t: tris)
     {
         classes.push_back({t});
@@ -152,7 +152,7 @@ clusterTris(const TriPairList& tris, double epsilon)
  *
  * @return List of candidates, each a representative of a cluster
  */
-TriPairList findRepresentatives(const std::list<TriPairList>& clusters,
+TriPairList findRepresentatives(const std::vector<TriPairList>& clusters,
                                 const TensorInterp& s_interp,
                                 const TensorInterp& t_interp,
                                 double parallelity_epsilon)
@@ -216,6 +216,7 @@ PointList computeContextInfo(const TriPairList& representatives,
                              const Triangle& tri)
 {
     auto points = PointList{};
+    points.reserve(representatives.size());
 
     for(const auto& r: representatives)
     {

@@ -3,7 +3,7 @@
 
 #include "utils.hh"
 
-#include <list>
+#include <vector>
 
 
 namespace pev
@@ -34,7 +34,7 @@ struct PEVPoint
     bool t_has_imaginary; //< T has any imaginary eigenvalues at the position
 };
 
-using PointList = std::list<PEVPoint>;
+using PointList = std::vector<PEVPoint>;
 
 /**
  * @brief Find parallel eigenvector points on a triangle given two tensors at
