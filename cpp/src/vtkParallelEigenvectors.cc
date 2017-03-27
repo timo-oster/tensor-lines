@@ -176,6 +176,12 @@ int vtkParallelEigenvectors::RequestData(
 {
     using namespace peigv;
 
+    using namespace std::chrono;
+    using hours = duration<double, std::chrono::hours::period>;
+    using minutes = duration<double, std::chrono::minutes::period>;
+    using seconds = duration<double, std::chrono::seconds::period>;
+    using milliseconds = duration<double, std::chrono::milliseconds::period>;
+
     // vtk Tensors are stored in row major order by convention
     using Mat3d = Eigen::Matrix<double, 3, 3, Eigen::RowMajor, 3, 3>;
     using Mat3dm = Eigen::Map<Mat3d>;
@@ -259,10 +265,6 @@ int vtkParallelEigenvectors::RequestData(
                                                spatial_epsilon, direction_epsilon,
                                                cluster_epsilon, parallelity_epsilon);
     };
-
-    using namespace std::chrono;
-    using seconds = duration<double, std::chrono::seconds::period>;
-    using milliseconds = duration<double, std::chrono::milliseconds::period>;
 
     auto start = high_resolution_clock::now();
 
@@ -500,12 +502,12 @@ int vtkParallelEigenvectors::RequestData(
     auto duration_pointsearch = seconds(end_pointsearch - start);
 
     std::cout << "Processed dataset in "
-              << duration_all.count() << " seconds" << std::endl;
+              << hours(duration_all).count() << " hours" << std::endl;
     std::cout << "Point search time: "
-              << duration_pointsearch.count() << " seconds" << std::endl;
+              << hours(duration_pointsearch).count() << " hours" << std::endl;
     std::cout << "Postprocessing time: "
-              << milliseconds(duration_all - duration_pointsearch).count()
-              << " milliseconds" << std::endl;
+              << seconds(duration_all - duration_pointsearch).count()
+              << " seconds" << std::endl;
     std::cout << "Number of faces processed: ~" << input->GetNumberOfCells()*4/2
               << " * 2" << std::endl;
     std::cout << "Average time per face: "
