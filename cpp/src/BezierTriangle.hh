@@ -5,7 +5,7 @@
 
 #include <Eigen/Core>
 
-namespace peigv
+namespace pev
 {
 
 template<typename T, typename C=double>

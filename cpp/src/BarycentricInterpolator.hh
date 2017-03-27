@@ -5,7 +5,7 @@
 
 #include <array>
 
-namespace peigv
+namespace pev
 {
 
 /**

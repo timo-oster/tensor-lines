@@ -10,7 +10,7 @@
 #include <ostream>
 #include <sstream>
 
-namespace peigv
+namespace pev
 {
 using Vec3d = Eigen::Vector3d;
 using Mat3d = Eigen::Matrix3d;

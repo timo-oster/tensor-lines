@@ -38,7 +38,7 @@ namespace
 // vtk Tensors are stored in row major order by convention
 using Mat3d = Eigen::Matrix<double, 3, 3, Eigen::RowMajor, 3, 3>;
 using Mat3dm = Eigen::Map<Mat3d>;
-using Vec3d = peigv::Vec3d;
+using Vec3d = pev::Vec3d;
 using Vec3dm = Eigen::Map<Vec3d>;
 
 struct TriFace
@@ -117,7 +117,7 @@ FaceMap buildFaceMap(vtkDataSet* dataset)
     return face_map;
 }
 
-std::vector<peigv::PointList> computePEVPoints(const std::vector<TriFace>& faces,
+std::vector<pev::PointList> computePEVPoints(const std::vector<TriFace>& faces,
                                                vtkPoints* points,
                                                vtkDataArray* array1,
                                                vtkDataArray* array2,
@@ -129,7 +129,7 @@ std::vector<peigv::PointList> computePEVPoints(const std::vector<TriFace>& faces
 {
     const auto step = 1./faces.size();
     progress_alg->UpdateProgress(0);
-    auto results = std::vector<peigv::PointList>(faces.size());
+    auto results = std::vector<pev::PointList>(faces.size());
     #pragma omp parallel for
     for(auto i = std::size_t{0}; i < faces.size(); ++i)
     {
@@ -156,7 +156,7 @@ std::vector<peigv::PointList> computePEVPoints(const std::vector<TriFace>& faces
         auto t3 = Mat3d{};
         array2->GetTuple(face.points[2], t3.data());
 
-        auto points = peigv::findParallelEigenvectors(s1, s2, s3,
+        auto points = pev::findParallelEigenvectors(s1, s2, s3,
                                                       t1, t2, t3,
                                                       p1, p2, p3,
                                                       spatial_epsilon,
@@ -314,7 +314,7 @@ int vtkParallelEigenvectors::RequestData(
     vtkInformationVector **inputVector,
     vtkInformationVector* outputVector )
 {
-    using peigv::range;
+    using pev::range;
     using namespace std::chrono;
     using hours = duration<double, std::chrono::hours::period>;
     using minutes = duration<double, std::chrono::minutes::period>;

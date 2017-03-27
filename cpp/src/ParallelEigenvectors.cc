@@ -20,110 +20,7 @@
 namespace
 {
 
-using namespace peigv;
-
-/**
- * Struct for computing coefficients of a cubic Bézier triangle
- */
-// struct BCoeffs
-// {
-//     double operator[](int i) const
-//     {
-//         switch(i)
-//         {
-//             case i300:
-//             {
-//                 return A.determinant();
-//             }
-//             case i030:
-//             {
-//                 return B.determinant();
-//             }
-//             case i003:
-//             {
-//                 return C.determinant();
-
-//             }
-//             case i210:
-//             {
-//                 return 1. / 3. * (
-//                       (Mat3d{} << B.col(0), A.col(1), A.col(2)).finished().determinant()
-//                     + (Mat3d{} << A.col(0), B.col(1), A.col(2)).finished().determinant()
-//                     + (Mat3d{} << A.col(0), A.col(1), B.col(2)).finished().determinant()
-//                     );
-
-//             }
-//             case i201:
-//             {
-//                 return 1. / 3. * (
-//                       (Mat3d{} << C.col(0), A.col(1), A.col(2)).finished().determinant()
-//                     + (Mat3d{} << A.col(0), C.col(1), A.col(2)).finished().determinant()
-//                     + (Mat3d{} << A.col(0), A.col(1), C.col(2)).finished().determinant()
-//                     );
-
-//             }
-//             case i120:
-//             {
-//                 return 1. / 3. * (
-//                       (Mat3d{} << A.col(0), B.col(1), B.col(2)).finished().determinant()
-//                     + (Mat3d{} << B.col(0), A.col(1), B.col(2)).finished().determinant()
-//                     + (Mat3d{} << B.col(0), B.col(1), A.col(2)).finished().determinant()
-//                     );
-
-//             }
-//             case i021:
-//             {
-//                 return 1. / 3. * (
-//                       (Mat3d{} << C.col(0), B.col(1), B.col(2)).finished().determinant()
-//                     + (Mat3d{} << B.col(0), C.col(1), B.col(2)).finished().determinant()
-//                     + (Mat3d{} << B.col(0), B.col(1), C.col(2)).finished().determinant()
-//                     );
-
-//             }
-//             case i102:
-//             {
-//                 return 1. / 3. * (
-//                       (Mat3d{} << A.col(0), C.col(1), C.col(2)).finished().determinant()
-//                     + (Mat3d{} << C.col(0), A.col(1), C.col(2)).finished().determinant()
-//                     + (Mat3d{} << C.col(0), C.col(1), A.col(2)).finished().determinant()
-//                     );
-
-//             }
-//             case i012:
-//             {
-//                 return 1. / 3. * (
-//                       (Mat3d{} << B.col(0), C.col(1), C.col(2)).finished().determinant()
-//                     + (Mat3d{} << C.col(0), B.col(1), C.col(2)).finished().determinant()
-//                     + (Mat3d{} << C.col(0), C.col(1), B.col(2)).finished().determinant()
-//                     );
-
-//             }
-//             case i111:
-//             {
-//                 return 1. / 6. * (
-//                       (Mat3d{} << A.col(0), B.col(1), C.col(2)).finished().determinant()
-//                     + (Mat3d{} << A.col(0), C.col(1), B.col(2)).finished().determinant()
-//                     + (Mat3d{} << B.col(0), A.col(1), C.col(2)).finished().determinant()
-//                     + (Mat3d{} << B.col(0), C.col(1), A.col(2)).finished().determinant()
-//                     + (Mat3d{} << C.col(0), A.col(1), B.col(2)).finished().determinant()
-//                     + (Mat3d{} << C.col(0), B.col(1), A.col(2)).finished().determinant()
-//                     );
-//             }
-//             default:
-//                 return 0.;
-//         }
-//     }
-
-//     static constexpr std::size_t size()
-//     {
-//         return 10;
-//     }
-
-//     Mat3d A;
-//     Mat3d B;
-//     Mat3d C;
-// };
-
+using namespace pev;
 
 /**
  * Cubic polynomial of degree 3 in barycentric coordinates
@@ -172,6 +69,7 @@ struct TriPair
  * List of parallel eigenvector point candidates
  */
 using TriPairList = std::list<TriPair>;
+
 
 /**
  * @brief (simplified) distance between two triangles
@@ -241,6 +139,153 @@ clusterTris(const TriPairList& tris, double epsilon)
 
 
 /**
+ * @brief Select the candidate with the most parallel eigenvectors from each
+ *     cluster
+ * @details Discards any points that have eigenvectors which are less parallel
+ *     than @a parallelity_epsilon
+ *
+ * @param clusters List of candidate clusters as produced by clusterTris()
+ * @param s_interp First tensor field on the triangle
+ * @param t_interp Second tensor field on the triangle
+ * @param parallelity_epsilon Maximum parallelity error for a candidate to be
+ *     considered valid
+ *
+ * @return List of candidates, each a representative of a cluster
+ */
+TriPairList findRepresentatives(const std::list<TriPairList>& clusters,
+                                const TensorInterp& s_interp,
+                                const TensorInterp& t_interp,
+                                double parallelity_epsilon)
+{
+    auto result = TriPairList{};
+    for(const auto& c: clusters)
+    {
+        const auto* min_angle_tri = &*(c.cbegin());
+        auto min_sin = 1.;
+        for(const auto& trip: c)
+        {
+            auto dir = trip.direction_tri(1./3., 1./3., 1./3.).normalized();
+            auto center = trip.spatial_tri(1./3., 1./3., 1./3.);
+            auto s = s_interp(center);
+            auto t = t_interp(center);
+
+            // compute error as sum of deviations from input direction
+            // after multiplication with tensors
+            auto ms = (s * dir).normalized().cross(dir.normalized()).norm()
+                      + (t * dir).normalized().cross(dir.normalized()).norm();
+
+            // check if the error measure is low enough to consider the point a
+            // parallel eigenvector point
+            if(ms > parallelity_epsilon)
+            {
+                continue;
+            }
+
+            if(ms < min_sin)
+            {
+                min_sin = ms;
+                min_angle_tri = &trip;
+            }
+        }
+        // Only add representative if any candidate had sufficiently parallel
+        // eigenvectors
+        if(min_sin < 1.)
+        {
+            result.push_back(*min_angle_tri);
+        }
+    }
+    return result;
+}
+
+
+/**
+ * @brief Compute context info for representatives
+ * @details Computes global point position, eigenvalue order, presence of other
+ *      imaginary eigenvalues, and packs into result list together with point
+ *      position, eigenvector direction, eigenvalues.
+ *
+ * @param representatives TriPairs selected by findRepresentatives()
+ * @param s_interp First tensor field on the triangle
+ * @param t_interp Second tensor field on the triangle
+ * @param tri Spatial triangle
+ * @return List of PEVPoints with context info
+ */
+PointList computeContextInfo(const TriPairList& representatives,
+                             const TensorInterp& s_interp,
+                             const TensorInterp& t_interp,
+                             const Triangle& tri)
+{
+    auto points = PointList{};
+
+    for(const auto& r: representatives)
+    {
+        auto result_center = r.spatial_tri(1./3., 1./3., 1./3.);
+        auto result_dir = r.direction_tri(1./3., 1./3., 1./3.).normalized();
+
+        // We want to know which eigenvector of each tensor field we have
+        // found (i.e. corresponding to largest, middle, or smallest
+        // eigenvalue)
+        // Therefore we explicitly compute the eigenvalues at the result
+        // position and check which ones the found eigenvector direction
+        // corresponds to.
+        // @todo: make this step optional
+
+        auto s = s_interp(result_center);
+        auto t = t_interp(result_center);
+
+        // Get eigenvalues from our computed direction
+        auto s_real_eigv = (s * result_dir).dot(result_dir);
+        auto t_real_eigv = (t * result_dir).dot(result_dir);
+
+        // Compute all eigenvalues using Eigen
+        auto s_eigvs = s.eigenvalues().eval();
+        auto t_eigvs = t.eigenvalues().eval();
+
+        // Find index of eigenvalue that is closest to the one we computed
+        using Vec3c = decltype(s_eigvs);
+        auto s_closest_index = Vec3d::Index{0};
+        (s_eigvs - Vec3c::Ones() * s_real_eigv)
+                .cwiseAbs().minCoeff(&s_closest_index);
+
+        auto t_closest_index = Vec3d::Index{0};
+        (t_eigvs - Vec3c::Ones() * t_real_eigv)
+                .cwiseAbs().minCoeff(&t_closest_index);
+
+        // Find which of the (real) eigenvalues ours is
+        auto count_larger_real = [](double ref,
+                                     const std::complex<double>& val)
+        {
+            if(val.imag() != 0) return 0;
+            if(std::abs(ref) >= std::abs(val.real())) return 0;
+            return 1;
+        };
+        auto s_order = s_eigvs.unaryExpr(
+                [&](const std::complex<double>& val)
+                {
+                    return count_larger_real(
+                            s_eigvs[s_closest_index].real(), val);
+                }).sum();
+        auto t_order = t_eigvs.unaryExpr(
+                [&](const std::complex<double>& val)
+                {
+                    return count_larger_real(
+                            t_eigvs[t_closest_index].real(), val);
+                }).sum();
+
+        points.push_back({tri(result_center),
+                          ERank(s_order),
+                          ERank(t_order),
+                          result_dir,
+                          s_real_eigv,
+                          t_real_eigv,
+                          s_eigvs.sum().imag() != 0,
+                          t_eigvs.sum().imag() != 0});
+    }
+    return points;
+}
+
+
+/**
  * Check if all coefficients are positive or negative
  *
  * @return 1 for all positive, -1 for all negative, 0 otherwise
@@ -253,6 +298,9 @@ int sameSign(const BezierTriangle& coeffs)
 }
 
 
+/**
+ * Helper function for bezierCoefficients()
+ */
 BezierTriangle computeBezierTriangle(const Mat3d& A,
                                      const Mat3d& B,
                                      const Mat3d& C)
@@ -303,7 +351,21 @@ BezierTriangle computeBezierTriangle(const Mat3d& A,
     return BezierTriangle{result};
 }
 
-
+/**
+ * @brief Compute Bezier triangles of eigenvector coordinate functions ŵ_i(r).
+ * @details Computes the cubic trivariate polynomials representing the position
+ *          of an eigenvector parallel to r = u_1*r_1 + u_2*r_2 + u_3*r_3 in the
+ *          tensor field T = w_1*t_1 + w_2*t_2 + w_3*t_3.
+ *
+ * @param t1 tensor at (spatial) triangle corner
+ * @param t2 tensor at (spatial) triangle corner
+ * @param t3 tensor at (spatial) triangle corner
+ * @param r1 direction at (directional) triangle corner
+ * @param r2 direction at (directional) triangle corner
+ * @param r3 direction at (directional) triangle corner
+ * @return Bezier triangles whose sign is consistent with the sign of the
+ *         coordinate functions w_i(r)
+ */
 std::array<BezierTriangle, 3>
 bezierCoefficients(const Mat3d& t1, const Mat3d& t2, const Mat3d& t3,
                    const Vec3d& r1, const Vec3d& r2, const Vec3d& r3)
@@ -332,8 +394,6 @@ bezierCoefficients(const Mat3d& t1, const Mat3d& t2, const Mat3d& t3,
             (Mat3d{} << B.col(0), B.col(1), r2).finished(),
             (Mat3d{} << C.col(0), C.col(1), r3).finished());
 
-    // auto denom_coeffs = computeBezierTriangle(A, B, C);
-
     return {alpha_coeffs, beta_coeffs, gamma_coeffs};
 }
 
@@ -344,8 +404,6 @@ bezierCoefficients(const Mat3d& t1, const Mat3d& t2, const Mat3d& t3,
  * @param s First tensor field
  * @param t Second tensor field
  * @param epsilon minimum cell size when subdividing
- * @param num_subdivisions place to store the number of triangle splits
- *        perfomed during the subdivision
  * @return Triangle containing a potential eigenvector direction, or boost::none
  */
 boost::optional<Triangle> findEigenDir(const TensorInterp& s,
@@ -460,7 +518,17 @@ boost::optional<Triangle> findEigenDir(const TensorInterp& s,
     return boost::none;
 }
 
-
+/**
+ * @brief Find parallel eigenvector points on a triangle with the given
+ *     positions and tensors at the corners.
+ *
+ * @param s first tensor field
+ * @param t second tensor field
+ * @param tri spatial triangle
+ * @param spatial_epsilon minimum cell size for spatial subdivision
+ * @param direction_epsilon minimum cell size for directional subdivision
+ * @return Pairs of candidate triangles in space and directions
+ */
 TriPairList parallelEigenvectorSearch(const TensorInterp& s,
                                       const TensorInterp& t,
                                       const Triangle& tri,
@@ -476,16 +544,16 @@ TriPairList parallelEigenvectorSearch(const TensorInterp& s,
 
     // Queue for sub-triangles that still have to be processed
     // results in a breadth-first search
-    auto pque = std::queue<SubPackage>{};
-    pque.push({s, t, tri});
+    auto pstck = std::stack<SubPackage>{};
+    pstck.push({s, t, tri});
 
     auto result = TriPairList{};
 
-    while(!pque.empty())
+    while(!pstck.empty())
     {
-        auto pack = pque.front();
-        pque.pop();
-        if(pque.size() > 10000)
+        auto pack = pstck.top();
+        pstck.pop();
+        if(result.size() > 1000)
         {
             std::cout << "Aborting eigenvector point search. "
                       << "Too many subdivisions." << std::endl;
@@ -511,7 +579,7 @@ TriPairList parallelEigenvectorSearch(const TensorInterp& s,
 
         for(auto i: range(s_subs.size()))
         {
-            pque.push({s_subs[i], t_subs[i], tri_subs[i]});
+            pstck.push({s_subs[i], t_subs[i], tri_subs[i]});
         }
     }
     return result;
@@ -519,7 +587,7 @@ TriPairList parallelEigenvectorSearch(const TensorInterp& s,
 
 } // namespace
 
-namespace peigv
+namespace pev
 {
 
 PointList findParallelEigenvectors(
@@ -529,15 +597,6 @@ PointList findParallelEigenvectors(
         double spatial_epsilon, double direction_epsilon,
         double cluster_epsilon, double parallelity_epsilon)
 {
-    using namespace std::chrono;
-    using milliseconds = duration<double, milliseconds::period>;
-
-    static auto total_times = milliseconds(0.);
-    static auto avg_time = total_times;
-    static auto num_calls = 0;
-
-    auto start = high_resolution_clock::now();
-
     auto tri = Triangle{p1, p2, p3};
 
     auto start_tri = Triangle{Vec3d{1., 0., 0.},
@@ -547,133 +606,16 @@ PointList findParallelEigenvectors(
     auto s_interp = TensorInterp{s1, s2, s3};
     auto t_interp = TensorInterp{t1, t2, t3};
 
-    auto tris = parallelEigenvectorSearch(
-            s_interp, t_interp,
-            start_tri, spatial_epsilon, direction_epsilon);
+    auto tris = parallelEigenvectorSearch(s_interp, t_interp, start_tri,
+                                          spatial_epsilon, direction_epsilon);
 
     auto clustered_tris = clusterTris(tris, cluster_epsilon);
 
-    auto points = PointList{};
+    auto representatives = findRepresentatives(clustered_tris,
+                                               s_interp, t_interp,
+                                               parallelity_epsilon);
 
-    for(const auto& c: clustered_tris)
-    {
-        const auto* min_angle_tri = &*(c.cbegin());
-        auto min_sin = 1.;
-        for(const auto& trip: c)
-        {
-            auto dir = trip.direction_tri(1./3., 1./3., 1./3.).normalized();
-            auto center = trip.spatial_tri(1./3., 1./3., 1./3.);
-            auto s = s_interp(center);
-            auto t = t_interp(center);
-
-            // compute error as sum of deviations from input direction
-            // after multiplication with tensors
-            auto ms = (s * dir).normalized().cross(dir.normalized()).norm()
-                      + (t * dir).normalized().cross(dir.normalized()).norm();
-
-            // check if the error measure is low enough to consider the point a
-            // parallel eigenvector point
-            if(ms > parallelity_epsilon)
-            {
-                continue;
-            }
-
-            if(ms < min_sin)
-            {
-                min_sin = ms;
-                min_angle_tri = &trip;
-            }
-        }
-        if(min_sin < 1.)
-        {
-            auto result_center =
-                    min_angle_tri->spatial_tri(1./3., 1./3., 1./3.);
-            auto result_dir =
-                    min_angle_tri->direction_tri(1./3., 1./3., 1./3.)
-                    .normalized();
-
-            // We want to know which eigenvector of each tensor field we have
-            // found (i.e. corresponding to largest, middle, or smallest
-            // eigenvalue)
-            // Therefore we explicitly compute the eigenvalues at the result
-            // position and check which ones the found eigenvector direction
-            // corresponds to.
-            // @todo: make this step optional
-
-            auto s = s_interp(result_center);
-            auto t = t_interp(result_center);
-
-            // Get eigenvalues from our computed direction
-            auto s_real_eigv = (s * result_dir).dot(result_dir);
-            auto t_real_eigv = (t * result_dir).dot(result_dir);
-
-            // Compute all eigenvalues using Eigen
-            auto s_eigvs = s.eigenvalues().eval();
-            auto t_eigvs = t.eigenvalues().eval();
-
-            // Find index of eigenvalue that is closest to the one we computed
-            using vec3c = decltype(s_eigvs);
-            auto s_closest_index = Vec3d::Index{0};
-            (s_eigvs - vec3c::Ones() * s_real_eigv)
-                    .cwiseAbs().minCoeff(&s_closest_index);
-
-            auto t_closest_index = Vec3d::Index{0};
-            (t_eigvs - vec3c::Ones() * t_real_eigv)
-                    .cwiseAbs().minCoeff(&t_closest_index);
-
-            // Find which of the (real) eigenvalues ours is
-            auto count_larger_real = [](double ref,
-                                         const std::complex<double>& val)
-            {
-                if(val.imag() != 0) return 0;
-                if(std::abs(ref) >= std::abs(val.real())) return 0;
-                return 1;
-            };
-            auto s_order = s_eigvs.unaryExpr(
-                    [&](const std::complex<double>& val)
-                    {
-                        return count_larger_real(
-                                s_eigvs[s_closest_index].real(), val);
-                    }).sum();
-            auto t_order = t_eigvs.unaryExpr(
-                    [&](const std::complex<double>& val)
-                    {
-                        return count_larger_real(
-                                t_eigvs[t_closest_index].real(), val);
-                    }).sum();
-
-            // std::cout << "Final Eigenvector point: "
-            //           << print(result_center) << std::endl;
-            // std::cout << "Final Eigenvector direction: "
-            //           << print(result_dir) << std::endl;
-            // std::cout << "Final S Eigenvalue: "
-            //           << s_real_eigv << std::endl;
-            // std::cout << "Final T Eigenvalue: "
-            //           << t_real_eigv << std::endl;
-            // std::cout << "Final S Matrix: \n" << s << std::endl;
-            // std::cout << "Final T Matrix: \n" << t << std::endl;
-            // auto errvec = Eigen::Matrix<double, 6, 1>{};
-            // errvec.topRows<3>() = (s*result_dir).cross(result_dir);
-            // errvec.bottomRows<3>() = (t*result_dir).cross(result_dir);
-            // std::cout << "Error vector: \n" << errvec << std::endl;
-
-            points.push_back({tri(result_center),
-                              ERank(s_order),
-                              ERank(t_order),
-                              result_dir,
-                              s_real_eigv,
-                              t_real_eigv,
-                              s_eigvs.sum().imag() != 0,
-                              t_eigvs.sum().imag() != 0});
-        }
-    }
-    auto end = high_resolution_clock::now();
-    auto duration = milliseconds(end - start);
-    total_times += duration;
-    ++num_calls;
-    avg_time = total_times / num_calls;
-
-    return points;
+    return computeContextInfo(representatives, s_interp, t_interp, tri);
 }
 
 
@@ -690,4 +632,4 @@ PointList findParallelEigenvectors(
             cluster_epsilon, parallelity_epsilon);
 }
 
-} // namespace peigv
+} // namespace pev

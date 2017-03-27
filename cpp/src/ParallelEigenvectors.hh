@@ -6,7 +6,7 @@
 #include <list>
 
 
-namespace peigv
+namespace pev
 {
 
 /**
@@ -22,7 +22,7 @@ enum class ERank: int
 /**
  * Parallel eigenvector point.
  */
-struct PeigvPoint
+struct PEVPoint
 {
     Vec3d pos; ///< position
     ERank s_rank; ///< rank of eigenvector of tensor field S
@@ -34,7 +34,7 @@ struct PeigvPoint
     bool t_has_imaginary; //< T has any imaginary eigenvalues at the position
 };
 
-using PointList = std::list<PeigvPoint>;
+using PointList = std::list<PEVPoint>;
 
 /**
  * @brief Find parallel eigenvector points on a triangle given two tensors at
@@ -91,6 +91,6 @@ PointList findParallelEigenvectors(
         double spatial_epsilon, double direction_epsilon,
         double cluster_epsilon, double parallelity_epsilon);
 
-} // namespace peigv
+} // namespace pev
 
 #endif

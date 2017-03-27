@@ -43,7 +43,7 @@ Mat3d randMatrix(R& rnd, G& gen)
 
 int main(int argc, char const *argv[])
 {
-    using namespace peigv;
+    using namespace pev;
 
     auto random_seed = uint32_t{42};
     auto num_subdivisions = int32_t{8};

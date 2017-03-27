@@ -31,13 +31,13 @@ void ProgressFunction(vtkObject* caller,
                       void* vtkNotUsed(callData) )
 {
   auto* filter = static_cast<vtkParallelEigenvectors*>(caller);
-  std::cout << "Progress: " << std::setprecision(2)
+  std::cout << "Progress: " << std::fixed <<  std::setprecision(4)
             << (filter->GetProgress()*100) << "%    \r";
 }
 
 int main(int argc, char const *argv[])
 {
-    using namespace peigv;
+    using namespace pev;
 
     auto input_file = std::string{};
     auto spatial_epsilon = 1e-3;
@@ -122,19 +122,19 @@ int main(int argc, char const *argv[])
     auto progressCallback = vtkSmartPointer<vtkCallbackCommand>::New();
     progressCallback->SetCallback(ProgressFunction);
 
-    auto vtkpeigv = vtkSmartPointer<vtkParallelEigenvectors>::New();
-    vtkpeigv->SetSpatialEpsilon(spatial_epsilon);
-    vtkpeigv->SetDirectionEpsilon(direction_epsilon);
-    vtkpeigv->SetClusterEpsilon(cluster_epsilon);
-    vtkpeigv->SetParallelityEpsilon(parallelity_epsilon);
-    vtkpeigv->SetMinTensorNorm(min_tensor_norm);
-    vtkpeigv->AddObserver(vtkCommand::ProgressEvent, progressCallback);
+    auto vtkpev = vtkSmartPointer<vtkParallelEigenvectors>::New();
+    vtkpev->SetSpatialEpsilon(spatial_epsilon);
+    vtkpev->SetDirectionEpsilon(direction_epsilon);
+    vtkpev->SetClusterEpsilon(cluster_epsilon);
+    vtkpev->SetParallelityEpsilon(parallelity_epsilon);
+    vtkpev->SetMinTensorNorm(min_tensor_norm);
+    vtkpev->AddObserver(vtkCommand::ProgressEvent, progressCallback);
 
-    vtkpeigv->SetInputConnection(0, reader->GetOutputPort(0));
-    vtkpeigv->SetInputArrayToProcess(
+    vtkpev->SetInputConnection(0, reader->GetOutputPort(0));
+    vtkpev->SetInputArrayToProcess(
             0, 0, 0, vtkDataObject::FIELD_ASSOCIATION_POINTS,
             s_field_name.c_str());
-    vtkpeigv->SetInputArrayToProcess(
+    vtkpev->SetInputArrayToProcess(
             1, 0, 0, vtkDataObject::FIELD_ASSOCIATION_POINTS,
             t_field_name.c_str());
 
@@ -143,7 +143,7 @@ int main(int argc, char const *argv[])
     cleaner->SetTolerance(cluster_epsilon);
     cleaner->ConvertLinesToPointsOn();
     cleaner->PointMergingOn();
-    cleaner->SetInputConnection(0, vtkpeigv->GetOutputPort(0));
+    cleaner->SetInputConnection(0, vtkpev->GetOutputPort(0));
 
     // Merge line segments to longer line strips
     auto stripper = vtkSmartPointer<vtkStripper>::New();
@@ -152,7 +152,7 @@ int main(int argc, char const *argv[])
     stripper->SetInputConnection(0, cleaner->GetOutputPort(0));
 
     auto outwriter = vtkSmartPointer<vtkPolyDataWriter>::New();
-    outwriter->SetInputConnection(0, stripper->GetOutputPort(0));
+    outwriter->SetInputConnection(0, vtkpev->GetOutputPort(0));
     outwriter->SetFileName(out_name.c_str());
     outwriter->SetFileTypeToBinary();
     outwriter->Update();
