@@ -17,6 +17,13 @@ if(WIN32)
     set(Boost_USE_MULTITHREADED ON)
 endif()
 
+find_package(OpenMP)
+if(OPENMP_FOUND)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
+endif()
+
 find_package(Boost REQUIRED COMPONENTS program_options)
 if(Boost_FOUND)
     target_link_libraries(parallel_eigenvectors ${Boost_LIBRARIES})
@@ -33,14 +40,6 @@ if(VTK_FOUND)
     include(${VTK_USE_FILE})
     target_link_libraries(parallel_eigenvectors ${VTK_LIBRARIES})
     target_link_libraries(generate_tet_dataset ${VTK_LIBRARIES})
-endif()
-
-# todo: make parallelization and ctpl optional
-find_package(CTPL REQUIRED)
-if(CTPL_FOUND)
-    include_directories(SYSTEM ${CTPL_INCLUDE_DIRS})
-    target_compile_options(parallel_eigenvectors PRIVATE ${CTPL_COMPILER_FLAGS})
-    target_link_libraries(parallel_eigenvectors ${CTPL_LINKER_FLAGS})
 endif()
 
 install(TARGETS parallel_eigenvectors
