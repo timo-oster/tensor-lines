@@ -124,9 +124,13 @@ std::vector<pev::PointList> computePEVPoints(const std::vector<TriFace>& faces,
     const auto step = 1./faces.size();
     progress_alg->UpdateProgress(0);
     auto results = std::vector<pev::PointList>(faces.size());
+    auto terminate = false;
     #pragma omp parallel for
     for(auto i = std::size_t{0}; i < faces.size(); ++i)
     {
+        #pragma omp flush (terminate)
+        if(terminate) continue;
+
         auto face = faces[i];
 
         auto p1 = Vec3d{};
@@ -161,6 +165,10 @@ std::vector<pev::PointList> computePEVPoints(const std::vector<TriFace>& faces,
         #pragma omp critical (progress)
         {
             progress_alg->UpdateProgress(progress_alg->GetProgress() + step);
+            if(progress_alg->GetAbortExecute())
+            {
+                terminate = true;
+            }
         }
     }
     return results;
@@ -541,6 +549,8 @@ int vtkParallelEigenvectors::RequestData(
     std::cout << "Average time per face: "
               << (milliseconds(duration_pointsearch) / (input->GetNumberOfCells()*4)).count()
               << " milliseconds" << std::endl;
+
+    this->UpdateProgress(1.);
 
     return 1;
 }

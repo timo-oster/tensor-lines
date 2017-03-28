@@ -23,6 +23,18 @@
 #include <iostream>
 #include <string>
 
+#ifdef __linux__
+#include <thread>
+#include <signal.h>
+
+bool term = false;
+
+void terminate(int signum)
+{
+    term = true;
+}
+#endif // __linux__
+
 namespace po = boost::program_options;
 
 void ProgressFunction(vtkObject* caller,
@@ -116,6 +128,21 @@ int main(int argc, char const *argv[])
         std::cerr << "Exception of unknown type!\n";
     }
 
+#ifdef __linux__
+    // Set up signal handling for early termination
+    struct sigaction new_action;
+    struct sigaction old_action;
+    new_action.sa_handler = terminate;
+    sigemptyset (&new_action.sa_mask);
+    new_action.sa_flags = 0;
+
+    sigaction(SIGINT, nullptr, &old_action);
+    if(old_action.sa_handler != SIG_IGN)
+    {
+        sigaction(SIGINT, &new_action, nullptr);
+    }
+#endif // __linux__
+
     auto reader = vtkSmartPointer<vtkUnstructuredGridReader>::New();
     reader->SetFileName(input_file.c_str());
 
@@ -138,6 +165,18 @@ int main(int argc, char const *argv[])
             1, 0, 0, vtkDataObject::FIELD_ASSOCIATION_POINTS,
             t_field_name.c_str());
 
+#ifdef __linux__
+    // Set up thread to check for program termination and set AbortExecute
+    auto check_terminate = std::thread([&vtkpev]()
+    {
+        while(!term && vtkpev->GetProgress() < 1.)
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+        if(term) vtkpev->AbortExecuteOn();
+    });
+#endif // __linux__
+
     // Merge duplicate/close points
     auto cleaner = vtkSmartPointer<vtkCleanPolyData>::New();
     cleaner->SetTolerance(cluster_epsilon);
@@ -157,6 +196,10 @@ int main(int argc, char const *argv[])
     outwriter->SetFileTypeToBinary();
     outwriter->Update();
     outwriter->Write();
+
+#ifdef __linux__
+    check_terminate.join();
+#endif // __linux__
 
     return 0;
 }
