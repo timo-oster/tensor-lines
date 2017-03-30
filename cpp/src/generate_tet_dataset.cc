@@ -32,12 +32,16 @@ Mat3d inputMatrix(const std::string& name)
 }
 
 template<typename R, typename G>
-Mat3d randMatrix(R& rnd, G& gen)
+Mat3d randMatrix(R& rnd, G& gen, bool symmetric=false)
 {
     auto result = Mat3d{};
     result << rnd(gen), rnd(gen), rnd(gen),
               rnd(gen), rnd(gen), rnd(gen),
               rnd(gen), rnd(gen), rnd(gen);
+    if(symmetric)
+    {
+        result = 0.5*(result + result.transpose().eval());
+    }
     return result;
 }
 
@@ -48,6 +52,7 @@ int main(int argc, char const *argv[])
     auto random_seed = uint32_t{42};
     auto num_subdivisions = int32_t{8};
     auto out_name = std::string{"Grid.vtk"};
+    auto symmetric = false;
     auto interactive = false;
 
     try
@@ -58,13 +63,18 @@ int main(int argc, char const *argv[])
         ("random,r",
             po::value<uint32_t>(&random_seed),
             "Random seed for tensor generation")
+        ("symmetric,s",
+            po::bool_switch(&symmetric),
+            "Generate symmetric tensor. Only works in conjunction with --random")
         ("interactive,i",
             "Interactive mode (read matrices from stdin)")
         ("subdivision-level,l",
-            po::value<int32_t>(&num_subdivisions)->required()->default_value(num_subdivisions),
+            po::value<int32_t>(&num_subdivisions)->required()
+                    ->default_value(num_subdivisions),
             "Number of times the tetrahedron is subdivided")
         ("output,o",
-            po::value<std::string>(&out_name)->required()->default_value(out_name),
+            po::value<std::string>(&out_name)->required()
+                    ->default_value(out_name),
             "Name of the output file")
         ;
 
@@ -81,7 +91,13 @@ int main(int argc, char const *argv[])
 
         if(vm.count("random") > 0 && vm.count("interactive") > 0)
         {
-            throw std::logic_error("Conflicting options --random and --interactive");
+            throw std::logic_error(
+                    "Conflicting options --random and --interactive");
+        }
+        if(vm.count("symmetric") > 0 && vm.count("interactive") > 0)
+        {
+            throw std::logic_error(
+                    "Conflicting options --symmetric and --interactive");
         }
         if(vm.count("interactive")) interactive = true;
     }
@@ -133,8 +149,8 @@ int main(int argc, char const *argv[])
         }
         else
         {
-            s_field->SetTuple(i, randMatrix(rnd, gen).data());
-            t_field->SetTuple(i, randMatrix(rnd, gen).data());
+            s_field->SetTuple(i, randMatrix(rnd, gen, symmetric).data());
+            t_field->SetTuple(i, randMatrix(rnd, gen, symmetric).data());
         }
     }
     grid->GetPointData()->SetTensors(s_field);
