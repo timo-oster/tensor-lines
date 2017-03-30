@@ -507,30 +507,6 @@ int vtkParallelEigenvectors::RequestData(
             {
                 output->InsertNextCell(VTK_VERTEX, 1, point_list->GetPointer(i));
             }
-            std::cout << "Cell " << c.first
-            << " has " << npoints << " points" << std::endl;
-            input->GetCellPoints(c.first, cell_points);
-            auto s1 = Mat3d{Mat3dm{array1->GetTuple(cell_points->GetId(0))}};
-            auto s2 = Mat3d{Mat3dm{array1->GetTuple(cell_points->GetId(1))}};
-            auto s3 = Mat3d{Mat3dm{array1->GetTuple(cell_points->GetId(2))}};
-            auto s4 = Mat3d{Mat3dm{array1->GetTuple(cell_points->GetId(3))}};
-
-            auto t1 = Mat3d{Mat3dm{array2->GetTuple(cell_points->GetId(0))}};
-            auto t2 = Mat3d{Mat3dm{array2->GetTuple(cell_points->GetId(1))}};
-            auto t3 = Mat3d{Mat3dm{array2->GetTuple(cell_points->GetId(2))}};
-            auto t4 = Mat3d{Mat3dm{array2->GetTuple(cell_points->GetId(3))}};
-
-            auto fmt = Eigen::IOFormat(Eigen::FullPrecision, 0,
-                                       " ", "\n", "", "", "", "");
-
-            std::cout << "S1: \n" << s1.format(fmt) << std::endl;
-            std::cout << "T1: \n" << t1.format(fmt) << std::endl;
-            std::cout << "S2: \n" << s2.format(fmt) << std::endl;
-            std::cout << "T2: \n" << t2.format(fmt) << std::endl;
-            std::cout << "S3: \n" << s3.format(fmt) << std::endl;
-            std::cout << "T3: \n" << t3.format(fmt) << std::endl;
-            std::cout << "S4: \n" << s4.format(fmt) << std::endl;
-            std::cout << "T4: \n" << t4.format(fmt) << std::endl;
         }
     }
 
@@ -539,9 +515,9 @@ int vtkParallelEigenvectors::RequestData(
     auto duration_pointsearch = seconds(end_pointsearch - start);
 
     std::cout << "Processed dataset in "
-              << hours(duration_all).count() << " hours" << std::endl;
+              << minutes(duration_all).count() << " minutes" << std::endl;
     std::cout << "Point search time: "
-              << hours(duration_pointsearch).count() << " hours" << std::endl;
+              << minutes(duration_pointsearch).count() << " minutes" << std::endl;
     std::cout << "Postprocessing time: "
               << seconds(duration_all - duration_pointsearch).count()
               << " seconds" << std::endl;
