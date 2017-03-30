@@ -549,15 +549,17 @@ TriPairList parallelEigenvectorSearch(const TensorInterp& s,
     pstck.push({s, t, tri});
 
     auto result = TriPairList{};
+    auto num_splits = 0;
 
     while(!pstck.empty())
     {
         auto pack = pstck.top();
         pstck.pop();
-        if(result.size() > 1000)
+        if(num_splits > -(std::log2(spatial_epsilon)/std::log2(4.))*100)
         {
-            std::cout << "Aborting eigenvector point search. "
-                      << "Too many subdivisions." << std::endl;
+            // std::cout << "Aborting eigenvector point search. "
+            //           << "Too many subdivisions." << std::endl;
+            // Abort search if too many candidates are found
             return result;
         }
         auto dir = findEigenDir(pack.s, pack.t, direction_epsilon);
@@ -582,6 +584,7 @@ TriPairList parallelEigenvectorSearch(const TensorInterp& s,
         {
             pstck.push({s_subs[i], t_subs[i], tri_subs[i]});
         }
+        ++num_splits;
     }
     return result;
 }

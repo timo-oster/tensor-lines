@@ -545,10 +545,9 @@ int vtkParallelEigenvectors::RequestData(
     std::cout << "Postprocessing time: "
               << seconds(duration_all - duration_pointsearch).count()
               << " seconds" << std::endl;
-    std::cout << "Number of faces processed: ~" << input->GetNumberOfCells()*4/2
-              << " * 2" << std::endl;
+    std::cout << "Number of faces processed: " << face_map.size() << std::endl;
     std::cout << "Average time per face: "
-              << (milliseconds(duration_pointsearch) / (input->GetNumberOfCells()*4)).count()
+              << (milliseconds(duration_pointsearch) / face_map.size()).count()
               << " milliseconds" << std::endl;
 
     this->UpdateProgress(1.);
