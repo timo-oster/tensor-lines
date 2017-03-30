@@ -484,11 +484,9 @@ int vtkParallelEigenvectors::RequestData(
             }
             while(dist.sum() < npoints * npoints)
             {
-                std::cout << dist << "\n" << std::endl;
                 auto row = Matrix3X::Index{};
                 auto col = Matrix3X::Index{};
                 dist.minCoeff(&row, &col);
-                std::cout << "Min row: " << row << ", min col: " << col << std::endl;
                 auto line = vtkSmartPointer<vtkIdList>::New();
                 line->SetNumberOfIds(2);
                 line->InsertId(0, point_list->GetId(row));
