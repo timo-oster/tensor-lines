@@ -31,7 +31,14 @@ bool term = false;
 
 void terminate(int signum)
 {
-    term = true;
+    if(!term)
+    {
+        term = true;
+    }
+    else
+    {
+        std::exit(1);
+    }
 }
 #endif // __linux__
 
@@ -44,7 +51,7 @@ void ProgressFunction(vtkObject* caller,
 {
   auto* filter = static_cast<vtkParallelEigenvectors*>(caller);
   std::cout << "Progress: " << std::fixed <<  std::setprecision(4)
-            << (filter->GetProgress()*100) << "%    \r";
+            << (filter->GetProgress()*100) << "%    \n";
 }
 
 int main(int argc, char const *argv[])
@@ -173,7 +180,12 @@ int main(int argc, char const *argv[])
         {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
-        if(term) vtkpev->AbortExecuteOn();
+        if(term)
+        {
+            std::cout << "Received interrupt. "
+                      << "Requesting termination..." << std::endl;
+            vtkpev->AbortExecuteOn();
+        }
     });
 #endif // __linux__
 

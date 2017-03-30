@@ -167,6 +167,7 @@ std::vector<pev::PointList> computePEVPoints(const std::vector<TriFace>& faces,
             progress_alg->UpdateProgress(progress_alg->GetProgress() + step);
             if(progress_alg->GetAbortExecute())
             {
+                std::cout << "Terminate request accepted" << std::endl;
                 terminate = true;
             }
         }
