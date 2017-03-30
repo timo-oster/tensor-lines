@@ -60,8 +60,8 @@ int main(int argc, char const *argv[])
 
     auto input_file = std::string{};
     auto spatial_epsilon = 1e-3;
-    auto direction_epsilon = 1e-3;
-    auto cluster_epsilon = 1e-3;
+    auto direction_epsilon = 1e-9;
+    auto cluster_epsilon = 5e-3;
     auto parallelity_epsilon = 1e-3;
     auto min_tensor_norm = 1e-3;
     auto out_name = std::string{"Parallel_Eigenvectors.vtk"};
@@ -203,7 +203,7 @@ int main(int argc, char const *argv[])
     stripper->SetInputConnection(0, cleaner->GetOutputPort(0));
 
     auto outwriter = vtkSmartPointer<vtkPolyDataWriter>::New();
-    outwriter->SetInputConnection(0, vtkpev->GetOutputPort(0));
+    outwriter->SetInputConnection(0, stripper->GetOutputPort(0));
     outwriter->SetFileName(out_name.c_str());
     outwriter->SetFileTypeToBinary();
     outwriter->Update();
