@@ -5,9 +5,9 @@ different piecewise linear tensor fields.
 
 ## Dependencies
 
-* Eigen 3
-* Boost
-* VTK
+* [Eigen 3](http://eigen.tuxfamily.org)
+* [Boost](http://www.boost.org/)
+* [VTK](http://www.vtk.org/)
 * OpenMP(optional)
 
 ## Build process
