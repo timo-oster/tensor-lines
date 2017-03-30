@@ -53,15 +53,15 @@ struct TriPair
     Triangle direction_tri;
     Triangle spatial_tri;
 
-    friend bool operator==(const TriPair& tp1, const TriPair& tp2)
+    friend bool operator==(const TriPair& tx1, const TriPair& tx2)
     {
-        return tp1.direction_tri == tp2.direction_tri
-                && tp1.spatial_tri == tp2.spatial_tri;
+        return tx1.direction_tri == tx2.direction_tri
+                && tx1.spatial_tri == tx2.spatial_tri;
     }
 
-    friend bool operator!=(const TriPair& tp1, const TriPair& tp2)
+    friend bool operator!=(const TriPair& tx1, const TriPair& tx2)
     {
-        return !(tp1 == tp2);
+        return !(tx1 == tx2);
     }
 };
 
@@ -380,22 +380,22 @@ bezierCoefficients(const Mat3d& t1, const Mat3d& t2, const Mat3d& t3,
     auto C = Mat3d{};
     C << t1 * r3, t2 * r3, t3 * r3;
 
-    auto alpha_coeffs = computeBezierTriangle(
+    auto w1_coeffs = computeBezierTriangle(
             (Mat3d{} << r1, A.col(1), A.col(2)).finished(),
             (Mat3d{} << r2, B.col(1), B.col(2)).finished(),
             (Mat3d{} << r3, C.col(1), C.col(2)).finished());
 
-    auto beta_coeffs = computeBezierTriangle(
+    auto w2_coeffs = computeBezierTriangle(
             (Mat3d{} << A.col(0), r1, A.col(2)).finished(),
             (Mat3d{} << B.col(0), r2, B.col(2)).finished(),
             (Mat3d{} << C.col(0), r3, C.col(2)).finished());
 
-    auto gamma_coeffs = computeBezierTriangle(
+    auto w3_coeffs = computeBezierTriangle(
             (Mat3d{} << A.col(0), A.col(1), r1).finished(),
             (Mat3d{} << B.col(0), B.col(1), r2).finished(),
             (Mat3d{} << C.col(0), C.col(1), r3).finished());
 
-    return {alpha_coeffs, beta_coeffs, gamma_coeffs};
+    return {w1_coeffs, w2_coeffs, w3_coeffs};
 }
 
 /**
@@ -411,44 +411,44 @@ boost::optional<Triangle> findEigenDir(const TensorInterp& s,
                                        const TensorInterp& t,
                                        double epsilon)
 {
+    // Data package for one subdivision step
     struct SubPackage
     {
         Triangle tri;
-        BezierTriangle s_alpha;
-        BezierTriangle s_beta;
-        BezierTriangle s_gamma;
-        BezierTriangle t_alpha;
-        BezierTriangle t_beta;
-        BezierTriangle t_gamma;
+        BezierTriangle s_w1;
+        BezierTriangle s_w2;
+        BezierTriangle s_w3;
+        BezierTriangle t_w1;
+        BezierTriangle t_w2;
+        BezierTriangle t_w3;
 
         std::array<SubPackage, 4> split() const
         {
             auto tri_sub = tri.split();
-            auto s_alpha_sub = s_alpha.split();
-            auto s_beta_sub = s_beta.split();
-            auto s_gamma_sub = s_gamma.split();
-            auto t_alpha_sub = t_alpha.split();
-            auto t_beta_sub = t_beta.split();
-            auto t_gamma_sub = t_gamma.split();
+            auto s_w1_sub = s_w1.split();
+            auto s_w2_sub = s_w2.split();
+            auto s_w3_sub = s_w3.split();
+            auto t_w1_sub = t_w1.split();
+            auto t_w2_sub = t_w2.split();
+            auto t_w3_sub = t_w3.split();
             return {
                 SubPackage{tri_sub[0],
-                    s_alpha_sub[0], s_beta_sub[0], s_gamma_sub[0],
-                    t_alpha_sub[0], t_beta_sub[0], t_gamma_sub[0]},
+                    s_w1_sub[0], s_w2_sub[0], s_w3_sub[0],
+                    t_w1_sub[0], t_w2_sub[0], t_w3_sub[0]},
                 SubPackage{tri_sub[1],
-                    s_alpha_sub[1], s_beta_sub[1], s_gamma_sub[1],
-                    t_alpha_sub[1], t_beta_sub[1], t_gamma_sub[1]},
+                    s_w1_sub[1], s_w2_sub[1], s_w3_sub[1],
+                    t_w1_sub[1], t_w2_sub[1], t_w3_sub[1]},
                 SubPackage{tri_sub[2],
-                    s_alpha_sub[2], s_beta_sub[2], s_gamma_sub[2],
-                    t_alpha_sub[2], t_beta_sub[2], t_gamma_sub[2]},
+                    s_w1_sub[2], s_w2_sub[2], s_w3_sub[2],
+                    t_w1_sub[2], t_w2_sub[2], t_w3_sub[2]},
                 SubPackage{tri_sub[3],
-                    s_alpha_sub[3], s_beta_sub[3], s_gamma_sub[3],
-                    t_alpha_sub[3], t_beta_sub[3], t_gamma_sub[3]}
+                    s_w1_sub[3], s_w2_sub[3], s_w3_sub[3],
+                    t_w1_sub[3], t_w2_sub[3], t_w3_sub[3]}
             };
         }
     };
 
     // Stack for direction triangles that still have to be processed
-    // results in a depth-first search
     auto tstck = std::stack<SubPackage>{};
 
     auto init_tri = [&](const Triangle& tri)
@@ -475,12 +475,12 @@ boost::optional<Triangle> findEigenDir(const TensorInterp& s,
         auto pack = tstck.top();
         tstck.pop();
 
-        auto s_signs = std::array<int, 3>{sameSign(pack.s_alpha),
-                                          sameSign(pack.s_beta),
-                                          sameSign(pack.s_gamma)};
-        auto t_signs = std::array<int, 3>{sameSign(pack.t_alpha),
-                                          sameSign(pack.t_beta),
-                                          sameSign(pack.t_gamma)};
+        auto s_signs = std::array<int, 3>{sameSign(pack.s_w1),
+                                          sameSign(pack.s_w2),
+                                          sameSign(pack.s_w3)};
+        auto t_signs = std::array<int, 3>{sameSign(pack.t_w1),
+                                          sameSign(pack.t_w2),
+                                          sameSign(pack.t_w3)};
 
         // Bezier coefficients have different signs: parallel eigenvectors
         // not possible
@@ -536,6 +536,7 @@ TriPairList parallelEigenvectorSearch(const TensorInterp& s,
                                       double spatial_epsilon,
                                       double direction_epsilon)
 {
+    // Data package for one subdivision step
     struct SubPackage
     {
         TensorInterp s;
@@ -543,8 +544,7 @@ TriPairList parallelEigenvectorSearch(const TensorInterp& s,
         Triangle tri;
     };
 
-    // Queue for sub-triangles that still have to be processed
-    // results in a breadth-first search
+    // Stack for sub-triangles that still have to be processed
     auto pstck = std::stack<SubPackage>{};
     pstck.push({s, t, tri});
 
@@ -557,9 +557,7 @@ TriPairList parallelEigenvectorSearch(const TensorInterp& s,
         pstck.pop();
         if(num_splits > -(std::log2(spatial_epsilon)/std::log2(4.))*100)
         {
-            // std::cout << "Aborting eigenvector point search. "
-            //           << "Too many subdivisions." << std::endl;
-            // Abort search if too many candidates are found
+            // Abort search if too many subdivision steps have occurred
             return result;
         }
         auto dir = findEigenDir(pack.s, pack.t, direction_epsilon);
@@ -579,7 +577,6 @@ TriPairList parallelEigenvectorSearch(const TensorInterp& s,
         auto s_subs = pack.s.split();
         auto t_subs = pack.t.split();
         auto tri_subs = pack.tri.split();
-
         for(auto i: range(s_subs.size()))
         {
             pstck.push({s_subs[i], t_subs[i], tri_subs[i]});
@@ -597,11 +594,11 @@ namespace pev
 PointList findParallelEigenvectors(
         const Mat3d& s1, const Mat3d& s2, const Mat3d& s3,
         const Mat3d& t1, const Mat3d& t2, const Mat3d& t3,
-        const Vec3d& p1, const Vec3d& p2, const Vec3d& p3,
+        const Vec3d& x1, const Vec3d& x2, const Vec3d& x3,
         double spatial_epsilon, double direction_epsilon,
         double cluster_epsilon, double parallelity_epsilon)
 {
-    auto tri = Triangle{p1, p2, p3};
+    auto tri = Triangle{x1, x2, x3};
 
     auto start_tri = Triangle{Vec3d{1., 0., 0.},
                               Vec3d{0., 1., 0.},

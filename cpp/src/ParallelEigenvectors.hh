@@ -46,9 +46,9 @@ using PointList = std::vector<PEVPoint>;
  * @param t1 Value of second tensor field at first triangle corner
  * @param t2 Value of second tensor field at second triangle corner
  * @param t3 Value of second tensor field at third triangle corner
- * @param p1 Position of first triangle corner
- * @param p2 Position of second triangle corner
- * @param p3 Position of third triangle corner
+ * @param x1 Position of first triangle corner
+ * @param x2 Position of second triangle corner
+ * @param x3 Position of third triangle corner
  * @param spatial_epsilon Lower limit for subdivision in space
  * @param direction_epsilon Lower limit for subdivision in eigenvector direction
  *     space
@@ -61,6 +61,7 @@ using PointList = std::vector<PEVPoint>;
 PointList findParallelEigenvectors(
         const Mat3d& s1, const Mat3d& s2, const Mat3d& s3,
         const Mat3d& t1, const Mat3d& t2, const Mat3d& t3,
+        const Vec3d& x1, const Vec3d& x2, const Vec3d& x3,
         double spatial_epsilon, double direction_epsilon,
         double cluster_epsilon, double parallelity_epsilon);
 
@@ -87,7 +88,6 @@ PointList findParallelEigenvectors(
 PointList findParallelEigenvectors(
         const Mat3d& s1, const Mat3d& s2, const Mat3d& s3,
         const Mat3d& t1, const Mat3d& t2, const Mat3d& t3,
-        const Vec3d& p1, const Vec3d& p2, const Vec3d& p3,
         double spatial_epsilon, double direction_epsilon,
         double cluster_epsilon, double parallelity_epsilon);
 
