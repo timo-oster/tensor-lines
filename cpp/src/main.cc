@@ -51,7 +51,7 @@ void ProgressFunction(vtkObject* caller,
 {
   auto* filter = static_cast<vtkParallelEigenvectors*>(caller);
   std::cout << "Progress: " << std::fixed <<  std::setprecision(4)
-            << (filter->GetProgress()*100) << "%    \n";
+            << (filter->GetProgress()*100) << "%    \r";
 }
 
 int main(int argc, char const *argv[])
