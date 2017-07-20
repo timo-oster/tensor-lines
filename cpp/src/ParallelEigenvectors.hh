@@ -32,6 +32,7 @@ struct PEVPoint
     double t_eival; ///< Eigenvalue for tensor field T
     bool s_has_imaginary; //< S has any imaginary eigenvalues at the position
     bool t_has_imaginary; //< T has any imaginary eigenvalues at the position
+    int cluster_size; //< Number of candidate points that contributed
 };
 
 using PointList = std::vector<PEVPoint>;
@@ -56,9 +57,11 @@ using PointList = std::vector<PEVPoint>;
  *     separate from each other
  * @param parallelity_epsilon Maximum angle error for a solution to be
  *     considered a parallel eigenvector point
- * @return A list of found parallel eigenvector points on the triangle
+ * @return The number of false positives and a list of found parallel
+ *     eigenvector points on the triangle
  */
-PointList findParallelEigenvectors(
+std::pair<int, PointList>
+findParallelEigenvectors(
         const Mat3d& s1, const Mat3d& s2, const Mat3d& s3,
         const Mat3d& t1, const Mat3d& t2, const Mat3d& t3,
         const Vec3d& x1, const Vec3d& x2, const Vec3d& x3,
@@ -82,10 +85,11 @@ PointList findParallelEigenvectors(
  *     separate from each other
  * @param parallelity_epsilon Maximum angle error for a solution to be
  *     considered a parallel eigenvector point
- * @return A list of found parallel eigenvector points on the triangle in
- *     barycentric coordinates
+ * @return The number of false positives and a list of found parallel
+ *     eigenvector points on the triangle in barycentric coordinates
  */
-PointList findParallelEigenvectors(
+std::pair<int, PointList>
+findParallelEigenvectors(
         const Mat3d& s1, const Mat3d& s2, const Mat3d& s3,
         const Mat3d& t1, const Mat3d& t2, const Mat3d& t3,
         double spatial_epsilon, double direction_epsilon,

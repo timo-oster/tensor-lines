@@ -12,6 +12,7 @@
 #include <vtkCellIterator.h>
 #include <vtkPoints.h>
 #include <vtkDoubleArray.h>
+#include <vtkIntArray.h>
 #include <vtkDataArray.h>
 #include <vtkPointData.h>
 #include <vtkIdList.h>
@@ -111,19 +112,20 @@ FaceMap buildFaceMap(vtkDataSet* dataset)
     return face_map;
 }
 
-std::vector<pev::PointList> computePEVPoints(const std::vector<TriFace>& faces,
-                                               vtkPoints* points,
-                                               vtkDataArray* array1,
-                                               vtkDataArray* array2,
-                                               vtkAlgorithm* progress_alg,
-                                               double spatial_epsilon,
-                                               double direction_epsilon,
-                                               double cluster_epsilon,
-                                               double parallelity_epsilon)
+std::vector<std::pair<int, pev::PointList>>
+computePEVPoints(const std::vector<TriFace>& faces,
+                 vtkPoints* points,
+                 vtkDataArray* array1,
+                 vtkDataArray* array2,
+                 vtkAlgorithm* progress_alg,
+                 double spatial_epsilon,
+                 double direction_epsilon,
+                 double cluster_epsilon,
+                 double parallelity_epsilon)
 {
     const auto step = 1./faces.size();
     progress_alg->UpdateProgress(0);
-    auto results = std::vector<pev::PointList>(faces.size());
+    auto results = std::vector<std::pair<int, pev::PointList>>(faces.size());
     auto terminate = false;
     #pragma omp parallel for
     for(auto i = std::size_t{0}; i < faces.size(); ++i)
@@ -380,6 +382,9 @@ int vtkParallelEigenvectors::RequestData(
     auto imag2 = vtkSmartPointer<vtkDoubleArray>::New();
     imag2->SetName("Imaginary 2");
     output->GetPointData()->AddArray(imag2);
+    auto csize = vtkSmartPointer<vtkIntArray>::New();
+    csize->SetName("Cluster Size");
+    output->GetPointData()->AddArray(csize);
 
     // map faces to cell ids
     auto face_map = buildFaceMap(input);
@@ -409,9 +414,12 @@ int vtkParallelEigenvectors::RequestData(
     // map cell IDs to parallel eigenvector points found on their faces
     auto cell_map = std::map<vtkIdType, vtkSmartPointer<vtkIdList>>{};
 
+    auto num_fp = 0;
+
     for(auto i: range(faces.size()))
     {
-        auto pev_points = fresults[i];
+        auto pev_points = fresults[i].second;
+        num_fp += fresults[i].first;
         auto cids = face_map[faces[i]];
         for(const auto& p: pev_points)
         {
@@ -423,6 +431,7 @@ int vtkParallelEigenvectors::RequestData(
             eivec->InsertTuple(pid, p.eivec.data());
             imag1->InsertValue(pid, p.s_has_imaginary ? 1. : 0.);
             imag2->InsertValue(pid, p.t_has_imaginary ? 1. : 0.);
+            csize->InsertValue(pid, p.cluster_size);
 
             // Add pev point to all cells participating in this face
             for(auto c: cids)
@@ -523,6 +532,7 @@ int vtkParallelEigenvectors::RequestData(
     std::cout << "Average time per face: "
               << (milliseconds(duration_pointsearch) / face_map.size()).count()
               << " milliseconds" << std::endl;
+    std::cout << "Number of false Positives : " << num_fp << std::endl;
 
     this->UpdateProgress(1.);
 

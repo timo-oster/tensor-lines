@@ -2,11 +2,14 @@
 
 #include "BarycentricInterpolator.hh"
 #include "BezierTriangle.hh"
+#include "BezierDoubleTriangle.hh"
 
 #include <Eigen/LU>
 #include <Eigen/Eigenvalues>
 
 #include <boost/optional/optional.hpp>
+#include <boost/range/join.hpp>
+#include <boost/algorithm/cxx11/any_of.hpp>
 
 #include <iostream>
 #include <algorithm>
@@ -16,7 +19,6 @@
 #include <map>
 #include <queue>
 #include <stack>
-#include <chrono>
 
 namespace
 {
@@ -27,6 +29,11 @@ using namespace pev;
  * Cubic trivariate polynomial in barycentric coordinates
  */
 using BezierTriangle = BezierTriangle<double>;
+
+/**
+ * Mixed linear/quadratic polynomials on a pair of barycentric coordinates
+ */
+using BDoubleTri = BezierDoubleTriangle<double>;
 
 
 /**
@@ -138,6 +145,10 @@ clusterTris(const TriPairList& tris, double epsilon)
 }
 
 
+using FindReprReturnType = std::pair<int,
+                                     std::vector<std::tuple<int,
+                                                            Triangle,
+                                                            Triangle>>>;
 /**
  * @brief Select the candidate with the most parallel eigenvectors from each
  *     cluster
@@ -152,12 +163,14 @@ clusterTris(const TriPairList& tris, double epsilon)
  *
  * @return List of candidates, each a representative of a cluster
  */
-TriPairList findRepresentatives(const std::vector<TriPairList>& clusters,
+FindReprReturnType
+findRepresentatives(const std::vector<TriPairList>& clusters,
                                 const TensorInterp& s_interp,
                                 const TensorInterp& t_interp,
                                 double parallelity_epsilon)
 {
-    auto result = TriPairList{};
+    auto result = std::vector<std::tuple<int, Triangle, Triangle>>{};
+    auto num_fp = 0;
     for(const auto& c: clusters)
     {
         const auto* min_angle_tri = &*(c.cbegin());
@@ -191,10 +204,16 @@ TriPairList findRepresentatives(const std::vector<TriPairList>& clusters,
         // eigenvectors
         if(min_sin < 1.)
         {
-            result.push_back(*min_angle_tri);
+            result.push_back(std::make_tuple(c.size(),
+                                             min_angle_tri->direction_tri,
+                                             min_angle_tri->spatial_tri));
+        }
+        else
+        {
+            ++num_fp;
         }
     }
-    return result;
+    return std::make_pair(num_fp, result);
 }
 
 
@@ -210,18 +229,19 @@ TriPairList findRepresentatives(const std::vector<TriPairList>& clusters,
  * @param tri Spatial triangle
  * @return List of PEVPoints with context info
  */
-PointList computeContextInfo(const TriPairList& representatives,
-                             const TensorInterp& s_interp,
-                             const TensorInterp& t_interp,
-                             const Triangle& tri)
+std::pair<int, PointList>
+computeContextInfo(const FindReprReturnType& representatives,
+                   const TensorInterp& s_interp,
+                   const TensorInterp& t_interp,
+                   const Triangle& tri)
 {
     auto points = PointList{};
-    points.reserve(representatives.size());
+    points.reserve(representatives.second.size());
 
-    for(const auto& r: representatives)
+    for(const auto& r: representatives.second)
     {
-        auto result_center = r.spatial_tri(1./3., 1./3., 1./3.);
-        auto result_dir = r.direction_tri(1./3., 1./3., 1./3.).normalized();
+        auto result_center = std::get<2>(r)(1./3., 1./3., 1./3.);
+        auto result_dir = std::get<1>(r)(1./3., 1./3., 1./3.).normalized();
 
         // We want to know which eigenvector of each tensor field we have
         // found (i.e. corresponding to largest, middle, or smallest
@@ -273,16 +293,17 @@ PointList computeContextInfo(const TriPairList& representatives,
                             t_eigvs[t_closest_index].real(), val);
                 }).sum();
 
-        points.push_back({tri(result_center),
+        points.push_back(PEVPoint{tri(result_center),
                           ERank(s_order),
                           ERank(t_order),
                           result_dir,
                           s_real_eigv,
                           t_real_eigv,
                           s_eigvs.sum().imag() != 0,
-                          t_eigvs.sum().imag() != 0});
+                          t_eigvs.sum().imag() != 0,
+                          std::get<0>(r)});
     }
-    return points;
+    return std::make_pair(representatives.first, points);
 }
 
 
@@ -292,6 +313,12 @@ PointList computeContextInfo(const TriPairList& representatives,
  * @return 1 for all positive, -1 for all negative, 0 otherwise
  */
 int sameSign(const BezierTriangle& coeffs)
+{
+    auto ma = coeffs.coefficients().maxCoeff();
+    auto mi = coeffs.coefficients().minCoeff();
+    return mi*ma > 0 ? sgn(ma) : 0;
+}
+int sameSign(const BDoubleTri& coeffs)
 {
     auto ma = coeffs.coefficients().maxCoeff();
     auto mi = coeffs.coefficients().minCoeff();
@@ -396,6 +423,41 @@ bezierCoefficients(const Mat3d& t1, const Mat3d& t2, const Mat3d& t3,
             (Mat3d{} << C.col(0), C.col(1), r3).finished());
 
     return {w1_coeffs, w2_coeffs, w3_coeffs};
+}
+
+std::array<BDoubleTri, 3>
+bezierDoubleCoeffs(const Mat3d& t1, const Mat3d& t2, const Mat3d& t3,
+                   const Vec3d& r1, const Vec3d& r2, const Vec3d& r3)
+{
+    auto coeffs = Eigen::Matrix<double, 18, 3>{};
+
+    coeffs.row(BDoubleTri::i100200) = (t1*r1).cross(r1);
+    coeffs.row(BDoubleTri::i100020) = (t1*r2).cross(r2);
+    coeffs.row(BDoubleTri::i100002) = (t1*r3).cross(r3);
+
+    coeffs.row(BDoubleTri::i010200) = (t2*r1).cross(r1);
+    coeffs.row(BDoubleTri::i010020) = (t2*r2).cross(r2);
+    coeffs.row(BDoubleTri::i010002) = (t2*r3).cross(r3);
+
+    coeffs.row(BDoubleTri::i001200) = (t3*r1).cross(r1);
+    coeffs.row(BDoubleTri::i001020) = (t3*r2).cross(r2);
+    coeffs.row(BDoubleTri::i001002) = (t3*r3).cross(r3);
+
+    coeffs.row(BDoubleTri::i100110) = ((t1*r1).cross(r2) + (t1*r2).cross(r1))/2;
+    coeffs.row(BDoubleTri::i100011) = ((t1*r2).cross(r3) + (t1*r3).cross(r2))/2;
+    coeffs.row(BDoubleTri::i100101) = ((t1*r3).cross(r1) + (t1*r1).cross(r3))/2;
+
+    coeffs.row(BDoubleTri::i010110) = ((t2*r1).cross(r2) + (t2*r2).cross(r1))/2;
+    coeffs.row(BDoubleTri::i010011) = ((t2*r2).cross(r3) + (t2*r3).cross(r2))/2;
+    coeffs.row(BDoubleTri::i010101) = ((t2*r3).cross(r1) + (t2*r1).cross(r3))/2;
+
+    coeffs.row(BDoubleTri::i001110) = ((t3*r1).cross(r2) + (t3*r2).cross(r1))/2;
+    coeffs.row(BDoubleTri::i001011) = ((t3*r2).cross(r3) + (t3*r3).cross(r2))/2;
+    coeffs.row(BDoubleTri::i001101) = ((t3*r3).cross(r1) + (t3*r1).cross(r3))/2;
+
+    return {BDoubleTri(coeffs.col(0)),
+            BDoubleTri(coeffs.col(1)),
+            BDoubleTri(coeffs.col(2))};
 }
 
 /**
@@ -586,12 +648,103 @@ TriPairList parallelEigenvectorSearch(const TensorInterp& s,
     return result;
 }
 
+TriPairList parallelEigenvectorSearchNew(const TensorInterp& s,
+                                         const TensorInterp& t,
+                                         const Triangle& tri,
+                                         double epsilon)
+{
+    // Structure for holding information needed during subdivision
+    struct SubPackage
+    {
+        TriPair trip;
+        TensorInterp s;
+        TensorInterp t;
+        std::array<BDoubleTri, 3> s_funcs;
+        std::array<BDoubleTri, 3> t_funcs;
+    };
+
+    auto tstck = std::stack<SubPackage>{};
+
+    auto init_tri = [&](const Triangle& r)
+    {
+        auto s_coeffs = bezierDoubleCoeffs(s.v1(), s.v2(), s.v3(),
+                                           r.v1(), r.v2(), r.v3());
+        auto t_coeffs = bezierDoubleCoeffs(t.v1(), t.v2(), t.v3(),
+                                           r.v1(), r.v2(), r.v3());
+        tstck.push(SubPackage{{r, tri}, s, t, s_coeffs, t_coeffs});
+    };
+
+    // Start with four triangles covering hemisphere
+    init_tri(Triangle{{1, 0, 0}, {0, 1, 0}, {0, 0, 1}});
+    init_tri(Triangle{{0, 1, 0}, {-1, 0, 0}, {0, 0, 1}});
+    init_tri(Triangle{{-1, 0, 0}, {0, -1, 0}, {0, 0, 1}});
+    init_tri(Triangle{{0, -1, 0}, {1, 0, 0}, {0, 0, 1}});
+
+    auto result = TriPairList{};
+
+    while(!tstck.empty())
+    {
+        auto pack = tstck.top();
+        tstck.pop();
+
+        // Check if any of the error components can not become zero in the
+        // current subdivision triangles
+        auto has_nonzero = boost::algorithm::any_of(
+                boost::join(pack.s_funcs, pack.t_funcs),
+                [](const BDoubleTri& c){ return sameSign(c) != 0; });
+
+        if(has_nonzero) continue;
+
+        // If maximum subdivision accuracy reached, accept point as solution
+        if((pack.trip.direction_tri.v1()
+                - pack.trip.direction_tri.v2()).norm() < epsilon
+           && (pack.trip.spatial_tri.v1()
+                - pack.trip.spatial_tri.v2()).norm() < epsilon)
+        {
+            result.push_back(pack.trip);
+            continue;
+        }
+
+        // Subdivide
+        auto dir_tri_subs = pack.trip.direction_tri.split();
+        auto spatial_tri_subs = pack.trip.spatial_tri.split();
+        auto s_subs = pack.s.split();
+        auto t_subs = pack.t.split();
+        auto s_funcs_subs = std::array<std::array<BDoubleTri, 16>, 3>{};
+        auto t_funcs_subs = std::array<std::array<BDoubleTri, 16>, 3>{};
+        for(auto i: range(3))
+        {
+            s_funcs_subs[i] = pack.s_funcs[i].split();
+            t_funcs_subs[i] = pack.t_funcs[i].split();
+        }
+
+        for(auto i: range(4))
+        {
+            for(auto j: range(4))
+            {
+                tstck.push(SubPackage{
+                        {dir_tri_subs[j], spatial_tri_subs[i]},
+                        s_subs[i],
+                        t_subs[i],
+                        {s_funcs_subs[0][i*4+j],
+                         s_funcs_subs[1][i*4+j],
+                         s_funcs_subs[2][i*4+j]},
+                        {t_funcs_subs[0][i*4+j],
+                         t_funcs_subs[1][i*4+j],
+                         t_funcs_subs[2][i*4+j]}});
+            }
+        }
+    }
+
+    return result;
+}
+
 } // namespace
 
 namespace pev
 {
 
-PointList findParallelEigenvectors(
+std::pair<int, PointList> findParallelEigenvectors(
         const Mat3d& s1, const Mat3d& s2, const Mat3d& s3,
         const Mat3d& t1, const Mat3d& t2, const Mat3d& t3,
         const Vec3d& x1, const Vec3d& x2, const Vec3d& x3,
@@ -607,8 +760,8 @@ PointList findParallelEigenvectors(
     auto s_interp = TensorInterp{s1, s2, s3};
     auto t_interp = TensorInterp{t1, t2, t3};
 
-    auto tris = parallelEigenvectorSearch(s_interp, t_interp, start_tri,
-                                          spatial_epsilon, direction_epsilon);
+    auto tris = parallelEigenvectorSearchNew(s_interp, t_interp, start_tri,
+                                          spatial_epsilon);
 
     auto clustered_tris = clusterTris(tris, cluster_epsilon);
 
@@ -620,7 +773,7 @@ PointList findParallelEigenvectors(
 }
 
 
-PointList findParallelEigenvectors(
+std::pair<int, PointList> findParallelEigenvectors(
         const Mat3d& s1, const Mat3d& s2, const Mat3d& s3,
         const Mat3d& t1, const Mat3d& t2, const Mat3d& t3,
         double spatial_epsilon, double direction_epsilon,
