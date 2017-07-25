@@ -651,7 +651,8 @@ TriPairList parallelEigenvectorSearch(const TensorInterp& s,
 TriPairList parallelEigenvectorSearchNew(const TensorInterp& s,
                                          const TensorInterp& t,
                                          const Triangle& tri,
-                                         double epsilon)
+                                         double spatial_epsilon,
+                                         double direction_epsilon)
 {
     // Structure for holding information needed during subdivision
     struct SubPackage
@@ -661,6 +662,7 @@ TriPairList parallelEigenvectorSearchNew(const TensorInterp& s,
         TensorInterp t;
         std::array<BDoubleTri, 3> s_funcs;
         std::array<BDoubleTri, 3> t_funcs;
+        bool last_split_dir;
     };
 
     auto tstck = std::stack<SubPackage>{};
@@ -671,7 +673,7 @@ TriPairList parallelEigenvectorSearchNew(const TensorInterp& s,
                                            r.v1(), r.v2(), r.v3());
         auto t_coeffs = bezierDoubleCoeffs(t.v1(), t.v2(), t.v3(),
                                            r.v1(), r.v2(), r.v3());
-        tstck.push(SubPackage{{r, tri}, s, t, s_coeffs, t_coeffs});
+        tstck.push(SubPackage{{r, tri}, s, t, s_coeffs, t_coeffs, true});
     };
 
     // Start with four triangles covering hemisphere
@@ -696,42 +698,72 @@ TriPairList parallelEigenvectorSearchNew(const TensorInterp& s,
         if(has_nonzero) continue;
 
         // If maximum subdivision accuracy reached, accept point as solution
-        if((pack.trip.direction_tri.v1()
-                - pack.trip.direction_tri.v2()).norm() < epsilon
-           && (pack.trip.spatial_tri.v1()
-                - pack.trip.spatial_tri.v2()).norm() < epsilon)
+        auto dir_sub_reached = (pack.trip.direction_tri.v1()
+                                - pack.trip.direction_tri.v2()).norm()
+                               < direction_epsilon;
+        auto pos_sub_reached = (pack.trip.spatial_tri.v1()
+                                - pack.trip.spatial_tri.v2()).norm()
+                               < spatial_epsilon;
+
+        if(pos_sub_reached && dir_sub_reached)
         {
             result.push_back(pack.trip);
             continue;
         }
 
         // Subdivide
-        auto dir_tri_subs = pack.trip.direction_tri.split();
-        auto spatial_tri_subs = pack.trip.spatial_tri.split();
-        auto s_subs = pack.s.split();
-        auto t_subs = pack.t.split();
-        auto s_funcs_subs = std::array<std::array<BDoubleTri, 16>, 3>{};
-        auto t_funcs_subs = std::array<std::array<BDoubleTri, 16>, 3>{};
-        for(auto i: range(3))
+        if(pack.last_split_dir && !pos_sub_reached)
         {
-            s_funcs_subs[i] = pack.s_funcs[i].split();
-            t_funcs_subs[i] = pack.t_funcs[i].split();
-        }
+            auto spatial_tri_subs = pack.trip.spatial_tri.split();
+            auto s_subs = pack.s.split();
+            auto t_subs = pack.t.split();
+            auto s_funcs_subs = std::array<std::array<BDoubleTri, 4>, 3>{};
+            auto t_funcs_subs = std::array<std::array<BDoubleTri, 4>, 3>{};
+            for(auto i: range(3))
+            {
+                s_funcs_subs[i] = pack.s_funcs[i].split_pos();
+                t_funcs_subs[i] = pack.t_funcs[i].split_pos();
+            }
 
-        for(auto i: range(4))
-        {
-            for(auto j: range(4))
+            for(auto i: range(4))
             {
                 tstck.push(SubPackage{
-                        {dir_tri_subs[j], spatial_tri_subs[i]},
+                        {pack.trip.direction_tri, spatial_tri_subs[i]},
                         s_subs[i],
                         t_subs[i],
-                        {s_funcs_subs[0][i*4+j],
-                         s_funcs_subs[1][i*4+j],
-                         s_funcs_subs[2][i*4+j]},
-                        {t_funcs_subs[0][i*4+j],
-                         t_funcs_subs[1][i*4+j],
-                         t_funcs_subs[2][i*4+j]}});
+                        {s_funcs_subs[0][i],
+                         s_funcs_subs[1][i],
+                         s_funcs_subs[2][i]},
+                        {t_funcs_subs[0][i],
+                         t_funcs_subs[1][i],
+                         t_funcs_subs[2][i]},
+                        false});
+            }
+        }
+        else
+        {
+            auto dir_tri_subs = pack.trip.direction_tri.split();
+            auto s_funcs_subs = std::array<std::array<BDoubleTri, 4>, 3>{};
+            auto t_funcs_subs = std::array<std::array<BDoubleTri, 4>, 3>{};
+            for(auto i: range(3))
+            {
+                s_funcs_subs[i] = pack.s_funcs[i].split_dir();
+                t_funcs_subs[i] = pack.t_funcs[i].split_dir();
+            }
+
+            for(auto i: range(4))
+            {
+                tstck.push(SubPackage{
+                        {dir_tri_subs[i], pack.trip.spatial_tri},
+                        pack.s,
+                        pack.t,
+                        {s_funcs_subs[0][i],
+                         s_funcs_subs[1][i],
+                         s_funcs_subs[2][i]},
+                        {t_funcs_subs[0][i],
+                         t_funcs_subs[1][i],
+                         t_funcs_subs[2][i]},
+                        true});
             }
         }
     }
@@ -761,7 +793,7 @@ std::pair<int, PointList> findParallelEigenvectors(
     auto t_interp = TensorInterp{t1, t2, t3};
 
     auto tris = parallelEigenvectorSearchNew(s_interp, t_interp, start_tri,
-                                          spatial_epsilon);
+                                             spatial_epsilon, direction_epsilon);
 
     auto clustered_tris = clusterTris(tris, cluster_epsilon);
 
