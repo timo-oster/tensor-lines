@@ -321,7 +321,6 @@ int vtkParallelEigenvectors::RequestData(
 {
     using pev::range;
     using namespace std::chrono;
-    using hours = duration<double, std::chrono::hours::period>;
     using minutes = duration<double, std::chrono::minutes::period>;
     using seconds = duration<double, std::chrono::seconds::period>;
     using milliseconds = duration<double, std::chrono::milliseconds::period>;

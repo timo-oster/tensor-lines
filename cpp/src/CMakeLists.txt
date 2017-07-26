@@ -42,6 +42,16 @@ if(VTK_FOUND)
     target_link_libraries(generate_tet_dataset ${VTK_LIBRARIES})
 endif()
 
+option(DRAW_DEBUG "Visualize the recursion algorithm (needs CImg)" OFF)
+if(DRAW_DEBUG)
+    find_package(CImg REQUIRED)
+    if(CIMG_FOUND)
+        include_directories(SYSTEM ${CIMG_INCLUDE_DIRS})
+        target_link_libraries(parallel_eigenvectors ${CIMG_LIBRARIES})
+        target_compile_definitions(parallel_eigenvectors PRIVATE "-DDRAW_DEBUG")
+    endif()
+endif()
+
 install(TARGETS parallel_eigenvectors
     EXPORT ParallelEigenvectorsTargets
     RUNTIME DESTINATION "${INSTALL_BIN_DIR}" COMPONENT bin)

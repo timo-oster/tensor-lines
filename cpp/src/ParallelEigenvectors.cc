@@ -26,11 +26,6 @@ namespace
 using namespace pev;
 
 /**
- * Cubic trivariate polynomial in barycentric coordinates
- */
-using BezierTriangle = BezierTriangle<double>;
-
-/**
  * Mixed linear/quadratic polynomials on a pair of barycentric coordinates
  */
 using BDoubleTri = BezierDoubleTriangle<double>;
@@ -78,6 +73,83 @@ struct TriPair
  */
 using TriPairList = std::vector<TriPair>;
 
+
+#ifdef DRAW_DEBUG
+
+const double red[3] = {255, 0, 0};
+const double yellow[3] = {255, 127, 0};
+const double green[3] = {0, 255, 0};
+const double blue[3] = {128, 255, 255};
+const double dark_blue[3] = {0, 0, 255};
+const double white[3] = {255, 255, 255};
+
+using Vec2d = Eigen::Vector2d;
+
+std::array<Vec2d, 3> project_tri(const Triangle& tri, bool topdown = true)
+{
+    auto proj = Eigen::Matrix<double, 2, 3>{};
+    static const auto sqrt23 = std::sqrt(2.0)/std::sqrt(3.0);
+    if(topdown)
+    {
+        proj << 1, 1, 0,
+                1, -1, 0;
+    }
+    else
+    {
+        proj << 1, -1, 0,
+                -sqrt23, -sqrt23, sqrt23;
+    }
+    auto result = std::array<Vec2d, 3>{
+        proj*tri.v1(),
+        proj*tri.v2(),
+        proj*tri.v3()
+    };
+    for(auto& p: result)
+    {
+        p = (p * pos_image.width()/2) + Vec2d(pos_image.width()/2,
+                                              pos_image.height()/2);
+    }
+    return result;
+}
+
+
+void draw_tri(CImg& image,
+              const Triangle& tri, const double* color,
+              bool fill = true, bool topdown=true)
+{
+    auto projected = project_tri(tri, topdown);
+    if(fill)
+    {
+        image.draw_triangle(int(projected[0].x()), int(projected[0].y()),
+                            int(projected[1].x()), int(projected[1].y()),
+                            int(projected[2].x()), int(projected[2].y()),
+                            color);
+    }
+    else
+    {
+        image.draw_triangle(int(projected[0].x()), int(projected[0].y()),
+                            int(projected[1].x()), int(projected[1].y()),
+                            int(projected[2].x()), int(projected[2].y()),
+                            color, 1.0, 0xffffffff);
+    }
+}
+
+
+void draw_cross(CImg& image,
+                const Vec3d& pos, const double* color,
+                bool topdown=true)
+{
+    static const auto size = 10;
+    auto projected = project_tri(Triangle{pos, pos, pos}, topdown);
+    image.draw_line(int(projected[0].x())-size, int(projected[0].y()),
+                    int(projected[0].x())+size, int(projected[0].y()),
+                    color);
+    image.draw_line(int(projected[0].x()), int(projected[0].y()-size),
+                    int(projected[0].x()), int(projected[0].y()+size),
+                    color);
+}
+
+#endif
 
 /**
  * (Simplified) distance between two triangles
@@ -312,12 +384,6 @@ computeContextInfo(const FindReprReturnType& representatives,
  *
  * @return 1 for all positive, -1 for all negative, 0 otherwise
  */
-int sameSign(const BezierTriangle& coeffs)
-{
-    auto ma = coeffs.coefficients().maxCoeff();
-    auto mi = coeffs.coefficients().minCoeff();
-    return mi*ma > 0 ? sgn(ma) : 0;
-}
 int sameSign(const BDoubleTri& coeffs)
 {
     auto ma = coeffs.coefficients().maxCoeff();
@@ -325,105 +391,6 @@ int sameSign(const BDoubleTri& coeffs)
     return mi*ma > 0 ? sgn(ma) : 0;
 }
 
-
-/**
- * Helper function for bezierCoefficients()
- */
-BezierTriangle computeBezierTriangle(const Mat3d& A,
-                                     const Mat3d& B,
-                                     const Mat3d& C)
-{
-    auto result = BezierTriangle::Coeffs{};
-
-    result(BezierTriangle::i300) = A.determinant();
-    result(BezierTriangle::i030) = B.determinant();
-    result(BezierTriangle::i003) = C.determinant();
-    result(BezierTriangle::i210) = 1. / 3. * (
-              (Mat3d{} << B.col(0), A.col(1), A.col(2)).finished().determinant()
-            + (Mat3d{} << A.col(0), B.col(1), A.col(2)).finished().determinant()
-            + (Mat3d{} << A.col(0), A.col(1), B.col(2)).finished().determinant()
-            );
-    result(BezierTriangle::i201) = 1. / 3. * (
-              (Mat3d{} << C.col(0), A.col(1), A.col(2)).finished().determinant()
-            + (Mat3d{} << A.col(0), C.col(1), A.col(2)).finished().determinant()
-            + (Mat3d{} << A.col(0), A.col(1), C.col(2)).finished().determinant()
-            );
-    result(BezierTriangle::i120) = 1. / 3. * (
-              (Mat3d{} << A.col(0), B.col(1), B.col(2)).finished().determinant()
-            + (Mat3d{} << B.col(0), A.col(1), B.col(2)).finished().determinant()
-            + (Mat3d{} << B.col(0), B.col(1), A.col(2)).finished().determinant()
-            );
-    result(BezierTriangle::i021) = 1. / 3. * (
-              (Mat3d{} << C.col(0), B.col(1), B.col(2)).finished().determinant()
-            + (Mat3d{} << B.col(0), C.col(1), B.col(2)).finished().determinant()
-            + (Mat3d{} << B.col(0), B.col(1), C.col(2)).finished().determinant()
-            );
-    result(BezierTriangle::i102) = 1. / 3. * (
-              (Mat3d{} << A.col(0), C.col(1), C.col(2)).finished().determinant()
-            + (Mat3d{} << C.col(0), A.col(1), C.col(2)).finished().determinant()
-            + (Mat3d{} << C.col(0), C.col(1), A.col(2)).finished().determinant()
-            );
-    result(BezierTriangle::i012) = 1. / 3. * (
-              (Mat3d{} << B.col(0), C.col(1), C.col(2)).finished().determinant()
-            + (Mat3d{} << C.col(0), B.col(1), C.col(2)).finished().determinant()
-            + (Mat3d{} << C.col(0), C.col(1), B.col(2)).finished().determinant()
-            );
-    result(BezierTriangle::i111) = 1. / 6. * (
-              (Mat3d{} << A.col(0), B.col(1), C.col(2)).finished().determinant()
-            + (Mat3d{} << A.col(0), C.col(1), B.col(2)).finished().determinant()
-            + (Mat3d{} << B.col(0), A.col(1), C.col(2)).finished().determinant()
-            + (Mat3d{} << B.col(0), C.col(1), A.col(2)).finished().determinant()
-            + (Mat3d{} << C.col(0), A.col(1), B.col(2)).finished().determinant()
-            + (Mat3d{} << C.col(0), B.col(1), A.col(2)).finished().determinant()
-            );
-    return BezierTriangle{result};
-}
-
-/**
- * @brief Compute Bezier triangles of eigenvector coordinate functions ŵ_i(r).
- * @details Computes the cubic trivariate polynomials representing the position
- *          of an eigenvector parallel to r = u_1*r_1 + u_2*r_2 + u_3*r_3 in the
- *          tensor field T = w_1*t_1 + w_2*t_2 + w_3*t_3.
- *
- * @param t1 tensor at (spatial) triangle corner
- * @param t2 tensor at (spatial) triangle corner
- * @param t3 tensor at (spatial) triangle corner
- * @param r1 direction at (directional) triangle corner
- * @param r2 direction at (directional) triangle corner
- * @param r3 direction at (directional) triangle corner
- * @return Bezier triangles whose sign is consistent with the sign of the
- *         coordinate functions w_i(r)
- */
-std::array<BezierTriangle, 3>
-bezierCoefficients(const Mat3d& t1, const Mat3d& t2, const Mat3d& t3,
-                   const Vec3d& r1, const Vec3d& r2, const Vec3d& r3)
-{
-    auto A = Mat3d{};
-    A << t1 * r1, t2 * r1, t3 * r1;
-
-    auto B = Mat3d{};
-    B << t1 * r2, t2 * r2, t3 * r2;
-
-    auto C = Mat3d{};
-    C << t1 * r3, t2 * r3, t3 * r3;
-
-    auto w1_coeffs = computeBezierTriangle(
-            (Mat3d{} << r1, A.col(1), A.col(2)).finished(),
-            (Mat3d{} << r2, B.col(1), B.col(2)).finished(),
-            (Mat3d{} << r3, C.col(1), C.col(2)).finished());
-
-    auto w2_coeffs = computeBezierTriangle(
-            (Mat3d{} << A.col(0), r1, A.col(2)).finished(),
-            (Mat3d{} << B.col(0), r2, B.col(2)).finished(),
-            (Mat3d{} << C.col(0), r3, C.col(2)).finished());
-
-    auto w3_coeffs = computeBezierTriangle(
-            (Mat3d{} << A.col(0), A.col(1), r1).finished(),
-            (Mat3d{} << B.col(0), B.col(1), r2).finished(),
-            (Mat3d{} << C.col(0), C.col(1), r3).finished());
-
-    return {w1_coeffs, w2_coeffs, w3_coeffs};
-}
 
 std::array<BDoubleTri, 3>
 bezierDoubleCoeffs(const Mat3d& t1, const Mat3d& t2, const Mat3d& t3,
@@ -460,199 +427,13 @@ bezierDoubleCoeffs(const Mat3d& t1, const Mat3d& t2, const Mat3d& t3,
             BDoubleTri(coeffs.col(2))};
 }
 
-/**
- * Find a direction that might become an eigenvector somewhere inside the
- * barycentric triangle for both @a s and @a t.
- *
- * @param s First tensor field
- * @param t Second tensor field
- * @param epsilon minimum cell size when subdividing
- * @return Triangle containing a potential eigenvector direction, or boost::none
- */
-boost::optional<Triangle> findEigenDir(const TensorInterp& s,
-                                       const TensorInterp& t,
-                                       double epsilon)
-{
-    // Data package for one subdivision step
-    struct SubPackage
-    {
-        Triangle tri;
-        BezierTriangle s_w1;
-        BezierTriangle s_w2;
-        BezierTriangle s_w3;
-        BezierTriangle t_w1;
-        BezierTriangle t_w2;
-        BezierTriangle t_w3;
-
-        std::array<SubPackage, 4> split() const
-        {
-            auto tri_sub = tri.split();
-            auto s_w1_sub = s_w1.split();
-            auto s_w2_sub = s_w2.split();
-            auto s_w3_sub = s_w3.split();
-            auto t_w1_sub = t_w1.split();
-            auto t_w2_sub = t_w2.split();
-            auto t_w3_sub = t_w3.split();
-            return {
-                SubPackage{tri_sub[0],
-                    s_w1_sub[0], s_w2_sub[0], s_w3_sub[0],
-                    t_w1_sub[0], t_w2_sub[0], t_w3_sub[0]},
-                SubPackage{tri_sub[1],
-                    s_w1_sub[1], s_w2_sub[1], s_w3_sub[1],
-                    t_w1_sub[1], t_w2_sub[1], t_w3_sub[1]},
-                SubPackage{tri_sub[2],
-                    s_w1_sub[2], s_w2_sub[2], s_w3_sub[2],
-                    t_w1_sub[2], t_w2_sub[2], t_w3_sub[2]},
-                SubPackage{tri_sub[3],
-                    s_w1_sub[3], s_w2_sub[3], s_w3_sub[3],
-                    t_w1_sub[3], t_w2_sub[3], t_w3_sub[3]}
-            };
-        }
-    };
-
-    // Stack for direction triangles that still have to be processed
-    auto tstck = std::stack<SubPackage>{};
-
-    auto init_tri = [&](const Triangle& tri)
-    {
-        auto s_coeffs = bezierCoefficients(s.v1(), s.v2(), s.v3(),
-                                           tri.v1(), tri.v2(), tri.v3());
-        auto t_coeffs = bezierCoefficients(t.v1(), t.v2(), t.v3(),
-                                           tri.v1(), tri.v2(), tri.v3());
-        tstck.push(SubPackage{
-            tri,
-            s_coeffs[0], s_coeffs[1], s_coeffs[2],
-            t_coeffs[0], t_coeffs[1], t_coeffs[2]
-        });
-    };
-
-    // Start with four triangles covering all directions in a hemisphere
-    init_tri(Triangle{{1, 0, 0}, {0, 1, 0}, {0, 0, 1}});
-    init_tri(Triangle{{0, 1, 0}, {-1, 0, 0}, {0, 0, 1}});
-    init_tri(Triangle{{-1, 0, 0}, {0, -1, 0}, {0, 0, 1}});
-    init_tri(Triangle{{0, -1, 0}, {1, 0, 0}, {0, 0, 1}});
-
-    while(!tstck.empty())
-    {
-        auto pack = tstck.top();
-        tstck.pop();
-
-        auto s_signs = std::array<int, 3>{sameSign(pack.s_w1),
-                                          sameSign(pack.s_w2),
-                                          sameSign(pack.s_w3)};
-        auto t_signs = std::array<int, 3>{sameSign(pack.t_w1),
-                                          sameSign(pack.t_w2),
-                                          sameSign(pack.t_w3)};
-
-        // Bezier coefficients have different signs: parallel eigenvectors
-        // not possible
-        auto s_minmax = std::minmax_element(std::begin(s_signs),
-                                            std::end(s_signs));
-        auto t_minmax = std::minmax_element(std::begin(t_signs),
-                                            std::end(t_signs));
-        if((*s_minmax.first) * (*s_minmax.second) < 0
-           || (*t_minmax.first) * (*t_minmax.second) < 0)
-        {
-            continue;
-        }
-
-        // All same signs: parallel eigenvectors possible
-        if(std::abs(std::accumulate(std::begin(s_signs),
-                                    std::end(s_signs), 0)) == 3
-           && std::abs(std::accumulate(std::begin(t_signs),
-                                       std::end(t_signs), 0)) == 3)
-        {
-            return pack.tri;
-        }
-
-        // Small triangle and still not sure if parallel eigenvectors
-        // impossible: accept direction as candidate
-        if((pack.tri.v1() - pack.tri.v2()).norm() < epsilon)
-        {
-            return pack.tri;
-        }
-
-        // Subdivide triangle
-        for(const auto& p: pack.split())
-        {
-            tstck.push(p);
-        }
-    }
-    return boost::none;
-}
-
-/**
- * @brief Find parallel eigenvector points on a triangle with the given
- *     positions and tensors at the corners.
- *
- * @param s first tensor field
- * @param t second tensor field
- * @param tri spatial triangle
- * @param spatial_epsilon minimum cell size for spatial subdivision
- * @param direction_epsilon minimum cell size for directional subdivision
- * @return Pairs of candidate triangles in space and directions
- */
-TriPairList parallelEigenvectorSearch(const TensorInterp& s,
-                                      const TensorInterp& t,
-                                      const Triangle& tri,
-                                      double spatial_epsilon,
-                                      double direction_epsilon)
-{
-    // Data package for one subdivision step
-    struct SubPackage
-    {
-        TensorInterp s;
-        TensorInterp t;
-        Triangle tri;
-    };
-
-    // Stack for sub-triangles that still have to be processed
-    auto pstck = std::stack<SubPackage>{};
-    pstck.push({s, t, tri});
-
-    auto result = TriPairList{};
-    auto num_splits = 0;
-
-    while(!pstck.empty())
-    {
-        auto pack = pstck.top();
-        pstck.pop();
-        if(num_splits > -(std::log2(spatial_epsilon)/std::log2(4.))*100)
-        {
-            // Abort search if too many subdivision steps have occurred
-            return result;
-        }
-        auto dir = findEigenDir(pack.s, pack.t, direction_epsilon);
-
-        // No possible eigenvector directions found: discard triangle
-        if(!dir) continue;
-
-        // Triangle at subdivision limit and still viable eigenvector directions:
-        // accept as parallel eigenvector point candidate
-        if((pack.tri.v1() - pack.tri.v2()).norm() < spatial_epsilon)
-        {
-            result.push_back({dir.value(), pack.tri});
-            continue;
-        }
-
-        // Subdivide triangle
-        auto s_subs = pack.s.split();
-        auto t_subs = pack.t.split();
-        auto tri_subs = pack.tri.split();
-        for(auto i: range(s_subs.size()))
-        {
-            pstck.push({s_subs[i], t_subs[i], tri_subs[i]});
-        }
-        ++num_splits;
-    }
-    return result;
-}
 
 TriPairList parallelEigenvectorSearchNew(const TensorInterp& s,
                                          const TensorInterp& t,
                                          const Triangle& tri,
                                          double spatial_epsilon,
-                                         double direction_epsilon)
+                                         double direction_epsilon,
+                                         uint64_t* num_splits = nullptr)
 {
     // Structure for holding information needed during subdivision
     struct SubPackage
@@ -664,6 +445,11 @@ TriPairList parallelEigenvectorSearchNew(const TensorInterp& s,
         std::array<BDoubleTri, 3> t_funcs;
         bool last_split_dir;
     };
+
+    #ifdef DRAW_DEBUG
+    pos_image.fill(0);
+    dir_image.fill(0);
+    #endif
 
     auto tstck = std::stack<SubPackage>{};
 
@@ -688,6 +474,7 @@ TriPairList parallelEigenvectorSearchNew(const TensorInterp& s,
     {
         auto pack = tstck.top();
         tstck.pop();
+        if(num_splits) *num_splits += 1;
 
         // Check if any of the error components can not become zero in the
         // current subdivision triangles
@@ -695,7 +482,17 @@ TriPairList parallelEigenvectorSearchNew(const TensorInterp& s,
                 boost::join(pack.s_funcs, pack.t_funcs),
                 [](const BDoubleTri& c){ return sameSign(c) != 0; });
 
-        if(has_nonzero) continue;
+        // Discard triangles if no roots can occur inside
+        if(has_nonzero)
+        {
+            #ifdef DRAW_DEBUG
+            draw_tri(pos_image, pack.trip.spatial_tri, red, false, false);
+            draw_tri(dir_image, pack.trip.direction_tri, red, false, true);
+            pos_frame.display(pos_image);
+            dir_frame.display(dir_image);
+            #endif
+            continue;
+        }
 
         // If maximum subdivision accuracy reached, accept point as solution
         auto dir_sub_reached = (pack.trip.direction_tri.v1()
@@ -708,6 +505,12 @@ TriPairList parallelEigenvectorSearchNew(const TensorInterp& s,
         if(pos_sub_reached && dir_sub_reached)
         {
             result.push_back(pack.trip);
+            #ifdef DRAW_DEBUG
+            draw_tri(pos_image, pack.trip.spatial_tri, green, false, false);
+            draw_tri(dir_image, pack.trip.direction_tri, green, false, true);
+            pos_frame.display(pos_image);
+            dir_frame.display(dir_image);
+            #endif
             continue;
         }
 
@@ -766,6 +569,13 @@ TriPairList parallelEigenvectorSearchNew(const TensorInterp& s,
                         true});
             }
         }
+
+        #ifdef DRAW_DEBUG
+        draw_tri(pos_image, pack.trip.spatial_tri, yellow, false, false);
+        draw_tri(dir_image, pack.trip.direction_tri, yellow, false, true);
+        pos_frame.display(pos_image);
+        dir_frame.display(dir_image);
+        #endif
     }
 
     return result;
@@ -775,6 +585,13 @@ TriPairList parallelEigenvectorSearchNew(const TensorInterp& s,
 
 namespace pev
 {
+
+#ifdef DRAW_DEBUG
+CImg pos_image(1024, 1024, 1, 3);
+CImg dir_image(1024, 1024, 1, 3);
+CImgDisplay pos_frame;
+CImgDisplay dir_frame;
+#endif
 
 std::pair<int, PointList> findParallelEigenvectors(
         const Mat3d& s1, const Mat3d& s2, const Mat3d& s3,
@@ -792,14 +609,19 @@ std::pair<int, PointList> findParallelEigenvectors(
     auto s_interp = TensorInterp{s1, s2, s3};
     auto t_interp = TensorInterp{t1, t2, t3};
 
+    auto num_splits = uint64_t{0};
     auto tris = parallelEigenvectorSearchNew(s_interp, t_interp, start_tri,
-                                             spatial_epsilon, direction_epsilon);
+                                             spatial_epsilon, direction_epsilon,
+                                             &num_splits);
 
     auto clustered_tris = clusterTris(tris, cluster_epsilon);
 
     auto representatives = findRepresentatives(clustered_tris,
                                                s_interp, t_interp,
                                                parallelity_epsilon);
+
+
+    std::cerr << representatives.second.size() << "\t" << num_splits << std::endl;
 
     return computeContextInfo(representatives, s_interp, t_interp, tri);
 }

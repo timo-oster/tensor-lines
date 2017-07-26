@@ -3,11 +3,28 @@
 
 #include "utils.hh"
 
+#ifdef DRAW_DEBUG
+#include <CImg.h>
+#ifdef Success
+  #undef Success
+#endif
+#endif
+
 #include <vector>
 
 
 namespace pev
 {
+
+#ifdef DRAW_DEBUG
+using CImg = cimg_library::CImg<double>;
+using CImgDisplay = cimg_library::CImgDisplay;
+
+extern CImg pos_image;
+extern CImg dir_image;
+extern CImgDisplay pos_frame;
+extern CImgDisplay dir_frame;
+#endif
 
 /**
  * Rank/order of an eigenvalue of a 3x3 matrix
