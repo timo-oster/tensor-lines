@@ -433,7 +433,8 @@ TriPairList parallelEigenvectorSearchNew(const TensorInterp& s,
                                          const Triangle& tri,
                                          double spatial_epsilon,
                                          double direction_epsilon,
-                                         uint64_t* num_splits = nullptr)
+                                         uint64_t* num_splits = nullptr,
+                                         uint64_t* max_level = nullptr)
 {
     // Structure for holding information needed during subdivision
     struct SubPackage
@@ -444,6 +445,7 @@ TriPairList parallelEigenvectorSearchNew(const TensorInterp& s,
         std::array<BDoubleTri, 3> s_funcs;
         std::array<BDoubleTri, 3> t_funcs;
         bool last_split_dir;
+        int split_level;
     };
 
     #ifdef DRAW_DEBUG
@@ -459,7 +461,7 @@ TriPairList parallelEigenvectorSearchNew(const TensorInterp& s,
                                            r.v1(), r.v2(), r.v3());
         auto t_coeffs = bezierDoubleCoeffs(t.v1(), t.v2(), t.v3(),
                                            r.v1(), r.v2(), r.v3());
-        tstck.push(SubPackage{{r, tri}, s, t, s_coeffs, t_coeffs, true});
+        tstck.push(SubPackage{{r, tri}, s, t, s_coeffs, t_coeffs, true, 0});
     };
 
     // Start with four triangles covering hemisphere
@@ -475,6 +477,10 @@ TriPairList parallelEigenvectorSearchNew(const TensorInterp& s,
         auto pack = tstck.top();
         tstck.pop();
         if(num_splits) *num_splits += 1;
+        if(max_level && *max_level < pack.split_level)
+        {
+            *max_level = pack.split_level;
+        }
 
         // Check if any of the error components can not become zero in the
         // current subdivision triangles
@@ -540,7 +546,8 @@ TriPairList parallelEigenvectorSearchNew(const TensorInterp& s,
                         {t_funcs_subs[0][i],
                          t_funcs_subs[1][i],
                          t_funcs_subs[2][i]},
-                        false});
+                        false,
+                        pack.split_level+1});
             }
         }
         else
@@ -566,7 +573,8 @@ TriPairList parallelEigenvectorSearchNew(const TensorInterp& s,
                         {t_funcs_subs[0][i],
                          t_funcs_subs[1][i],
                          t_funcs_subs[2][i]},
-                        true});
+                        true,
+                        pack.split_level+1});
             }
         }
 
@@ -610,9 +618,10 @@ std::pair<int, PointList> findParallelEigenvectors(
     auto t_interp = TensorInterp{t1, t2, t3};
 
     auto num_splits = uint64_t{0};
+    auto max_level = uint64_t{0};
     auto tris = parallelEigenvectorSearchNew(s_interp, t_interp, start_tri,
                                              spatial_epsilon, direction_epsilon,
-                                             &num_splits);
+                                             &num_splits, &max_level);
 
     auto clustered_tris = clusterTris(tris, cluster_epsilon);
 
@@ -621,7 +630,8 @@ std::pair<int, PointList> findParallelEigenvectors(
                                                parallelity_epsilon);
 
 
-    std::cerr << representatives.second.size() << "\t" << num_splits << std::endl;
+    std::cerr << representatives.second.size() << "\t"
+              << max_level << "\t" << num_splits << std::endl;
 
     return computeContextInfo(representatives, s_interp, t_interp, tri);
 }
