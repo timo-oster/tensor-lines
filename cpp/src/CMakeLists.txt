@@ -1,4 +1,20 @@
-add_executable(parallel_eigenvectors main.cc ParallelEigenvectors.cc vtkParallelEigenvectors.cc)
+set(PEV_SOURCES
+        main.cc
+        ParallelEigenvectors.cc
+        vtkParallelEigenvectors.cc)
+
+set(PEV_HEADERS
+    BarycentricInterpolator.hh
+    BezierDoubleTriangle.hh
+    BezierTriangle.hh
+    ParallelEigenvectors.hh
+    utils.hh
+    vtkParallelEigenvectors.hh)
+
+source_group("Header Files" FILES ${PEV_HEADERS})
+source_group("Source Files" FILES ${PEV_SOURCES})
+
+add_executable(parallel_eigenvectors ${PEV_SOURCES} ${PEV_HEADERS})
 add_executable(generate_tet_dataset generate_tet_dataset.cc)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU"

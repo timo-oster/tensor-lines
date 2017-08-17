@@ -7,8 +7,7 @@
 
 namespace pev
 {
-
-template<typename T, typename C=double>
+template <typename T, typename C = double>
 class BezierDoubleTriangle
 {
 public:
@@ -16,7 +15,7 @@ public:
     using Coeffs = Eigen::Matrix<T, 18, 1>;
     using Coords = Eigen::Matrix<C, 6, 1>;
 
-    enum Indices: int
+    enum Indices : int
     {
         i100200 = 0,
         i010200,
@@ -39,11 +38,13 @@ public:
     };
 
     BezierDoubleTriangle()
-    {}
+    {
+    }
 
-    explicit BezierDoubleTriangle(const Coeffs& coefficients):
-            _coeffs(coefficients)
-    {}
+    explicit BezierDoubleTriangle(const Coeffs& coefficients)
+            : _coeffs(coefficients)
+    {
+    }
 
     T operator()(const Coords& pos) const
     {
@@ -72,31 +73,42 @@ public:
 
     std::array<Self, 16> split() const
     {
-        return {Self{m0_()*m_0()*_coeffs}, Self{m0_()*m_1()*_coeffs},
-                Self{m0_()*m_2()*_coeffs}, Self{m0_()*m_3()*_coeffs},
-                Self{m1_()*m_0()*_coeffs}, Self{m1_()*m_1()*_coeffs},
-                Self{m1_()*m_2()*_coeffs}, Self{m1_()*m_3()*_coeffs},
-                Self{m2_()*m_0()*_coeffs}, Self{m2_()*m_1()*_coeffs},
-                Self{m2_()*m_2()*_coeffs}, Self{m2_()*m_3()*_coeffs},
-                Self{m3_()*m_0()*_coeffs}, Self{m3_()*m_1()*_coeffs},
-                Self{m3_()*m_2()*_coeffs}, Self{m3_()*m_3()*_coeffs}};
+        return {Self{m0_() * m_0() * _coeffs},
+                Self{m0_() * m_1() * _coeffs},
+                Self{m0_() * m_2() * _coeffs},
+                Self{m0_() * m_3() * _coeffs},
+                Self{m1_() * m_0() * _coeffs},
+                Self{m1_() * m_1() * _coeffs},
+                Self{m1_() * m_2() * _coeffs},
+                Self{m1_() * m_3() * _coeffs},
+                Self{m2_() * m_0() * _coeffs},
+                Self{m2_() * m_1() * _coeffs},
+                Self{m2_() * m_2() * _coeffs},
+                Self{m2_() * m_3() * _coeffs},
+                Self{m3_() * m_0() * _coeffs},
+                Self{m3_() * m_1() * _coeffs},
+                Self{m3_() * m_2() * _coeffs},
+                Self{m3_() * m_3() * _coeffs}};
     }
 
     std::array<Self, 4> split_pos() const
     {
-        return {Self{m0_()*_coeffs}, Self{m1_()*_coeffs},
-                Self{m2_()*_coeffs}, Self{m3_()*_coeffs}};
+        return {Self{m0_() * _coeffs},
+                Self{m1_() * _coeffs},
+                Self{m2_() * _coeffs},
+                Self{m3_() * _coeffs}};
     }
 
     std::array<Self, 4> split_dir() const
     {
-        return {Self{m_0()*_coeffs}, Self{m_1()*_coeffs},
-                Self{m_2()*_coeffs}, Self{m_3()*_coeffs}};
+        return {Self{m_0() * _coeffs},
+                Self{m_1() * _coeffs},
+                Self{m_2() * _coeffs},
+                Self{m_3() * _coeffs}};
     }
 
 
 private:
-
     using Matrix18 = Eigen::Matrix<T, 18, 18>;
     using Basis = Eigen::Matrix<C, 18, 1>;
 
@@ -105,24 +117,26 @@ private:
 
     static Basis makeBasis(const Coords& pos)
     {
-        return (Basis{} <<  1*pos[0]*pos[3]*pos[3],
-                            1*pos[1]*pos[3]*pos[3],
-                            1*pos[2]*pos[3]*pos[3],
-                            1*pos[0]*pos[4]*pos[4],
-                            1*pos[1]*pos[4]*pos[4],
-                            1*pos[2]*pos[4]*pos[4],
-                            1*pos[0]*pos[5]*pos[5],
-                            1*pos[1]*pos[5]*pos[5],
-                            1*pos[2]*pos[5]*pos[5],
-                            2*pos[0]*pos[3]*pos[4],
-                            2*pos[1]*pos[3]*pos[4],
-                            2*pos[2]*pos[3]*pos[4],
-                            2*pos[0]*pos[4]*pos[5],
-                            2*pos[1]*pos[4]*pos[5],
-                            2*pos[2]*pos[4]*pos[5],
-                            2*pos[0]*pos[3]*pos[5],
-                            2*pos[1]*pos[3]*pos[5],
-                            2*pos[2]*pos[3]*pos[5]).finished();
+        return (Basis{} <<
+                1 * pos[0] * pos[3] * pos[3],
+                1 * pos[1] * pos[3] * pos[3],
+                1 * pos[2] * pos[3] * pos[3],
+                1 * pos[0] * pos[4] * pos[4],
+                1 * pos[1] * pos[4] * pos[4],
+                1 * pos[2] * pos[4] * pos[4],
+                1 * pos[0] * pos[5] * pos[5],
+                1 * pos[1] * pos[5] * pos[5],
+                1 * pos[2] * pos[5] * pos[5],
+                2 * pos[0] * pos[3] * pos[4],
+                2 * pos[1] * pos[3] * pos[4],
+                2 * pos[2] * pos[3] * pos[4],
+                2 * pos[0] * pos[4] * pos[5],
+                2 * pos[1] * pos[4] * pos[5],
+                2 * pos[2] * pos[4] * pos[5],
+                2 * pos[0] * pos[3] * pos[5],
+                2 * pos[1] * pos[3] * pos[5],
+                2 * pos[2] * pos[3] * pos[5])
+                .finished();
     }
 
     // Splitting operator matrices

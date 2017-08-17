@@ -6,16 +6,16 @@
 #include <random>
 #include <string>
 
-#include <vtkSmartPointer.h>
-#include <vtkUnstructuredGrid.h>
-#include <vtkIdList.h>
 #include <vtkCell.h>
-#include <vtkPoints.h>
-#include <vtkPointData.h>
-#include <vtkDoubleArray.h>
-#include <vtkUnstructuredGridWriter.h>
-#include <vtkSubdivideTetra.h>
 #include <vtkCellIterator.h>
+#include <vtkDoubleArray.h>
+#include <vtkIdList.h>
+#include <vtkPointData.h>
+#include <vtkPoints.h>
+#include <vtkSmartPointer.h>
+#include <vtkSubdivideTetra.h>
+#include <vtkUnstructuredGrid.h>
+#include <vtkUnstructuredGridWriter.h>
 
 namespace po = boost::program_options;
 
@@ -25,14 +25,14 @@ Mat3d inputMatrix(const std::string& name)
 {
     std::cout << "Enter values for 3x3 matrix " << name << std::endl;
     auto result = Mat3d{};
-    std::cin >> result(0, 0) >> result(0, 1) >> result(0, 2)
-             >> result(1, 0) >> result(1, 1) >> result(1, 2)
-             >> result(2, 0) >> result(2, 1) >> result(2, 2);
+    std::cin >> result(0, 0) >> result(0, 1) >> result(0, 2) >> result(1, 0)
+             >> result(1, 1) >> result(1, 2) >> result(2, 0) >> result(2, 1)
+             >> result(2, 2);
     return result;
 }
 
-template<typename R, typename G>
-Mat3d randMatrix(R& rnd, G& gen, bool symmetric=false)
+template <typename R, typename G>
+Mat3d randMatrix(R& rnd, G& gen, bool symmetric = false)
 {
     auto result = Mat3d{};
     result << rnd(gen), rnd(gen), rnd(gen),
@@ -40,12 +40,12 @@ Mat3d randMatrix(R& rnd, G& gen, bool symmetric=false)
               rnd(gen), rnd(gen), rnd(gen);
     if(symmetric)
     {
-        result = 0.5*(result + result.transpose().eval());
+        result = 0.5 * (result + result.transpose().eval());
     }
     return result;
 }
 
-int main(int argc, char const *argv[])
+int main(int argc, char const* argv[])
 {
     using namespace pev;
 
@@ -59,24 +59,25 @@ int main(int argc, char const *argv[])
     {
         po::options_description desc("Allowed options");
         desc.add_options()
-        ("help,h", "produce help message")
-        ("random,r",
-            po::value<uint32_t>(&random_seed),
-            "Random seed for tensor generation")
-        ("symmetric,s",
-            po::bool_switch(&symmetric),
-            "Generate symmetric tensor. Only works in conjunction with --random")
-        ("interactive,i",
-            "Interactive mode (read matrices from stdin)")
-        ("subdivision-level,l",
-            po::value<int32_t>(&num_subdivisions)->required()
-                    ->default_value(num_subdivisions),
-            "Number of times the tetrahedron is subdivided")
-        ("output,o",
-            po::value<std::string>(&out_name)->required()
-                    ->default_value(out_name),
-            "Name of the output file")
-        ;
+            ("help,h", "produce help message")
+            ("random,r",
+                po::value<uint32_t>(&random_seed),
+                "Random seed for tensor generation")
+            ("symmetric,s",
+                po::bool_switch(&symmetric),
+                "Generate symmetric tensor. Only works in conjunction with "
+                "--random")
+            ("interactive,i",
+                "Interactive mode (read matrices from stdin)")
+            ("subdivision-level,l",
+                po::value<int32_t>(&num_subdivisions)
+                        ->required()
+                        ->default_value(num_subdivisions),
+                "Number of times the tetrahedron is subdivided")
+            ("output,o",
+                po::value<std::string>(&out_name)
+                        ->required()->default_value(out_name),
+                "Name of the output file");
 
         auto vm = po::variables_map{};
         po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -101,12 +102,12 @@ int main(int argc, char const *argv[])
         }
         if(vm.count("interactive")) interactive = true;
     }
-    catch (std::exception& e)
+    catch(std::exception& e)
     {
         std::cerr << "error: " << e.what() << "\n";
         return 1;
     }
-    catch (...)
+    catch(...)
     {
         std::cerr << "Exception of unknown type!\n";
     }
@@ -138,14 +139,14 @@ int main(int argc, char const *argv[])
     t_field->SetName("T");
     t_field->SetNumberOfComponents(9);
     t_field->SetNumberOfTuples(points->GetNumberOfPoints());
-    for(auto i: range(points->GetNumberOfPoints()))
+    for(auto i : range(points->GetNumberOfPoints()))
     {
         if(interactive)
         {
             s_field->SetTuple(
-                    i, inputMatrix(make_string() << "S" << (i+1)).data());
+                    i, inputMatrix(make_string() << "S" << (i + 1)).data());
             t_field->SetTuple(
-                    i, inputMatrix(make_string() << "T" << (i+1)).data());
+                    i, inputMatrix(make_string() << "T" << (i + 1)).data());
         }
         else
         {
@@ -158,13 +159,13 @@ int main(int argc, char const *argv[])
 
     auto sub_filter = vtkSmartPointer<vtkSubdivideTetra>::New();
 
-    for(auto _: range(num_subdivisions))
+    for(auto _ : range(num_subdivisions))
     {
         sub_filter->SetInputData(grid);
 
         auto new_grid = vtkSmartPointer<vtkUnstructuredGrid>(
                 vtkUnstructuredGrid::SafeDownCast(
-                    sub_filter->GetOutputDataObject(0)));
+                        sub_filter->GetOutputDataObject(0)));
 
         sub_filter->Update();
 

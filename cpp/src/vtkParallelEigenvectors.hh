@@ -5,14 +5,14 @@
 
 class vtkPolyData;
 
-class VTK_EXPORT vtkParallelEigenvectors: public vtkAlgorithm
+class VTK_EXPORT vtkParallelEigenvectors : public vtkAlgorithm
 {
 public:
     static vtkParallelEigenvectors* New();
-    vtkTypeMacro(vtkParallelEigenvectors,vtkAlgorithm);
+    vtkTypeMacro(vtkParallelEigenvectors, vtkAlgorithm);
 
     vtkParallelEigenvectors(const vtkParallelEigenvectors&) = delete;
-    void operator= (const vtkParallelEigenvectors&) = delete;
+    void operator=(const vtkParallelEigenvectors&) = delete;
 
     double GetSpatialEpsilon() const
     {
@@ -68,7 +68,7 @@ public:
                                vtkInformationVector**,
                                vtkInformationVector*) override;
 
-    protected:
+protected:
     vtkParallelEigenvectors();
     ~vtkParallelEigenvectors();
 
@@ -76,29 +76,31 @@ public:
     // This is the method you should override.
     virtual int RequestDataObject(vtkInformation* request,
                                   vtkInformationVector** inputVector,
-                                  vtkInformationVector* outputVector );
+                                  vtkInformationVector* outputVector);
 
     // convenience method
     virtual int RequestInformation(vtkInformation* request,
                                    vtkInformationVector** inputVector,
-                                   vtkInformationVector* outputVector );
+                                   vtkInformationVector* outputVector);
 
     // Description:
     // This is called by the superclass.
     // This is the method you should override.
     virtual int RequestData(vtkInformation* request,
                             vtkInformationVector** inputVector,
-                            vtkInformationVector* outputVector );
+                            vtkInformationVector* outputVector);
 
     // Description:
     // This is called by the superclass.
     // This is the method you should override.
     virtual int RequestUpdateExtent(vtkInformation*,
                                     vtkInformationVector**,
-                                    vtkInformationVector* );
+                                    vtkInformationVector*);
 
-    virtual int FillOutputPortInformation(int port, vtkInformation* info) override;
-    virtual int FillInputPortInformation(int port, vtkInformation* info) override;
+    virtual int FillOutputPortInformation(int port,
+                                          vtkInformation* info) override;
+    virtual int FillInputPortInformation(int port,
+                                         vtkInformation* info) override;
 
 private:
     double _spatial_epsilon = 1e-6;
@@ -106,6 +108,6 @@ private:
     double _cluster_epsilon = 1e-4;
     double _parallelity_epsilon = 1e-6;
     double _min_tensor_norm = 1e-3;
-} ;
+};
 
 #endif

@@ -4,18 +4,18 @@
 
 #include <Eigen/Geometry>
 
-#include <vtkPolyData.h>
-#include <vtkUnstructuredGrid.h>
+#include <vtkCellIterator.h>
+#include <vtkDataArray.h>
 #include <vtkDataSet.h>
 #include <vtkDataSetAttributes.h>
-#include <vtkSmartPointer.h>
-#include <vtkCellIterator.h>
-#include <vtkPoints.h>
 #include <vtkDoubleArray.h>
-#include <vtkIntArray.h>
-#include <vtkDataArray.h>
-#include <vtkPointData.h>
 #include <vtkIdList.h>
+#include <vtkIntArray.h>
+#include <vtkPointData.h>
+#include <vtkPoints.h>
+#include <vtkPolyData.h>
+#include <vtkSmartPointer.h>
+#include <vtkUnstructuredGrid.h>
 
 #include <vtkCommand.h>
 #include <vtkInformation.h>
@@ -24,18 +24,17 @@
 #include <vtkStreamingDemandDrivenPipeline.h>
 
 #include <algorithm>
-#include <map>
-#include <vector>
-#include <list>
 #include <array>
-#include <unordered_set>
-#include <unordered_map>
-#include <iostream>
 #include <chrono>
+#include <iostream>
+#include <list>
+#include <map>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
 
 namespace
 {
-
 // vtk Tensors are stored in row major order by convention
 using Mat3d = Eigen::Matrix<double, 3, 3, Eigen::RowMajor, 3, 3>;
 using Mat3dm = Eigen::Map<Mat3d>;
@@ -55,17 +54,17 @@ struct FaceHash
 {
     std::size_t offset;
 
-    FaceHash(std::size_t offset): offset(offset)
-    {}
+    FaceHash(std::size_t offset) : offset(offset)
+    {
+    }
 
     std::size_t operator()(const TriFace& face) const
     {
         auto pts = face.points;
         std::sort(std::begin(pts), std::end(pts));
         return std::hash<std::size_t>{}(
-                    std::size_t(pts[0])
-                    + offset * std::size_t(pts[1])
-                    + offset*offset * std::size_t(pts[2]));
+                std::size_t(pts[0]) + offset * std::size_t(pts[1])
+                + offset * offset * std::size_t(pts[2]));
     }
 };
 
@@ -74,12 +73,15 @@ using FaceMap = std::unordered_map<TriFace, std::vector<vtkIdType>, FaceHash>;
 
 FaceMap buildFaceMap(vtkDataSet* dataset)
 {
-    auto face_map = FaceMap(std::size_t(dataset->GetNumberOfCells()*4),
-                            FaceHash(std::size_t(dataset->GetNumberOfPoints())));
+    auto face_map =
+            FaceMap(std::size_t(dataset->GetNumberOfCells() * 4),
+                    FaceHash(std::size_t(dataset->GetNumberOfPoints())));
 
-    auto add_face = [&](vtkIdList* point_ids, vtkIdType cell_id,
-                        vtkIdType i1, vtkIdType i2, vtkIdType i3)
-    {
+    auto add_face = [&](vtkIdList* point_ids,
+                        vtkIdType cell_id,
+                        vtkIdType i1,
+                        vtkIdType i2,
+                        vtkIdType i3) {
         auto tri = TriFace{{point_ids->GetId(i1),
                             point_ids->GetId(i2),
                             point_ids->GetId(i3)}};
@@ -112,25 +114,22 @@ FaceMap buildFaceMap(vtkDataSet* dataset)
     return face_map;
 }
 
-std::vector<std::pair<int, pev::PointList>>
-computePEVPoints(const std::vector<TriFace>& faces,
-                 vtkPoints* points,
-                 vtkDataArray* array1,
-                 vtkDataArray* array2,
-                 vtkAlgorithm* progress_alg,
-                 double spatial_epsilon,
-                 double direction_epsilon,
-                 double cluster_epsilon,
-                 double parallelity_epsilon)
+
+std::vector<pev::PointList> computePEVPoints(const std::vector<TriFace>& faces,
+                                             vtkPoints* points,
+                                             vtkDataArray* array1,
+                                             vtkDataArray* array2,
+                                             vtkAlgorithm* progress_alg,
+                                             const pev::PEVOptions& opts)
 {
-    const auto step = 1./faces.size();
+    const auto step = 1. / faces.size();
     progress_alg->UpdateProgress(0);
-    auto results = std::vector<std::pair<int, pev::PointList>>(faces.size());
+    auto results = std::vector<pev::PointList>(faces.size());
     auto terminate = false;
-    #pragma omp parallel for
+#pragma omp parallel for
     for(auto i = std::size_t{0}; i < faces.size(); ++i)
     {
-        #pragma omp flush (terminate)
+#pragma omp flush(terminate)
         if(terminate) continue;
 
         auto face = faces[i];
@@ -156,15 +155,13 @@ computePEVPoints(const std::vector<TriFace>& faces,
         auto t3 = Mat3d{};
         array2->GetTuple(face.points[2], t3.data());
 
-        auto points = pev::findParallelEigenvectors(s1, s2, s3,
-                                                      t1, t2, t3,
-                                                      p1, p2, p3,
-                                                      spatial_epsilon,
-                                                      direction_epsilon,
-                                                      cluster_epsilon,
-                                                      parallelity_epsilon);
+        auto points = pev::findParallelEigenvectors(
+                pev::BarycentricInterpolator<pev::Mat3d>{s1, s2, s3},
+                pev::BarycentricInterpolator<pev::Mat3d>{t1, t2, t3},
+                pev::BarycentricInterpolator<pev::Vec3d>{p1, p2, p3},
+                opts);
         results[i] = points;
-        #pragma omp critical (progress)
+#pragma omp critical(progress)
         {
             progress_alg->UpdateProgress(progress_alg->GetProgress() + step);
             if(progress_alg->GetAbortExecute())
@@ -176,21 +173,26 @@ computePEVPoints(const std::vector<TriFace>& faces,
     }
     return results;
 }
-
 }
+
 
 vtkStandardNewMacro(vtkParallelEigenvectors);
 
+
 vtkParallelEigenvectors::vtkParallelEigenvectors()
 {
-  this->SetNumberOfInputPorts(1);
-  this->SetNumberOfOutputPorts(1);
-  this->SetInputArrayToProcess(0, 0, 0,
-                               vtkDataObject::FIELD_ASSOCIATION_POINTS,
-                               vtkDataSetAttributes::TENSORS);
-  this->SetInputArrayToProcess(1, 0, 0,
-                               vtkDataObject::FIELD_ASSOCIATION_POINTS,
-                               vtkDataSetAttributes::TENSORS);
+    this->SetNumberOfInputPorts(1);
+    this->SetNumberOfOutputPorts(1);
+    this->SetInputArrayToProcess(0,
+                                 0,
+                                 0,
+                                 vtkDataObject::FIELD_ASSOCIATION_POINTS,
+                                 vtkDataSetAttributes::TENSORS);
+    this->SetInputArrayToProcess(1,
+                                 0,
+                                 0,
+                                 vtkDataObject::FIELD_ASSOCIATION_POINTS,
+                                 vtkDataSetAttributes::TENSORS);
 }
 
 
@@ -210,12 +212,11 @@ vtkPolyData* vtkParallelEigenvectors::GetOutput(int port)
     return vtkPolyData::SafeDownCast(this->GetOutputDataObject(port));
 }
 
-int vtkParallelEigenvectors::ProcessRequest(
-        vtkInformation* request,
-        vtkInformationVector** inputVector,
-        vtkInformationVector* outputVector)
+int vtkParallelEigenvectors::ProcessRequest(vtkInformation* request,
+                                            vtkInformationVector** inputVector,
+                                            vtkInformationVector* outputVector)
 {
-  // Create an output object of the correct type.
+    // Create an output object of the correct type.
     if(request->Has(vtkDemandDrivenPipeline::REQUEST_DATA_OBJECT()))
     {
         return this->RequestDataObject(request, inputVector, outputVector);
@@ -240,8 +241,9 @@ int vtkParallelEigenvectors::ProcessRequest(
     return this->Superclass::ProcessRequest(request, inputVector, outputVector);
 }
 
-int vtkParallelEigenvectors::FillOutputPortInformation(
-    int port, vtkInformation* info)
+
+int vtkParallelEigenvectors::FillOutputPortInformation(int port,
+                                                       vtkInformation* info)
 {
     // now add our info
     if(port == 0)
@@ -252,8 +254,8 @@ int vtkParallelEigenvectors::FillOutputPortInformation(
 }
 
 
-int vtkParallelEigenvectors::FillInputPortInformation(
-        int vtkNotUsed(port), vtkInformation* info)
+int vtkParallelEigenvectors::FillInputPortInformation(int vtkNotUsed(port),
+                                                      vtkInformation* info)
 {
     info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkUnstructuredGrid");
     return 1;
@@ -263,7 +265,7 @@ int vtkParallelEigenvectors::FillInputPortInformation(
 int vtkParallelEigenvectors::RequestDataObject(
         vtkInformation* vtkNotUsed(request),
         vtkInformationVector** vtkNotUsed(inputVector),
-        vtkInformationVector* outputVector )
+        vtkInformationVector* outputVector)
 {
     // RequestDataObject (RDO) is an earlier pipeline pass. During RDO, each
     // filter is supposed to produce an empty data object of the proper type
@@ -296,9 +298,9 @@ int vtkParallelEigenvectors::RequestInformation(
 
 
 int vtkParallelEigenvectors::RequestUpdateExtent(
-    vtkInformation* vtkNotUsed(request),
-    vtkInformationVector** inputVector,
-    vtkInformationVector* vtkNotUsed(outputVector))
+        vtkInformation* vtkNotUsed(request),
+        vtkInformationVector** inputVector,
+        vtkInformationVector* vtkNotUsed(outputVector))
 {
     auto numInputPorts = this->GetNumberOfInputPorts();
     for(auto i = 0; i < numInputPorts; i++)
@@ -314,10 +316,9 @@ int vtkParallelEigenvectors::RequestUpdateExtent(
 }
 
 
-int vtkParallelEigenvectors::RequestData(
-    vtkInformation* vtkNotUsed(request),
-    vtkInformationVector **inputVector,
-    vtkInformationVector* outputVector )
+int vtkParallelEigenvectors::RequestData(vtkInformation* vtkNotUsed(request),
+                                         vtkInformationVector** inputVector,
+                                         vtkInformationVector* outputVector)
 {
     using pev::range;
     using namespace std::chrono;
@@ -341,16 +342,19 @@ int vtkParallelEigenvectors::RequestData(
     if(array1->GetNumberOfComponents() != 9
        || array2->GetNumberOfComponents() != 9)
     {
-        vtkErrorMacro(<<"both input arrays must be tensors with 9 components.");
+        vtkErrorMacro(
+                << "both input arrays must be tensors with 9 components.");
         return 0;
     }
 
-    if(this->GetInputArrayInformation(0)->Get(vtkDataObject::FIELD_ASSOCIATION())
-       != vtkDataObject::FIELD_ASSOCIATION_POINTS
-       || this->GetInputArrayInformation(1)->Get(vtkDataObject::FIELD_ASSOCIATION())
-            != vtkDataObject::FIELD_ASSOCIATION_POINTS)
+    if(this->GetInputArrayInformation(0)->Get(
+               vtkDataObject::FIELD_ASSOCIATION())
+               != vtkDataObject::FIELD_ASSOCIATION_POINTS
+       || this->GetInputArrayInformation(1)->Get(
+                  vtkDataObject::FIELD_ASSOCIATION())
+                  != vtkDataObject::FIELD_ASSOCIATION_POINTS)
     {
-        vtkErrorMacro(<<"both input arrays must be point data.");
+        vtkErrorMacro(<< "both input arrays must be point data.");
         return 0;
     }
 
@@ -391,36 +395,30 @@ int vtkParallelEigenvectors::RequestData(
     // Copy faces to array for parallel looping
     auto faces = std::vector<TriFace>{};
     faces.reserve(face_map.size());
-    for(const auto& f: face_map)
+    for(const auto& f : face_map)
     {
         faces.push_back(f.first);
     }
 
     auto start = high_resolution_clock::now();
 
-    auto fresults = computePEVPoints(faces,
-                                     input->GetPoints(),
-                                     array1,
-                                     array2,
-                                     this,
-                                     this->GetSpatialEpsilon(),
-                                     this->GetDirectionEpsilon(),
-                                     this->GetClusterEpsilon(),
-                                     this->GetParallelityEpsilon());
+    auto opts = pev::PEVOptions{this->GetSpatialEpsilon(),
+                                this->GetDirectionEpsilon(),
+                                this->GetClusterEpsilon()};
+
+    auto fresults = computePEVPoints(
+            faces, input->GetPoints(), array1, array2, this, opts);
 
     auto end_pointsearch = high_resolution_clock::now();
 
     // map cell IDs to parallel eigenvector points found on their faces
     auto cell_map = std::map<vtkIdType, vtkSmartPointer<vtkIdList>>{};
 
-    auto num_fp = 0;
-
-    for(auto i: range(faces.size()))
+    for(auto i : range(faces.size()))
     {
-        auto pev_points = fresults[i].second;
-        num_fp += fresults[i].first;
+        auto pev_points = fresults[i];
         auto cids = face_map[faces[i]];
-        for(const auto& p: pev_points)
+        for(const auto& p : pev_points)
         {
             auto pid = output->GetPoints()->InsertNextPoint(p.pos.data());
             eig_rank1->InsertValue(pid, double(p.s_rank));
@@ -433,7 +431,7 @@ int vtkParallelEigenvectors::RequestData(
             csize->InsertValue(pid, p.cluster_size);
 
             // Add pev point to all cells participating in this face
-            for(auto c: cids)
+            for(auto c : cids)
             {
                 if(!cell_map[c].Get())
                 {
@@ -448,7 +446,7 @@ int vtkParallelEigenvectors::RequestData(
 
     auto cell_points = vtkSmartPointer<vtkIdList>::New();
 
-    for(const auto& c: cell_map)
+    for(const auto& c : cell_map)
     {
         auto point_list = c.second;
         auto npoints = point_list->GetNumberOfIds();
@@ -467,26 +465,25 @@ int vtkParallelEigenvectors::RequestData(
 
             // Get eigenvectors of cell points
             auto eigdirs = Matrix3X(3, npoints).eval();
-            for(auto i: range(npoints))
+            for(auto i : range(npoints))
             {
                 eigdirs.col(i) = Vec3dm{eivec->GetTuple(point_list->GetId(i))};
             }
 
             // Compute pairwise vector deviations
             auto dist = MatrixX::Ones(npoints, npoints).eval();
-            for(auto i: range(npoints))
+            for(auto i : range(npoints))
             {
-                for(auto j: range(i + 1, npoints))
+                for(auto j : range(i + 1, npoints))
                 {
-                    dist(i, j) = eigdirs.col(i)
-                                        .cross(eigdirs.col(j))
-                                        .squaredNorm();
+                    dist(i, j) =
+                            eigdirs.col(i).cross(eigdirs.col(j)).squaredNorm();
                 }
             }
 
             // Greedily find closest two vectors and connect
             auto unlinked = std::unordered_set<vtkIdType>{};
-            for(auto i: range(npoints))
+            for(auto i : range(npoints))
             {
                 unlinked.insert(i);
             }
@@ -509,9 +506,10 @@ int vtkParallelEigenvectors::RequestData(
             }
 
             // Add vertex for last unlinked point if any
-            for(auto i: unlinked)
+            for(auto i : unlinked)
             {
-                output->InsertNextCell(VTK_VERTEX, 1, point_list->GetPointer(i));
+                output->InsertNextCell(
+                        VTK_VERTEX, 1, point_list->GetPointer(i));
             }
         }
     }
@@ -520,10 +518,10 @@ int vtkParallelEigenvectors::RequestData(
     auto duration_all = seconds(end_all - start);
     auto duration_pointsearch = seconds(end_pointsearch - start);
 
-    std::cout << "Processed dataset in "
-              << minutes(duration_all).count() << " minutes" << std::endl;
-    std::cout << "Point search time: "
-              << minutes(duration_pointsearch).count() << " minutes" << std::endl;
+    std::cout << "Processed dataset in " << minutes(duration_all).count()
+              << " minutes" << std::endl;
+    std::cout << "Point search time: " << minutes(duration_pointsearch).count()
+              << " minutes" << std::endl;
     std::cout << "Postprocessing time: "
               << seconds(duration_all - duration_pointsearch).count()
               << " seconds" << std::endl;
@@ -531,7 +529,6 @@ int vtkParallelEigenvectors::RequestData(
     std::cout << "Average time per face: "
               << (milliseconds(duration_pointsearch) / face_map.size()).count()
               << " milliseconds" << std::endl;
-    std::cout << "Number of false Positives : " << num_fp << std::endl;
 
     this->UpdateProgress(1.);
 

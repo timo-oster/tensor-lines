@@ -1,22 +1,22 @@
-#include "utils.hh"
 #include "ParallelEigenvectors.hh"
+#include "utils.hh"
 #include "vtkParallelEigenvectors.hh"
 
-#include <vtkSmartPointer.h>
-#include <vtkUnstructuredGrid.h>
-#include <vtkPolyData.h>
-#include <vtkIdList.h>
+#include <vtkCallbackCommand.h>
 #include <vtkCell.h>
-#include <vtkPoints.h>
-#include <vtkPointData.h>
-#include <vtkDoubleArray.h>
 #include <vtkCleanPolyData.h>
+#include <vtkCommand.h>
+#include <vtkDoubleArray.h>
+#include <vtkIdList.h>
+#include <vtkPointData.h>
+#include <vtkPoints.h>
+#include <vtkPolyData.h>
+#include <vtkPolyDataWriter.h>
+#include <vtkSmartPointer.h>
 #include <vtkStripper.h>
+#include <vtkUnstructuredGrid.h>
 #include <vtkUnstructuredGridReader.h>
 #include <vtkUnstructuredGridWriter.h>
-#include <vtkPolyDataWriter.h>
-#include <vtkCallbackCommand.h>
-#include <vtkCommand.h>
 
 #include <boost/program_options.hpp>
 
@@ -24,8 +24,8 @@
 #include <string>
 
 #ifdef __linux__
-#include <thread>
 #include <signal.h>
+#include <thread>
 
 bool term = false;
 
@@ -47,14 +47,14 @@ namespace po = boost::program_options;
 void ProgressFunction(vtkObject* caller,
                       long unsigned int vtkNotUsed(eventId),
                       void* vtkNotUsed(clientData),
-                      void* vtkNotUsed(callData) )
+                      void* vtkNotUsed(callData))
 {
-  auto* filter = static_cast<vtkParallelEigenvectors*>(caller);
-  std::cout << "Progress: " << std::fixed <<  std::setprecision(4)
-            << (filter->GetProgress()*100) << "%    \r";
+    auto* filter = static_cast<vtkParallelEigenvectors*>(caller);
+    std::cout << "Progress: " << std::fixed << std::setprecision(4)
+              << (filter->GetProgress() * 100) << "%    \r";
 }
 
-int main(int argc, char const *argv[])
+int main(int argc, char const* argv[])
 {
     using namespace pev;
 
@@ -75,23 +75,23 @@ int main(int argc, char const *argv[])
             ("help,h", "produce help message")
             ("spatial-epsilon,e",
                 po::value<double>(&spatial_epsilon)
-                    ->required()->default_value(spatial_epsilon),
+                        ->required()->default_value(spatial_epsilon),
                 "epsilon for spatial subdivision")
             ("direction-epsilon,d",
                 po::value<double>(&direction_epsilon)
-                    ->required()->default_value(direction_epsilon),
+                        ->required()->default_value(direction_epsilon),
                 "epsilon for directional subdivision")
             ("cluster-epsilon,c",
                 po::value<double>(&cluster_epsilon)
-                    ->required()->default_value(cluster_epsilon),
+                        ->required()->default_value(cluster_epsilon),
                 "epsilon for clustering")
             ("parallelity-epsilon,p",
                 po::value<double>(&parallelity_epsilon)
-                    ->required()->default_value(parallelity_epsilon),
+                        ->required()->default_value(parallelity_epsilon),
                 "epsilon for eigenvector parallelity")
             ("min-tensor-norm,m",
-             po::value<double>(&min_tensor_norm)
-                ->required()->default_value(min_tensor_norm),
+                po::value<double>(&min_tensor_norm)
+                        ->required()->default_value(min_tensor_norm),
                 "minimum norm of tensors necessary for a cell to be considered")
             ("input-file,i",
                 po::value<std::string>(&input_file)->required(),
@@ -102,21 +102,22 @@ int main(int argc, char const *argv[])
                 "name of the first input tensor field")
             ("t_field_name,t",
                 po::value<std::string>(&t_field_name)
-                    ->required()->default_value(t_field_name),
+                        ->required()->default_value(t_field_name),
                 "name of the second input tensor field")
             ("output,o",
                 po::value<std::string>(&out_name)
-                    ->required()->default_value(out_name),
+                        ->required()->default_value(out_name),
                 "Name of the output file");
 
         auto podesc = po::positional_options_description{};
         podesc.add("input-file", 1);
 
         auto vm = po::variables_map{};
-        po::store(
-                po::command_line_parser(argc, argv)
-                    .options(desc).positional(podesc).run(),
-                vm);
+        po::store(po::command_line_parser(argc, argv)
+                          .options(desc)
+                          .positional(podesc)
+                          .run(),
+                  vm);
 
         if(vm.empty() || vm.count("help"))
         {
@@ -125,12 +126,12 @@ int main(int argc, char const *argv[])
         }
         po::notify(vm);
     }
-    catch (std::exception& e)
+    catch(std::exception& e)
     {
         std::cerr << "error: " << e.what() << "\n";
         return 1;
     }
-    catch (...)
+    catch(...)
     {
         std::cerr << "Exception of unknown type!\n";
     }
@@ -140,7 +141,7 @@ int main(int argc, char const *argv[])
     struct sigaction new_action;
     struct sigaction old_action;
     new_action.sa_handler = terminate;
-    sigemptyset (&new_action.sa_mask);
+    sigemptyset(&new_action.sa_mask);
     new_action.sa_flags = 0;
 
     sigaction(SIGINT, nullptr, &old_action);
@@ -165,17 +166,20 @@ int main(int argc, char const *argv[])
     vtkpev->AddObserver(vtkCommand::ProgressEvent, progressCallback);
 
     vtkpev->SetInputConnection(0, reader->GetOutputPort(0));
-    vtkpev->SetInputArrayToProcess(
-            0, 0, 0, vtkDataObject::FIELD_ASSOCIATION_POINTS,
-            s_field_name.c_str());
-    vtkpev->SetInputArrayToProcess(
-            1, 0, 0, vtkDataObject::FIELD_ASSOCIATION_POINTS,
-            t_field_name.c_str());
+    vtkpev->SetInputArrayToProcess(0,
+                                   0,
+                                   0,
+                                   vtkDataObject::FIELD_ASSOCIATION_POINTS,
+                                   s_field_name.c_str());
+    vtkpev->SetInputArrayToProcess(1,
+                                   0,
+                                   0,
+                                   vtkDataObject::FIELD_ASSOCIATION_POINTS,
+                                   t_field_name.c_str());
 
 #ifdef __linux__
     // Set up thread to check for program termination and set AbortExecute
-    auto check_terminate = std::thread([&vtkpev]()
-    {
+    auto check_terminate = std::thread([&vtkpev]() {
         while(!term && vtkpev->GetProgress() < 1.)
         {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));

@@ -7,8 +7,7 @@
 
 namespace pev
 {
-
-template<typename T, typename C=double>
+template <typename T, typename C = double>
 class BezierTriangle
 {
 public:
@@ -16,7 +15,7 @@ public:
     using Coeffs = Eigen::Matrix<T, 10, 1>;
     using Coords = Eigen::Matrix<C, 3, 1>;
 
-    enum Indices: int
+    enum Indices : int
     {
         i300 = 0,
         i030,
@@ -30,9 +29,9 @@ public:
         i111
     };
 
-    explicit BezierTriangle(const Coeffs& coefficients):
-            _coeffs(coefficients)
-    {}
+    explicit BezierTriangle(const Coeffs& coefficients) : _coeffs(coefficients)
+    {
+    }
 
     T operator()(const C& u, const C& v, const C& w) const
     {
@@ -41,7 +40,7 @@ public:
 
     T operator()(const C& u, const C& v) const
     {
-        return *this({u, v, 1.-u-v});
+        return *this({u, v, 1. - u - v});
     }
 
     T operator()(const Coords& pos) const
@@ -71,28 +70,31 @@ public:
 
     std::array<Self, 4> split() const
     {
-        return {Self{m0()*_coeffs}, Self{m1()*_coeffs},
-                Self{m2()*_coeffs}, Self{m3()*_coeffs}};
+        return {Self{m0() * _coeffs},
+                Self{m1() * _coeffs},
+                Self{m2() * _coeffs},
+                Self{m3() * _coeffs}};
     }
 
 
 private:
-
     using Matrix10 = Eigen::Matrix<T, 10, 10>;
     using Basis = Eigen::Matrix<C, 10, 1>;
 
     static Basis makeBasis(const Coords& pos)
     {
-        return (Basis{} << 1 * pos[0]*pos[0]*pos[0],
-                           1 * pos[1]*pos[1]*pos[1],
-                           1 * pos[2]*pos[2]*pos[2],
-                           3 * pos[0]*pos[0]*pos[1],
-                           3 * pos[0]*pos[1]*pos[1],
-                           3 * pos[1]*pos[1]*pos[2],
-                           3 * pos[1]*pos[2]*pos[2],
-                           3 * pos[0]*pos[0]*pos[2],
-                           3 * pos[0]*pos[2]*pos[2],
-                           6 * pos[0]*pos[1]*pos[2]).finished();
+        return (Basis{} <<
+                1 * pos[0] * pos[0] * pos[0],
+                1 * pos[1] * pos[1] * pos[1],
+                1 * pos[2] * pos[2] * pos[2],
+                3 * pos[0] * pos[0] * pos[1],
+                3 * pos[0] * pos[1] * pos[1],
+                3 * pos[1] * pos[1] * pos[2],
+                3 * pos[1] * pos[2] * pos[2],
+                3 * pos[0] * pos[0] * pos[2],
+                3 * pos[0] * pos[2] * pos[2],
+                6 * pos[0] * pos[1] * pos[2])
+                .finished();
     }
 
     // Coefficients of the Bezier Triangle

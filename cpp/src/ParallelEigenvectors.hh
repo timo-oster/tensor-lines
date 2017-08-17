@@ -1,12 +1,13 @@
 #ifndef CPP_PARALLEL_EIGENVECTORS_HH
 #define CPP_PARALLEL_EIGENVECTORS_HH
 
+#include "BarycentricInterpolator.hh"
 #include "utils.hh"
 
 #ifdef DRAW_DEBUG
 #include <CImg.h>
 #ifdef Success
-  #undef Success
+#undef Success
 #endif
 #endif
 
@@ -15,7 +16,6 @@
 
 namespace pev
 {
-
 #ifdef DRAW_DEBUG
 using CImg = cimg_library::CImg<double>;
 using CImgDisplay = cimg_library::CImgDisplay;
@@ -26,15 +26,17 @@ extern CImgDisplay pos_frame;
 extern CImgDisplay dir_frame;
 #endif
 
+
 /**
  * Rank/order of an eigenvalue of a 3x3 matrix
  */
-enum class ERank: int
+enum class ERank : int
 {
     First = 0,
     Second = 1,
     Third = 2
 };
+
 
 /**
  * Parallel eigenvector point.
@@ -49,10 +51,27 @@ struct PEVPoint
     double t_eival; ///< Eigenvalue for tensor field T
     bool s_has_imaginary; //< S has any imaginary eigenvalues at the position
     bool t_has_imaginary; //< T has any imaginary eigenvalues at the position
-    int cluster_size; //< Number of candidate points that contributed
+    std::size_t cluster_size; //< Number of candidate points that contributed
 };
 
 using PointList = std::vector<PEVPoint>;
+
+
+/**
+ * @brief Options for the PEV point search
+ */
+struct PEVOptions
+{
+    PEVOptions(double s = 1e-6, double d = 1e-6, double c = 5e-6)
+            : spatial_epsilon(s), direction_epsilon(d), cluster_epsilon(c)
+    {
+    }
+
+    double spatial_epsilon;
+    double direction_epsilon;
+    double cluster_epsilon;
+};
+
 
 /**
  * @brief Find parallel eigenvector points on a triangle given two tensors at
@@ -77,13 +96,10 @@ using PointList = std::vector<PEVPoint>;
  * @return The number of false positives and a list of found parallel
  *     eigenvector points on the triangle
  */
-std::pair<int, PointList>
-findParallelEigenvectors(
-        const Mat3d& s1, const Mat3d& s2, const Mat3d& s3,
-        const Mat3d& t1, const Mat3d& t2, const Mat3d& t3,
-        const Vec3d& x1, const Vec3d& x2, const Vec3d& x3,
-        double spatial_epsilon, double direction_epsilon,
-        double cluster_epsilon, double parallelity_epsilon);
+PointList findParallelEigenvectors(const BarycentricInterpolator<Mat3d>& s,
+                                   const BarycentricInterpolator<Mat3d>& t,
+                                   const BarycentricInterpolator<Vec3d>& x,
+                                   const PEVOptions& opts = PEVOptions{});
 
 /**
  * @brief Find parallel eigenvector points in barycentric coordinates for a
@@ -105,12 +121,9 @@ findParallelEigenvectors(
  * @return The number of false positives and a list of found parallel
  *     eigenvector points on the triangle in barycentric coordinates
  */
-std::pair<int, PointList>
-findParallelEigenvectors(
-        const Mat3d& s1, const Mat3d& s2, const Mat3d& s3,
-        const Mat3d& t1, const Mat3d& t2, const Mat3d& t3,
-        double spatial_epsilon, double direction_epsilon,
-        double cluster_epsilon, double parallelity_epsilon);
+PointList findParallelEigenvectors(const BarycentricInterpolator<Mat3d>& s,
+                                   const BarycentricInterpolator<Mat3d>& t,
+                                   const PEVOptions& opts = PEVOptions{});
 
 } // namespace pev
 

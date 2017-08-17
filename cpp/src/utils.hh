@@ -4,11 +4,11 @@
 #include <Eigen/Core>
 #include <boost/range/irange.hpp>
 
-#include <cstddef>
 #include <array>
-#include <type_traits>
+#include <cstddef>
 #include <ostream>
 #include <sstream>
+#include <type_traits>
 
 namespace pev
 {
@@ -16,8 +16,9 @@ using Vec3d = Eigen::Vector3d;
 using Mat3d = Eigen::Matrix3d;
 
 
-struct MinNotZero{
-    template<typename T>
+struct MinNotZero
+{
+    template <typename T>
     const T& operator()(const T& x, const T& y) const
     {
         if(x == T{0}) return y;
@@ -36,12 +37,12 @@ struct MinNotZero{
  *
  * @tparam Predicate A predicate functor returning a type with boolean semantics
  */
-template<class Predicate>
+template <class Predicate>
 struct negator
 {
     Predicate pred;
 
-    template<typename T>
+    template <typename T>
     auto operator()(const T& arg) const -> decltype(!pred(arg))
     {
         return !pred(arg);
@@ -49,76 +50,80 @@ struct negator
 };
 
 
-template<class Predicate>
+template <class Predicate>
 negator<Predicate> negate(Predicate predicate)
 {
     return negator<Predicate>{predicate};
 }
 
 
-template<typename T>
+template <typename T>
 int sgn(T val)
 {
     return (T{0} < val) - (val < T{0});
 }
 
 
-template<class T>
+template <class T>
 inline typename std::make_signed<T>::type as_signed(T t)
 {
     return typename std::make_signed<T>::type(t);
 }
 
 
-template<class T>
+template <class T>
 inline typename std::make_unsigned<T>::type as_unsigned(T t)
 {
     return typename std::make_unsigned<T>::type(t);
 }
 
 
-template<typename T, typename U, typename V = int>
+template <typename T, typename U, typename V = int>
 inline auto range(T start, U end, V step = 1)
--> decltype(
-    boost::irange<
-        typename std::decay<
-            decltype(true ? std::declval<T>() : std::declval<U>())
-        >::type>(
-            std::declval<T>(), std::declval<U>(), std::declval<V>()))
+        -> decltype(
+            boost::irange<
+                typename std::decay<
+                    decltype(true ? std::declval<T>() : std::declval<U>())
+                >::type
+            >(
+                std::declval<T>(),
+                std::declval<U>(),
+                std::declval<V>()))
 {
     using D = typename std::decay<decltype(true ? start : end)>::type;
     return boost::irange<D>(start, end, step);
 }
 
 
-template<typename T>
+template <typename T>
 inline auto range(T end)
--> decltype(boost::irange(std::declval<T>(), std::declval<T>()))
+        -> decltype(boost::irange(std::declval<T>(), std::declval<T>()))
 {
     return boost::irange(T{0}, end);
 }
 
 
 /// erase_if for associative (unordered) containers
-template<typename AssocContainer, typename Predicate,
-         typename std::enable_if<
-            std::is_same<
-                typename std::decay<
-                    typename AssocContainer::value_type::first_type
-                >::type,
-                typename AssocContainer::key_type
-            >::value
-            , int
-         >::type = 0>
+template <typename AssocContainer,
+          typename Predicate,
+          typename std::enable_if<
+              std::is_same<
+                  typename std::decay<
+                      typename AssocContainer::value_type::first_type
+                  >::type,
+                  typename AssocContainer::key_type
+              >::value,
+              int
+          >::type = 0>
 std::size_t erase_if(AssocContainer& container, Predicate pred)
 {
     auto to_erase = std::vector<typename AssocContainer::key_type>{};
-    for(const auto& e: container)
+    for(const auto& e : container)
     {
         if(pred(e)) to_erase.push_back(e.first);
     }
     auto erased = std::size_t{0};
-    for(const auto& k: to_erase)
+    for(const auto& k : to_erase)
     {
         erased += container.erase(k);
     }
@@ -127,23 +132,24 @@ std::size_t erase_if(AssocContainer& container, Predicate pred)
 
 
 /// erase_if for (unordered) sets
-template<typename Container, typename Predicate,
-         typename std::enable_if<
-            std::is_same<
-                typename Container::value_type,
-                typename Container::key_type
-            >::value
-            , int
-         >::type = 0>
+template <typename Container,
+          typename Predicate,
+          typename std::enable_if<
+              std::is_same<
+                  typename Container::value_type,
+                  typename Container::key_type
+              >::value,
+              int
+          >::type = 0>
 std::size_t erase_if(Container& container, Predicate pred)
 {
     auto to_erase = std::vector<typename Container::key_type>{};
-    for(const auto& e: container)
+    for(const auto& e : container)
     {
         if(pred(e)) to_erase.push_back(e);
     }
     auto erased = std::size_t{0};
-    for(const auto& e: to_erase)
+    for(const auto& e : to_erase)
     {
         erased = container.erase(e);
     }
@@ -152,8 +158,8 @@ std::size_t erase_if(Container& container, Predicate pred)
 
 
 /// pretty print an Eigen::Vector3* without line breaks
-template<typename T,
-         typename = typename std::enable_if<T::SizeAtCompileTime == 3>::type>
+template <typename T,
+          typename = typename std::enable_if<T::SizeAtCompileTime == 3>::type>
 std::string print(const T& in)
 {
     std::stringstream out;
@@ -165,15 +171,17 @@ std::string print(const T& in)
 struct make_string
 {
     std::stringstream ss;
-    template<typename T>
-    make_string& operator << (const T &data)
+    template <typename T>
+    make_string& operator<<(const T& data)
     {
         ss << data;
         return *this;
     }
-   operator std::string() { return ss.str(); }
+    operator std::string()
+    {
+        return ss.str();
+    }
 };
-
 }
 
 #endif // CPP_UTILS_HH
