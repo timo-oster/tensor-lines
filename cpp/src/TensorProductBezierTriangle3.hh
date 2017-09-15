@@ -5,16 +5,33 @@
 
 namespace pev
 {
+template <typename T, typename C>
+struct TensorProductTraits<TensorProductBezierTriangle<T, C, 3>>
+{
+    static constexpr std::size_t NCoords = 3;
+    static constexpr std::size_t NCoeffs = 3;
+    using Coords = Eigen::Matrix<C, NCoords, 1>;
+    using Coeffs = std::array<T, NCoeffs>;
+};
 
-template<typename T, typename C>
+template <typename T, typename C>
 class TensorProductBezierTriangle<T, C, 3>
+        : public TensorProductBezierTriangleBase<TensorProductBezierTriangle<T,
+                                                                             C,
+                                                                             3>,
+                                                 T,
+                                                 C,
+                                                 3>
 {
 public:
-    static constexpr std::size_t NCoords = 3;
-    static constexpr std::size_t NCoeffs = 10;
     using Self = TensorProductBezierTriangle<T, C, 3>;
-    using Coords = Eigen::Matrix<T, NCoords, 1>;
-    using Coeffs = std::array<T, NCoeffs>;
+    using Base = TensorProductBezierTriangleBase<
+                    TensorProductBezierTriangle<T, C, 3>,
+                    T, C, 3>;
+    static constexpr std::size_t NCoords = TensorProductTraits<Self>::NCoords;
+    static constexpr std::size_t NCoeffs = TensorProductTraits<Self>::NCoeffs;
+    using Coords = typename TensorProductTraits<Self>::Coords;
+    using Coeffs = typename TensorProductTraits<Self>::Coeffs;
 
     enum Indices : int
     {
@@ -30,89 +47,13 @@ public:
         i003
     };
 
-    TensorProductBezierTriangle()
-            : _coeffs(Coeffs::Zero())
-    {
-    }
+    friend Base;
 
-    explicit TensorProductBezierTriangle(const Coeffs& coefficients)
-            : _coeffs(coefficients)
-    {
-    }
-
-    // Check for type that is callable with Coords and returns something convertible to T
-    template <typename Function>
-    using is_legal_init_function =
-            typename std::is_convertible<
-                typename std::result_of<Function(Coords)>::type,
-                T>;
-
-    template<
-        typename Function,
-        typename std::enable_if<
-            is_legal_init_function<Function>::value,
-            int
-        >::type = 0>
-    explicit TensorProductBezierTriangle(Function func)
-    {
-        auto rhs = Coeffs{};
-        const auto& dp = domainPoints();
-        for(auto i: range(NCoeffs))
-        {
-            rhs[i] = func(dp.row(i));
-        }
-        _coeffs = computeCoeffs(rhs);
-    }
-
-    T operator()(const Coords& pos) const
-    {
-        auto base = makeBasis(pos);
-        auto result = T{base[0] * _coeffs[0]};
-        for(auto i: range(1, NCoeffs))
-        {
-            result += base[i] * _coeffs[i];
-        }
-        return result;
-    }
-
-    T& operator[](int i)
-    {
-        return _coeffs[i];
-    }
-
-    const T& operator[](int i) const
-    {
-        return _coeffs[i];
-    }
-
-    Coeffs& coefficients()
-    {
-        return _coeffs;
-    }
-
-    const Coeffs& coefficients() const
-    {
-        return _coeffs;
-    }
-
-    template<int D=0>
-    std::array<Self, 4> split() const;
-
-    friend bool operator==(const Self& o1, const Self& o2)
-    {
-        return o1.coefficients() == o2.coefficients();
-    }
-    friend bool operator!=(const Self& o1, const Self& o2)
-    {
-        return !(o1 == o2);
-    }
+    using Base::Base;
 
 private:
     using Basis = Eigen::Matrix<T, NCoeffs, 1>;
     using DomainPoints = Eigen::Matrix<T, NCoeffs, NCoords>;
-
-    // Coefficients of the Bezier Triangle
-    Coeffs _coeffs = {};
 
     static const DomainPoints& domainPoints();
 

@@ -1,5 +1,3 @@
-#include "../BarycentricInterpolator.hh"
-#include "../BezierDoubleTriangle.hh"
 #include "../TensorProductBezierTriangle.hh"
 #include "../utils.hh"
 
@@ -7,11 +5,10 @@
 
 #include <iostream>
 
-typedef pev::BezierDoubleTriangle<double> BDT;
-
-typedef pev::TensorProductBezierTriangle<double, 1, 2> TPBT1_2;
-typedef pev::TensorProductBezierTriangle<double, 1, 3> TPBT1_3;
-typedef pev::TensorProductBezierTriangle<double, 3> TPBT3;
+typedef pev::TensorProductBezierTriangle<double, double, 1, 2> TPBT1_2;
+typedef pev::TensorProductBezierTriangle<double, double, 1, 3> TPBT1_3;
+typedef pev::TensorProductBezierTriangle<double, double, 3> TPBT3;
+typedef pev::TensorProductBezierTriangle<pev::Vec3d, double, 1> Triangle;
 // todo: test other variants of the class
 
 class UnitTests : public CxxTest::TestSuite
@@ -115,9 +112,9 @@ public:
     {
         auto split = TPBT1_2(_poly1_2).split<0>();
 
-        auto tris = pev::BarycentricInterpolator<pev::Vec3d>{{1., 0., 0.},
-                                                             {0., 1., 0.},
-                                                             {0., 0., 1.}}
+        auto tris = Triangle{{pev::Vec3d{1., 0., 0.},
+                              pev::Vec3d{0., 1., 0.},
+                              pev::Vec3d{0., 0., 1.}}}
                             .split();
 
         for(auto i : pev::range(4))
@@ -170,9 +167,9 @@ public:
     {
         auto split = TPBT1_3(_poly1_3).split<0>();
 
-        auto tris = pev::BarycentricInterpolator<pev::Vec3d>{{1., 0., 0.},
-                                                             {0., 1., 0.},
-                                                             {0., 0., 1.}}
+        auto tris = Triangle{{pev::Vec3d{1., 0., 0.},
+                              pev::Vec3d{0., 1., 0.},
+                              pev::Vec3d{0., 0., 1.}}}
                             .split();
 
         for(auto i : pev::range(4))
@@ -223,9 +220,9 @@ public:
     {
         auto split = TPBT3(_poly3).split<0>();
 
-        auto tris = pev::BarycentricInterpolator<pev::Vec3d>{{1., 0., 0.},
-                                                             {0., 1., 0.},
-                                                             {0., 0., 1.}}
+        auto tris = Triangle{{pev::Vec3d{1., 0., 0.},
+                              pev::Vec3d{0., 1., 0.},
+                              pev::Vec3d{0., 0., 1.}}}
                             .split();
 
         for(auto i : pev::range(4))
@@ -237,85 +234,6 @@ public:
                 randpos.normalize();
                 auto globalpos = tris[i](randpos);
                 TS_ASSERT_DELTA(split[i](randpos), _poly3(globalpos), 1e-9);
-            }
-        }
-    }
-
-    void notestSplits()
-    {
-        auto coeffs = BDT::Coeffs::Random().eval();
-
-        auto orig = BDT{coeffs};
-        auto splits = orig.split();
-
-        for(auto i : pev::range(4))
-        {
-            for(auto j : pev::range(4))
-            {
-                auto si = 4 * i + j;
-                const auto& part = splits[si];
-
-                for(auto k : pev::range(10))
-                {
-                    auto pos = ((BDT::Coords::Random() + BDT::Coords::Ones())
-                                / 2).eval();
-                    pos.head<3>() /= pos.head<3>().sum();
-                    pos.tail<3>() /= pos.tail<3>().sum();
-
-                    auto origpos = pos;
-                    switch(i)
-                    {
-                        case 0:
-                            origpos[0] += (origpos[1] + origpos[2]) / 2;
-                            origpos[1] /= 2;
-                            origpos[2] /= 2;
-                            break;
-                        case 1:
-                            origpos[1] += (origpos[0] + origpos[2]) / 2;
-                            origpos[0] /= 2;
-                            origpos[2] /= 2;
-                            break;
-                        case 2:
-                            origpos[2] += (origpos[0] + origpos[1]) / 2;
-                            origpos[0] /= 2;
-                            origpos[1] /= 2;
-                            break;
-                        case 3:
-                            origpos[0] = (pos[0] + pos[2]) / 2;
-                            origpos[1] = (pos[1] + pos[0]) / 2;
-                            origpos[2] = (pos[2] + pos[1]) / 2;
-                            break;
-                        default:
-                            break;
-                    }
-                    switch(j)
-                    {
-                        case 0:
-                            origpos[3] += (origpos[4] + origpos[5]) / 2;
-                            origpos[4] /= 2;
-                            origpos[5] /= 2;
-                            break;
-                        case 1:
-                            origpos[4] += (origpos[3] + origpos[5]) / 2;
-                            origpos[3] /= 2;
-                            origpos[5] /= 2;
-                            break;
-                        case 2:
-                            origpos[5] += (origpos[3] + origpos[4]) / 2;
-                            origpos[3] /= 2;
-                            origpos[4] /= 2;
-                            break;
-                        case 3:
-                            origpos[3] = (pos[3] + pos[5]) / 2;
-                            origpos[4] = (pos[4] + pos[3]) / 2;
-                            origpos[5] = (pos[5] + pos[4]) / 2;
-                            break;
-                        default:
-                            break;
-                    }
-
-                    TS_ASSERT_DELTA(part(pos), orig(origpos), 1e-9);
-                }
             }
         }
     }

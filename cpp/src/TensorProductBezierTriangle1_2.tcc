@@ -8,16 +8,6 @@ namespace pev
 template<typename T, typename C>
 using TPBT1_2 = TensorProductBezierTriangle<T, C, 1, 2>;
 
-template<typename T, typename C>
-template<int D>
-std::array<TPBT1_2<T, C>, 4> TPBT1_2<T, C>::split() const
-{
-    return {Self{splitCoeffs<0, D>(_coeffs)},
-            Self{splitCoeffs<1, D>(_coeffs)},
-            Self{splitCoeffs<2, D>(_coeffs)},
-            Self{splitCoeffs<3, D>(_coeffs)}};
-}
-
 
 template<typename T, typename C>
 const typename TPBT1_2<T, C>::DomainPoints& TPBT1_2<T, C>::domainPoints()
