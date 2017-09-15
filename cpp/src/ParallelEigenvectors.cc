@@ -1,7 +1,6 @@
 #include "ParallelEigenvectors.hh"
 
-#include "BezierDoubleTriangle.hh"
-#include "BezierTriangle.hh"
+#include "TensorProductBezierTriangle.hh"
 
 #include <Eigen/Eigenvalues>
 #include <Eigen/LU>
@@ -24,10 +23,9 @@ namespace
 using namespace pev;
 
 /**
- * Mixed linear/quadratic polynomials on a pair of barycentric coordinates
+ * Tensor Product of linear and quadratic polynomials on barycentric coordinates
  */
-using BDoubleTri = BezierDoubleTriangle<double>;
-
+using BDoubleTri = TensorProductBezierTriangle<double, 1, 2>;
 
 /**
  * Linear tensor field expressed in barycentric coordinates
@@ -79,6 +77,83 @@ struct ClusterRepr
     std::size_t cluster_size;
     Triangle direction_tri;
     Triangle spatial_tri;
+};
+
+/**
+ * Structure for holding information needed during subdivision
+ */
+struct SubPackage
+{
+    TriPair trip;
+    TensorInterp s;
+    TensorInterp t;
+    std::array<BDoubleTri, 3> s_funcs;
+    std::array<BDoubleTri, 3> t_funcs;
+    bool last_split_dir;
+    int split_level;
+
+    /**
+     * Split subdivision triangle in position space
+     */
+    std::array<SubPackage, 4> split_pos() const
+    {
+        auto spatial_tri_subs = trip.spatial_tri.split();
+        auto s_subs = s.split();
+        auto t_subs = t.split();
+        auto s_funcs_subs = std::array<std::array<BDoubleTri, 4>, 3>{};
+        auto t_funcs_subs = std::array<std::array<BDoubleTri, 4>, 3>{};
+        for(auto i : range(3))
+        {
+            s_funcs_subs[i] = s_funcs[i].split<0>();
+            t_funcs_subs[i] = t_funcs[i].split<0>();
+        }
+
+        auto part = [&](int i) {
+            return SubPackage{{trip.direction_tri, spatial_tri_subs[i]},
+                              s_subs[i],
+                              t_subs[i],
+                              {s_funcs_subs[0][i],
+                               s_funcs_subs[1][i],
+                               s_funcs_subs[2][i]},
+                              {t_funcs_subs[0][i],
+                               t_funcs_subs[1][i],
+                               t_funcs_subs[2][i]},
+                              false,
+                              split_level + 1};
+        };
+        return {part(0), part(1), part(2), part(3)};
+    }
+
+
+    /**
+     * Split subdivision triangle in direction space
+     */
+    std::array<SubPackage, 4> split_dir() const
+    {
+        auto dir_tri_subs = trip.direction_tri.split();
+        auto s_funcs_subs = std::array<std::array<BDoubleTri, 4>, 3>{};
+        auto t_funcs_subs = std::array<std::array<BDoubleTri, 4>, 3>{};
+        for(auto i : range(3))
+        {
+            s_funcs_subs[i] = s_funcs[i].split<1>();
+            t_funcs_subs[i] = t_funcs[i].split<1>();
+        }
+
+        auto part = [&](int i) {
+            return SubPackage{{dir_tri_subs[i], trip.spatial_tri},
+                              s,
+                              t,
+                              {s_funcs_subs[0][i],
+                               s_funcs_subs[1][i],
+                               s_funcs_subs[2][i]},
+                              {t_funcs_subs[0][i],
+                               t_funcs_subs[1][i],
+                               t_funcs_subs[2][i]},
+                              true,
+                              split_level + 1};
+        };
+        return {part(0), part(1), part(2), part(3)};
+    }
 };
 
 
@@ -404,53 +479,25 @@ int sameSign(const BDoubleTri& coeffs)
 std::array<BDoubleTri, 3> bezierDoubleCoeffs(const TensorInterp& t,
                                              const Triangle& r)
 {
-    auto coeffs = Eigen::Matrix<double, 18, 3>{};
+    auto eval_func = [&](const BDoubleTri::Coords& coords, int i) -> double
+    {
+        return (t(coords.head<3>()) * r(coords.tail<3>()))
+                .cross(r(coords.tail<3>()))[i];
+    };
+    auto eval1 = [&](const BDoubleTri::Coords& coords)
+    {
+        return eval_func(coords, 0);
+    };
+    auto eval2 = [&](const BDoubleTri::Coords& coords)
+    {
+        return eval_func(coords, 1);
+    };
+    auto eval3 = [&](const BDoubleTri::Coords& coords)
+    {
+        return eval_func(coords, 2);
+    };
 
-    coeffs.row(BDoubleTri::i100200) = (t.v1() * r.v1()).cross(r.v1());
-    coeffs.row(BDoubleTri::i100020) = (t.v1() * r.v2()).cross(r.v2());
-    coeffs.row(BDoubleTri::i100002) = (t.v1() * r.v3()).cross(r.v3());
-
-    coeffs.row(BDoubleTri::i010200) = (t.v2() * r.v1()).cross(r.v1());
-    coeffs.row(BDoubleTri::i010020) = (t.v2() * r.v2()).cross(r.v2());
-    coeffs.row(BDoubleTri::i010002) = (t.v2() * r.v3()).cross(r.v3());
-
-    coeffs.row(BDoubleTri::i001200) = (t.v3() * r.v1()).cross(r.v1());
-    coeffs.row(BDoubleTri::i001020) = (t.v3() * r.v2()).cross(r.v2());
-    coeffs.row(BDoubleTri::i001002) = (t.v3() * r.v3()).cross(r.v3());
-
-    coeffs.row(BDoubleTri::i100110) =
-            ((t.v1() * r.v1()).cross(r.v2()) + (t.v1() * r.v2()).cross(r.v1()))
-            / 2;
-    coeffs.row(BDoubleTri::i100011) =
-            ((t.v1() * r.v2()).cross(r.v3()) + (t.v1() * r.v3()).cross(r.v2()))
-            / 2;
-    coeffs.row(BDoubleTri::i100101) =
-            ((t.v1() * r.v3()).cross(r.v1()) + (t.v1() * r.v1()).cross(r.v3()))
-            / 2;
-
-    coeffs.row(BDoubleTri::i010110) =
-            ((t.v2() * r.v1()).cross(r.v2()) + (t.v2() * r.v2()).cross(r.v1()))
-            / 2;
-    coeffs.row(BDoubleTri::i010011) =
-            ((t.v2() * r.v2()).cross(r.v3()) + (t.v2() * r.v3()).cross(r.v2()))
-            / 2;
-    coeffs.row(BDoubleTri::i010101) =
-            ((t.v2() * r.v3()).cross(r.v1()) + (t.v2() * r.v1()).cross(r.v3()))
-            / 2;
-
-    coeffs.row(BDoubleTri::i001110) =
-            ((t.v3() * r.v1()).cross(r.v2()) + (t.v3() * r.v2()).cross(r.v1()))
-            / 2;
-    coeffs.row(BDoubleTri::i001011) =
-            ((t.v3() * r.v2()).cross(r.v3()) + (t.v3() * r.v3()).cross(r.v2()))
-            / 2;
-    coeffs.row(BDoubleTri::i001101) =
-            ((t.v3() * r.v3()).cross(r.v1()) + (t.v3() * r.v1()).cross(r.v3()))
-            / 2;
-
-    return {BDoubleTri(coeffs.col(0)),
-            BDoubleTri(coeffs.col(1)),
-            BDoubleTri(coeffs.col(2))};
+    return {BDoubleTri{eval1}, BDoubleTri{eval2}, BDoubleTri{eval3}};
 }
 
 
@@ -462,18 +509,6 @@ TriPairList parallelEigenvectorSearch(const TensorInterp& s,
                                       uint64_t* num_splits = nullptr,
                                       uint64_t* max_level = nullptr)
 {
-    // Structure for holding information needed during subdivision
-    struct SubPackage
-    {
-        TriPair trip;
-        TensorInterp s;
-        TensorInterp t;
-        std::array<BDoubleTri, 3> s_funcs;
-        std::array<BDoubleTri, 3> t_funcs;
-        bool last_split_dir;
-        int split_level;
-    };
-
 #ifdef DRAW_DEBUG
     pos_image.fill(0);
     dir_image.fill(0);
@@ -484,7 +519,7 @@ TriPairList parallelEigenvectorSearch(const TensorInterp& s,
     auto init_tri = [&](const Triangle& r) {
         auto s_coeffs = bezierDoubleCoeffs(s, r);
         auto t_coeffs = bezierDoubleCoeffs(t, r);
-        tstck.push(SubPackage{{r, tri}, s, t, s_coeffs, t_coeffs, true, 0});
+        tstck.push({{r, tri}, s, t, s_coeffs, t_coeffs, true, 0});
     };
 
     // Start with four triangles covering hemisphere
@@ -547,57 +582,16 @@ TriPairList parallelEigenvectorSearch(const TensorInterp& s,
         // Alternating subdivision in position and direction space
         if(pack.last_split_dir && !pos_sub_reached)
         {
-            auto spatial_tri_subs = pack.trip.spatial_tri.split();
-            auto s_subs = pack.s.split();
-            auto t_subs = pack.t.split();
-            auto s_funcs_subs = std::array<std::array<BDoubleTri, 4>, 3>{};
-            auto t_funcs_subs = std::array<std::array<BDoubleTri, 4>, 3>{};
-            for(auto i : range(3))
+            for(const auto& p : pack.split_pos())
             {
-                s_funcs_subs[i] = pack.s_funcs[i].split_pos();
-                t_funcs_subs[i] = pack.t_funcs[i].split_pos();
-            }
-
-            for(auto i : range(4))
-            {
-                tstck.push(SubPackage{
-                        {pack.trip.direction_tri, spatial_tri_subs[i]},
-                        s_subs[i],
-                        t_subs[i],
-                        {s_funcs_subs[0][i],
-                         s_funcs_subs[1][i],
-                         s_funcs_subs[2][i]},
-                        {t_funcs_subs[0][i],
-                         t_funcs_subs[1][i],
-                         t_funcs_subs[2][i]},
-                        false,
-                        pack.split_level + 1});
+                tstck.push(p);
             }
         }
         else
         {
-            auto dir_tri_subs = pack.trip.direction_tri.split();
-            auto s_funcs_subs = std::array<std::array<BDoubleTri, 4>, 3>{};
-            auto t_funcs_subs = std::array<std::array<BDoubleTri, 4>, 3>{};
-            for(auto i : range(3))
+            for(const auto& p : pack.split_dir())
             {
-                s_funcs_subs[i] = pack.s_funcs[i].split_dir();
-                t_funcs_subs[i] = pack.t_funcs[i].split_dir();
-            }
-
-            for(auto i : range(4))
-            {
-                tstck.push(SubPackage{{dir_tri_subs[i], pack.trip.spatial_tri},
-                                      pack.s,
-                                      pack.t,
-                                      {s_funcs_subs[0][i],
-                                       s_funcs_subs[1][i],
-                                       s_funcs_subs[2][i]},
-                                      {t_funcs_subs[0][i],
-                                       t_funcs_subs[1][i],
-                                       t_funcs_subs[2][i]},
-                                      true,
-                                      pack.split_level + 1});
+                tstck.push(p);
             }
         }
 

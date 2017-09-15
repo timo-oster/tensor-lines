@@ -88,7 +88,7 @@ public:
         return {Self{_v1, v12, v13},
                 Self{v12, _v2, v23},
                 Self{v13, v23, _v3},
-                Self{v23, v13, v12}};
+                Self{v12, v23, v13}};
     }
 
     friend bool operator==(const Self& b1, const Self& b2)

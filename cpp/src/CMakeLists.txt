@@ -5,11 +5,10 @@ set(PEV_SOURCES
 
 set(PEV_HEADERS
     BarycentricInterpolator.hh
-    BezierDoubleTriangle.hh
-    BezierTriangle.hh
     ParallelEigenvectors.hh
     utils.hh
-    vtkParallelEigenvectors.hh)
+    vtkParallelEigenvectors.hh
+    TensorProductBezierTriangle.hh)
 
 source_group("Header Files" FILES ${PEV_HEADERS})
 source_group("Source Files" FILES ${PEV_SOURCES})

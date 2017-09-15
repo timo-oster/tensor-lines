@@ -54,7 +54,7 @@ struct FaceHash
 {
     std::size_t offset;
 
-    FaceHash(std::size_t offset) : offset(offset)
+    explicit FaceHash(std::size_t offset) : offset(offset)
     {
     }
 

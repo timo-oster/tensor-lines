@@ -17,11 +17,11 @@ runner: runner.cpp $(OBJ)
 	$(CC) $(CFLAGS) $(INCS) $^ -o $@
 
 runner.cpp: $(TEST_SRC)
-	cxxtestgen -f --have-std --have-eh --runner=ErrorPrinter $^ -o $@
+	cxxtestgen --have-std --have-eh --runner=ErrorPrinter $^ -o $@
 
 .PHONY: test
 test: runner
-	./runner
+	./runner -v
 
 .PHONY: clean
 clean:
