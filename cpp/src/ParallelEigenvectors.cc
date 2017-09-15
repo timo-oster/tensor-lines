@@ -6,6 +6,7 @@
 #include <Eigen/LU>
 
 #include <boost/algorithm/cxx11/any_of.hpp>
+#include <boost/algorithm/minmax_element.hpp>
 #include <boost/optional/optional.hpp>
 #include <boost/range/join.hpp>
 
@@ -18,6 +19,8 @@
 #include <utility>
 #include <vector>
 
+template class pev::TensorProductBezierTriangle<double, double, 1>;
+
 namespace
 {
 using namespace pev;
@@ -25,18 +28,7 @@ using namespace pev;
 /**
  * Tensor Product of linear and quadratic polynomials on barycentric coordinates
  */
-using BDoubleTri = TensorProductBezierTriangle<double, 1, 2>;
-
-/**
- * Linear tensor field expressed in barycentric coordinates
- */
-using TensorInterp = BarycentricInterpolator<Mat3d>;
-
-
-/**
- * Triangle in 3d expressed in barycentric coordinates
- */
-using Triangle = BarycentricInterpolator<Vec3d>;
+using BDoubleTri = TensorProductBezierTriangle<double, double, 1, 2>;
 
 
 /**
@@ -252,7 +244,7 @@ void draw_cross(CImg& image,
  */
 double distance(const Triangle& t1, const Triangle& t2)
 {
-    return (t1(1. / 3., 1. / 3., 1. / 3.) - t2(1. / 3., 1. / 3., 1. / 3.))
+    return (t1({1. / 3., 1. / 3., 1. / 3.}) - t2({1. / 3., 1. / 3., 1. / 3.}))
             .norm();
 }
 
@@ -340,8 +332,8 @@ findRepresentatives(const std::vector<TriPairList>& clusters,
         for(const auto& trip : c)
         {
             auto dir =
-                    trip.direction_tri(1. / 3., 1. / 3., 1. / 3.).normalized();
-            auto center = trip.spatial_tri(1. / 3., 1. / 3., 1. / 3.);
+                    trip.direction_tri({1. / 3., 1. / 3., 1. / 3.}).normalized();
+            auto center = trip.spatial_tri({1. / 3., 1. / 3., 1. / 3.});
             auto s = s_interp(center);
             auto t = t_interp(center);
 
@@ -387,9 +379,9 @@ PointList computeContextInfo(const std::vector<ClusterRepr>& representatives,
 
     for(const auto& r : representatives)
     {
-        auto result_center = r.spatial_tri(1. / 3., 1. / 3., 1. / 3.);
+        auto result_center = r.spatial_tri({1. / 3., 1. / 3., 1. / 3.});
         auto result_dir =
-                r.direction_tri(1. / 3., 1. / 3., 1. / 3.).normalized();
+                r.direction_tri({1. / 3., 1. / 3., 1. / 3.}).normalized();
 
         // We want to know which eigenvector of each tensor field we have
         // found (i.e. corresponding to largest, middle, or smallest
@@ -461,9 +453,9 @@ PointList computeContextInfo(const std::vector<ClusterRepr>& representatives,
  */
 int sameSign(const BDoubleTri& coeffs)
 {
-    auto ma = coeffs.coefficients().maxCoeff();
-    auto mi = coeffs.coefficients().minCoeff();
-    return mi * ma > 0 ? sgn(ma) : 0;
+    auto mima = std::minmax_element(std::begin(coeffs.coefficients()),
+                                    std::end(coeffs.coefficients()));
+    return *(mima.first) * *(mima.second) > 0 ? sgn(*(mima.second)) : 0;
 }
 
 
@@ -523,10 +515,10 @@ TriPairList parallelEigenvectorSearch(const TensorInterp& s,
     };
 
     // Start with four triangles covering hemisphere
-    init_tri(Triangle{{1, 0, 0}, {0, 1, 0}, {0, 0, 1}});
-    init_tri(Triangle{{0, 1, 0}, {-1, 0, 0}, {0, 0, 1}});
-    init_tri(Triangle{{-1, 0, 0}, {0, -1, 0}, {0, 0, 1}});
-    init_tri(Triangle{{0, -1, 0}, {1, 0, 0}, {0, 0, 1}});
+    init_tri(Triangle{{Vec3d{1, 0, 0}, Vec3d{0, 1, 0}, Vec3d{0, 0, 1}}});
+    init_tri(Triangle{{Vec3d{0, 1, 0}, Vec3d{-1, 0, 0}, Vec3d{0, 0, 1}}});
+    init_tri(Triangle{{Vec3d{-1, 0, 0}, Vec3d{0, -1, 0}, Vec3d{0, 0, 1}}});
+    init_tri(Triangle{{Vec3d{0, -1, 0}, Vec3d{1, 0, 0}, Vec3d{0, 0, 1}}});
 
     auto result = TriPairList{};
 
@@ -560,11 +552,11 @@ TriPairList parallelEigenvectorSearch(const TensorInterp& s,
 
         // If maximum subdivision accuracy reached, accept point as solution
         auto dir_sub_reached =
-                (pack.trip.direction_tri.v1() - pack.trip.direction_tri.v2())
+                (pack.trip.direction_tri[0] - pack.trip.direction_tri[1])
                         .norm()
                 < direction_epsilon;
         auto pos_sub_reached =
-                (pack.trip.spatial_tri.v1() - pack.trip.spatial_tri.v2()).norm()
+                (pack.trip.spatial_tri[0] - pack.trip.spatial_tri[1]).norm()
                 < spatial_epsilon;
 
         if(pos_sub_reached && dir_sub_reached)
@@ -617,13 +609,13 @@ CImgDisplay pos_frame;
 CImgDisplay dir_frame;
 #endif
 
-PointList findParallelEigenvectors(const BarycentricInterpolator<Mat3d>& s,
-                                   const BarycentricInterpolator<Mat3d>& t,
-                                   const BarycentricInterpolator<Vec3d>& x,
+PointList findParallelEigenvectors(const TensorInterp& s,
+                                   const TensorInterp& t,
+                                   const Triangle& x,
                                    const PEVOptions& opts)
 {
     auto start_tri =
-            Triangle{Vec3d{1., 0., 0.}, Vec3d{0., 1., 0.}, Vec3d{0., 0., 1.}};
+            Triangle{{Vec3d{1., 0., 0.}, Vec3d{0., 1., 0.}, Vec3d{0., 0., 1.}}};
 
     auto num_splits = uint64_t{0};
     auto max_level = uint64_t{0};
@@ -643,14 +635,14 @@ PointList findParallelEigenvectors(const BarycentricInterpolator<Mat3d>& s,
 }
 
 
-PointList findParallelEigenvectors(const BarycentricInterpolator<Mat3d>& s,
-                                   const BarycentricInterpolator<Mat3d>& t,
+PointList findParallelEigenvectors(const TensorInterp& s,
+                                   const TensorInterp& t,
                                    const PEVOptions& opts)
 {
     return findParallelEigenvectors(
             s,
             t,
-            Triangle{Vec3d{1., 0., 0.}, Vec3d{0., 1., 0.}, Vec3d{0., 0., 1.}},
+            Triangle{{Vec3d{1., 0., 0.}, Vec3d{0., 1., 0.}, Vec3d{0., 0., 1.}}},
             opts);
 }
 

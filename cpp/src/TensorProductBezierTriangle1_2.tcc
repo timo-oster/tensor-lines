@@ -5,12 +5,12 @@
 namespace pev
 {
 
-template<typename T>
-using TPBT1_2 = TensorProductBezierTriangle<T, 1, 2>;
+template<typename T, typename C>
+using TPBT1_2 = TensorProductBezierTriangle<T, C, 1, 2>;
 
-template<typename T>
+template<typename T, typename C>
 template<int D>
-std::array<TPBT1_2<T>, 4> TPBT1_2<T>::split() const
+std::array<TPBT1_2<T, C>, 4> TPBT1_2<T, C>::split() const
 {
     return {Self{splitCoeffs<0, D>(_coeffs)},
             Self{splitCoeffs<1, D>(_coeffs)},
@@ -19,8 +19,8 @@ std::array<TPBT1_2<T>, 4> TPBT1_2<T>::split() const
 }
 
 
-template<typename T>
-const typename TPBT1_2<T>::DomainPoints& TPBT1_2<T>::domainPoints()
+template<typename T, typename C>
+const typename TPBT1_2<T, C>::DomainPoints& TPBT1_2<T, C>::domainPoints()
 {
     static const auto result = (DomainPoints{} <<
         1.,   0.,   0.,   1.,   0.,   0.,
@@ -46,8 +46,8 @@ const typename TPBT1_2<T>::DomainPoints& TPBT1_2<T>::domainPoints()
 }
 
 
-template<typename T>
-typename TPBT1_2<T>::Basis TPBT1_2<T>::makeBasis(const Coords& pos)
+template<typename T, typename C>
+typename TPBT1_2<T, C>::Basis TPBT1_2<T, C>::makeBasis(const Coords& pos)
 {
     return (Basis{} <<
             1 * pos[0] * pos[3] * pos[3],
@@ -72,10 +72,10 @@ typename TPBT1_2<T>::Basis TPBT1_2<T>::makeBasis(const Coords& pos)
 }
 
 
-template <typename T>
+template<typename T, typename C>
 template<int I, int D>
-typename TPBT1_2<T>::Coeffs
-TPBT1_2<T>::splitCoeffs(const Coeffs& in)
+typename TPBT1_2<T, C>::Coeffs
+TPBT1_2<T, C>::splitCoeffs(const Coeffs& in)
 {
     static_assert(D >= 0 && D < 2, "Split dimension D must be 0 or 1");
     static_assert(I >= 0 && I < 4, "Subdivision index must be between 0 and 3");
@@ -252,9 +252,9 @@ TPBT1_2<T>::splitCoeffs(const Coeffs& in)
     return out;
 }
 
-template <typename T>
-typename TPBT1_2<T>::Coeffs
-TPBT1_2<T>::computeCoeffs(const Coeffs& in)
+template<typename T, typename C>
+typename TPBT1_2<T, C>::Coeffs
+TPBT1_2<T, C>::computeCoeffs(const Coeffs& in)
 {
     auto out = Coeffs{};
     out[0] = in[0];

@@ -9,15 +9,15 @@
 namespace pev
 {
 
-template<typename T>
-class TensorProductBezierTriangle<T, 1, 3>
+template<typename T, typename C>
+class TensorProductBezierTriangle<T, C, 1, 3>
 {
 public:
     static constexpr std::size_t NCoords = 6;
     static constexpr std::size_t NCoeffs = 30;
-    using Self = TensorProductBezierTriangle<T, 1, 3>;
-    using Coords = Eigen::Matrix<T, NCoords, 1>;
-    using Coeffs = Eigen::Matrix<T, NCoeffs, 1>;
+    using Self = TensorProductBezierTriangle<T, C, 1, 3>;
+    using Coords = Eigen::Matrix<C, NCoords, 1>;
+    using Coeffs = std::array<T, NCoeffs>;
 
     enum Indices : int
     {
@@ -53,10 +53,7 @@ public:
         i001003
     };
 
-    TensorProductBezierTriangle()
-            : _coeffs(Coeffs::Zero())
-    {
-    }
+    TensorProductBezierTriangle() = default;
 
     explicit TensorProductBezierTriangle(const Coeffs& coefficients)
             : _coeffs(coefficients)
@@ -90,7 +87,13 @@ public:
 
     T operator()(const Coords& pos) const
     {
-        return makeBasis(pos).dot(_coeffs);
+        auto base = makeBasis(pos);
+        auto result = T{base[0] * _coeffs[0]};
+        for(auto i: range(1, NCoeffs))
+        {
+            result += base[i] * _coeffs[i];
+        }
+        return result;
     }
 
     T& operator[](int i)
@@ -116,15 +119,22 @@ public:
     template<int D>
     std::array<Self, 4> split() const;
 
+    friend bool operator==(const Self& o1, const Self& o2)
+    {
+        return o1.coefficients() == o2.coefficients();
+    }
+    friend bool operator!=(const Self& o1, const Self& o2)
+    {
+        return !(o1 == o2);
+    }
+
 
 private:
-    using SysMatrix = Eigen::Matrix<T, NCoeffs, NCoeffs>;
-    using SplitMatrix = Eigen::Matrix<T, NCoeffs*4, NCoeffs>;
-    using Basis = Eigen::Matrix<T, NCoeffs, 1>;
+    using Basis = Eigen::Matrix<C, NCoeffs, 1>;
     using DomainPoints = Eigen::Matrix<T, NCoeffs, NCoords>;
 
     // Coefficients of the Bezier Triangle
-    Coeffs _coeffs;
+    Coeffs _coeffs = {};
 
     static const DomainPoints& domainPoints();
 

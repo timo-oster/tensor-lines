@@ -4,7 +4,6 @@ set(PEV_SOURCES
         vtkParallelEigenvectors.cc)
 
 set(PEV_HEADERS
-    BarycentricInterpolator.hh
     ParallelEigenvectors.hh
     utils.hh
     vtkParallelEigenvectors.hh

@@ -5,12 +5,12 @@
 namespace pev
 {
 
-template<typename T>
-using TPBT3 = TensorProductBezierTriangle<T, 3>;
+template<typename T, typename C>
+using TPBT3 = TensorProductBezierTriangle<T, C, 3>;
 
-template<typename T>
+template<typename T, typename C>
 template<int D>
-std::array<TPBT3<T>, 4> TPBT3<T>::split() const
+std::array<TPBT3<T, C>, 4> TPBT3<T, C>::split() const
 {
     static_assert(D == 0, "D must be 0");
     return {Self{splitCoeffs<0, D>(_coeffs)},
@@ -20,8 +20,8 @@ std::array<TPBT3<T>, 4> TPBT3<T>::split() const
 }
 
 
-template<typename T>
-const typename TPBT3<T>::DomainPoints& TPBT3<T>::domainPoints()
+template<typename T, typename C>
+const typename TPBT3<T, C>::DomainPoints& TPBT3<T, C>::domainPoints()
 {
     static const auto result = (DomainPoints{} <<
           1.,   0.,   0.,
@@ -39,8 +39,8 @@ const typename TPBT3<T>::DomainPoints& TPBT3<T>::domainPoints()
 }
 
 
-template<typename T>
-typename TPBT3<T>::Basis TPBT3<T>::makeBasis(const Coords& pos)
+template<typename T, typename C>
+typename TPBT3<T, C>::Basis TPBT3<T, C>::makeBasis(const Coords& pos)
 {
     return (Basis{} <<
             1 * pos[0] * pos[0] * pos[0],
@@ -57,10 +57,10 @@ typename TPBT3<T>::Basis TPBT3<T>::makeBasis(const Coords& pos)
 }
 
 
-template <typename T>
+template<typename T, typename C>
 template<int I, int D>
-typename TPBT3<T>::Coeffs
-TPBT3<T>::splitCoeffs(const Coeffs& in)
+typename TPBT3<T, C>::Coeffs
+TPBT3<T, C>::splitCoeffs(const Coeffs& in)
 {
     static_assert(D == 0, "Split dimension D must be 0");
     static_assert(I >= 0 && I < 4, "Subdivision index must be between 0 and 3");
@@ -133,9 +133,9 @@ TPBT3<T>::splitCoeffs(const Coeffs& in)
     return out;
 }
 
-template <typename T>
-typename TPBT3<T>::Coeffs
-TPBT3<T>::computeCoeffs(const Coeffs& in)
+template<typename T, typename C>
+typename TPBT3<T, C>::Coeffs
+TPBT3<T, C>::computeCoeffs(const Coeffs& in)
 {
     auto out = Coeffs{};
     out[0] = in[0];

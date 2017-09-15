@@ -1,7 +1,7 @@
 #ifndef CPP_PARALLEL_EIGENVECTORS_HH
 #define CPP_PARALLEL_EIGENVECTORS_HH
 
-#include "BarycentricInterpolator.hh"
+#include "TensorProductBezierTriangle.hh"
 #include "utils.hh"
 
 #ifdef DRAW_DEBUG
@@ -54,7 +54,22 @@ struct PEVPoint
     std::size_t cluster_size; //< Number of candidate points that contributed
 };
 
+/**
+ * List of found parallel eigenvector points
+ */
 using PointList = std::vector<PEVPoint>;
+
+
+/**
+ * Linear tensor field expressed in barycentric coordinates
+ */
+using TensorInterp = TensorProductBezierTriangle<Mat3d, double, 1>;
+
+
+/**
+ * Triangle in 3d expressed in barycentric coordinates
+ */
+using Triangle = TensorProductBezierTriangle<Vec3d, double, 1>;
 
 
 /**
@@ -96,9 +111,9 @@ struct PEVOptions
  * @return The number of false positives and a list of found parallel
  *     eigenvector points on the triangle
  */
-PointList findParallelEigenvectors(const BarycentricInterpolator<Mat3d>& s,
-                                   const BarycentricInterpolator<Mat3d>& t,
-                                   const BarycentricInterpolator<Vec3d>& x,
+PointList findParallelEigenvectors(const TensorInterp& s,
+                                   const TensorInterp& t,
+                                   const Triangle& x,
                                    const PEVOptions& opts = PEVOptions{});
 
 /**
@@ -121,8 +136,8 @@ PointList findParallelEigenvectors(const BarycentricInterpolator<Mat3d>& s,
  * @return The number of false positives and a list of found parallel
  *     eigenvector points on the triangle in barycentric coordinates
  */
-PointList findParallelEigenvectors(const BarycentricInterpolator<Mat3d>& s,
-                                   const BarycentricInterpolator<Mat3d>& t,
+PointList findParallelEigenvectors(const TensorInterp& s,
+                                   const TensorInterp& t,
                                    const PEVOptions& opts = PEVOptions{});
 
 } // namespace pev

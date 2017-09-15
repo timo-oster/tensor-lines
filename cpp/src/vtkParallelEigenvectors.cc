@@ -156,9 +156,9 @@ std::vector<pev::PointList> computePEVPoints(const std::vector<TriFace>& faces,
         array2->GetTuple(face.points[2], t3.data());
 
         auto points = pev::findParallelEigenvectors(
-                pev::BarycentricInterpolator<pev::Mat3d>{s1, s2, s3},
-                pev::BarycentricInterpolator<pev::Mat3d>{t1, t2, t3},
-                pev::BarycentricInterpolator<pev::Vec3d>{p1, p2, p3},
+                pev::TensorInterp{{s1, s2, s3}},
+                pev::TensorInterp{{t1, t2, t3}},
+                pev::Triangle{{p1, p2, p3}},
                 opts);
         results[i] = points;
 #pragma omp critical(progress)
