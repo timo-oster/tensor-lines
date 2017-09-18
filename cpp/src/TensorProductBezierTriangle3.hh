@@ -5,33 +5,26 @@
 
 namespace pev
 {
+
 template <typename T, typename C>
 struct TensorProductTraits<TensorProductBezierTriangle<T, C, 3>>
 {
     static constexpr std::size_t NCoords = 3;
     static constexpr std::size_t NCoeffs = 3;
-    using Coords = Eigen::Matrix<C, NCoords, 1>;
-    using Coeffs = std::array<T, NCoeffs>;
 };
 
 template <typename T, typename C>
 class TensorProductBezierTriangle<T, C, 3>
-        : public TensorProductBezierTriangleBase<TensorProductBezierTriangle<T,
-                                                                             C,
-                                                                             3>,
-                                                 T,
-                                                 C,
-                                                 3>
+        : public TensorProductBezierTriangleBase<
+                TensorProductBezierTriangle<T, C, 3>, T, C, 3>
 {
 public:
     using Self = TensorProductBezierTriangle<T, C, 3>;
     using Base = TensorProductBezierTriangleBase<
-                    TensorProductBezierTriangle<T, C, 3>,
-                    T, C, 3>;
-    static constexpr std::size_t NCoords = TensorProductTraits<Self>::NCoords;
-    static constexpr std::size_t NCoeffs = TensorProductTraits<Self>::NCoeffs;
-    using Coords = typename TensorProductTraits<Self>::Coords;
-    using Coeffs = typename TensorProductTraits<Self>::Coeffs;
+                    TensorProductBezierTriangle<T, C, 3>, T, C, 3>;
+    using Traits = TensorProductTraits<Self>;
+    using Coords = typename Base::Coords;
+    using Coeffs = typename Base::Coeffs;
 
     enum Indices : int
     {
@@ -52,8 +45,8 @@ public:
     using Base::Base;
 
 private:
-    using Basis = Eigen::Matrix<T, NCoeffs, 1>;
-    using DomainPoints = Eigen::Matrix<T, NCoeffs, NCoords>;
+    using Basis = Eigen::Matrix<T, Traits::NCoeffs, 1>;
+    using DomainPoints = Eigen::Matrix<T, Traits::NCoeffs, Traits::NCoords>;
 
     static const DomainPoints& domainPoints();
 
