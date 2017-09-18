@@ -9,6 +9,7 @@
 #include <boost/algorithm/minmax_element.hpp>
 #include <boost/optional/optional.hpp>
 #include <boost/range/join.hpp>
+#include <boost/range/algorithm_ext/insert.hpp>
 
 #include <algorithm>
 #include <array>
@@ -18,8 +19,6 @@
 #include <stack>
 #include <utility>
 #include <vector>
-
-template class pev::TensorProductBezierTriangle<double, double, 1>;
 
 namespace
 {
@@ -97,10 +96,11 @@ struct ClusterRepr
 /**
  * Structure for holding information needed during subdivision
  */
+template<typename TPBT>
 struct SubPackage
 {
     TriPair trip;
-    std::array<BDoubleTri, 6> poly_funcs;
+    std::array<TPBT, 6> poly_funcs;
     bool last_split_dir;
     int split_level;
 
@@ -110,10 +110,10 @@ struct SubPackage
         static_assert(D >= 0 && D < 2,
                       "Split space must be 0 (position) or 1 (direction)");
 
-        auto poly_funcs_subs = std::array<std::array<BDoubleTri, 4>, 6>{};
+        auto poly_funcs_subs = std::array<std::array<TPBT, 4>, 6>{};
         for(auto i : range(poly_funcs.size()))
         {
-            poly_funcs_subs[i] = poly_funcs[i].split<D>();
+            poly_funcs_subs[i] = poly_funcs[i].template split<D>();
         }
 
         auto tri_split = trip.split<D>();
@@ -475,33 +475,16 @@ std::array<BDoubleTri, 6> bezierDoubleCoeffs(const TensorInterp& s,
             BDoubleTri{eval4}, BDoubleTri{eval5}, BDoubleTri{eval6}};
 }
 
-
-TriPairList parallelEigenvectorSearch(const TensorInterp& s,
-                                      const TensorInterp& t,
-                                      const Triangle& tri,
-                                      double spatial_epsilon,
-                                      double direction_epsilon,
-                                      uint64_t* num_splits = nullptr,
-                                      uint64_t* max_level = nullptr)
+template<typename TPBT>
+TriPairList rootSearch(const std::array<TPBT, 6>& polys,
+                       const TriPair& trip,
+                       double spatial_epsilon,
+                       double direction_epsilon,
+                       uint64_t* num_splits = nullptr,
+                       uint64_t* max_level = nullptr)
 {
-#ifdef DRAW_DEBUG
-    pos_image.fill(0);
-    dir_image.fill(0);
-#endif
-
-    auto tstck = std::stack<SubPackage>{};
-
-    auto init_tri = [&](const Triangle& r) {
-        auto poly_coeffs = bezierDoubleCoeffs(s, t, r);
-        tstck.push({{r, tri}, poly_coeffs, true, 0});
-    };
-
-    // Start with four triangles covering hemisphere
-    init_tri(Triangle{{Vec3d{1, 0, 0}, Vec3d{0, 1, 0}, Vec3d{0, 0, 1}}});
-    init_tri(Triangle{{Vec3d{0, 1, 0}, Vec3d{-1, 0, 0}, Vec3d{0, 0, 1}}});
-    init_tri(Triangle{{Vec3d{-1, 0, 0}, Vec3d{0, -1, 0}, Vec3d{0, 0, 1}}});
-    init_tri(Triangle{{Vec3d{0, -1, 0}, Vec3d{1, 0, 0}, Vec3d{0, 0, 1}}});
-
+    auto tstck = std::stack<SubPackage<TPBT>>{};
+    tstck.push({trip, polys, true, 0});
     auto result = TriPairList{};
 
     while(!tstck.empty())
@@ -556,14 +539,14 @@ TriPairList parallelEigenvectorSearch(const TensorInterp& s,
         // Alternating subdivision in position and direction space
         if(pack.last_split_dir && !pos_sub_reached)
         {
-            for(const auto& p : pack.split<0>())
+            for(const auto& p : pack.template split<0>())
             {
                 tstck.push(p);
             }
         }
         else
         {
-            for(const auto& p : pack.split<1>())
+            for(const auto& p : pack.template split<1>())
             {
                 tstck.push(p);
             }
@@ -576,6 +559,43 @@ TriPairList parallelEigenvectorSearch(const TensorInterp& s,
         dir_frame.display(dir_image);
 #endif
     }
+
+    return result;
+
+}
+
+
+TriPairList parallelEigenvectorSearch(const TensorInterp& s,
+                                      const TensorInterp& t,
+                                      const Triangle& tri,
+                                      double spatial_epsilon,
+                                      double direction_epsilon,
+                                      uint64_t* num_splits = nullptr,
+                                      uint64_t* max_level = nullptr)
+{
+#ifdef DRAW_DEBUG
+    pos_image.fill(0);
+    dir_image.fill(0);
+#endif
+
+    auto result = TriPairList{};
+
+    auto compute_tri =[&](const Triangle& r) {
+        boost::insert(result,
+                      result.end(),
+                      rootSearch(bezierDoubleCoeffs(s, t, r),
+                                 {r, tri},
+                                 spatial_epsilon,
+                                 direction_epsilon,
+                                 num_splits,
+                                 max_level));
+    };
+
+    // Four triangles covering hemisphere
+    compute_tri(Triangle{{Vec3d{1, 0, 0}, Vec3d{0, 1, 0}, Vec3d{0, 0, 1}}});
+    compute_tri(Triangle{{Vec3d{0, 1, 0}, Vec3d{-1, 0, 0}, Vec3d{0, 0, 1}}});
+    compute_tri(Triangle{{Vec3d{-1, 0, 0}, Vec3d{0, -1, 0}, Vec3d{0, 0, 1}}});
+    compute_tri(Triangle{{Vec3d{0, -1, 0}, Vec3d{1, 0, 0}, Vec3d{0, 0, 1}}});
 
     return result;
 }
