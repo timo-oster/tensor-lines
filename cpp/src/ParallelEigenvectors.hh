@@ -140,6 +140,20 @@ PointList findParallelEigenvectors(const TensorInterp& s,
                                    const TensorInterp& t,
                                    const PEVOptions& opts = PEVOptions{});
 
+
+PointList findTensorSujudiHaimes(const TensorInterp& t,
+                                 const TensorInterp& tx,
+                                 const TensorInterp& ty,
+                                 const TensorInterp& tz,
+                                 const Triangle& x,
+                                 const PEVOptions& opts = PEVOptions{});
+
+PointList findTensorSujudiHaimes(const TensorInterp& t,
+                                 const TensorInterp& tx,
+                                 const TensorInterp& ty,
+                                 const TensorInterp& tz,
+                                 const PEVOptions& opts = PEVOptions{});
+
 } // namespace pev
 
 #endif

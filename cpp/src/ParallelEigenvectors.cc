@@ -341,6 +341,50 @@ findRepresentatives(const std::vector<TriPairList>& clusters,
     return result;
 }
 
+std::vector<ClusterRepr>
+findRepresentativesSH(const std::vector<TriPairList>& clusters,
+                      const TensorInterp& t_interp,
+                      const TensorInterp& tx_interp,
+                      const TensorInterp& ty_interp,
+                      const TensorInterp& tz_interp)
+{
+    auto result = std::vector<ClusterRepr>{};
+    for(const auto& c : clusters)
+    {
+        const auto* min_angle_tri = &*(c.cbegin());
+        auto min_sin = 1.;
+        for(const auto& trip : c)
+        {
+            auto dir =
+                    trip.direction_tri({1. / 3., 1. / 3., 1. / 3.}).normalized();
+            auto center = trip.spatial_tri({1. / 3., 1. / 3., 1. / 3.});
+            auto t = t_interp(center);
+            auto tx = tx_interp(center);
+            auto ty = ty_interp(center);
+            auto tz = tz_interp(center);
+
+            // compute error as sum of deviations from input direction
+            // after multiplication with tensors
+            auto ms = ((tx * dir[0] + ty * dir[1] + tz * dir[2]) * dir)
+                              .normalized()
+                              .cross(dir.normalized())
+                              .norm()
+                      + (t * dir).normalized().cross(dir.normalized()).norm();
+
+            if(ms < min_sin)
+            {
+                min_sin = ms;
+                min_angle_tri = &trip;
+            }
+        }
+
+        result.push_back({c.size(),
+                          min_angle_tri->direction_tri,
+                          min_angle_tri->spatial_tri});
+    }
+    return result;
+}
+
 
 /**
  * @brief Compute context info for representatives
@@ -431,6 +475,89 @@ PointList computeContextInfo(const std::vector<ClusterRepr>& representatives,
 }
 
 
+PointList computeContextInfoSH(const std::vector<ClusterRepr>& representatives,
+                               const TensorInterp& t_interp,
+                               const TensorInterp& tx_interp,
+                               const TensorInterp& ty_interp,
+                               const TensorInterp& tz_interp,
+                               const Triangle& tri)
+{
+    auto points = PointList{};
+    points.reserve(representatives.size());
+
+    for(const auto& r : representatives)
+    {
+        auto result_center = r.spatial_tri({1. / 3., 1. / 3., 1. / 3.});
+        auto result_dir =
+                r.direction_tri({1. / 3., 1. / 3., 1. / 3.}).normalized();
+
+        // We want to know which eigenvector of each tensor field we have
+        // found (i.e. corresponding to largest, middle, or smallest
+        // eigenvalue)
+        // Therefore we explicitly compute the eigenvalues at the result
+        // position and check which ones the found eigenvector direction
+        // corresponds to.
+        // @todo: make this step optional
+
+        auto t = t_interp(result_center);
+        auto tx = tx_interp(result_center);
+        auto ty = ty_interp(result_center);
+        auto tz = tz_interp(result_center);
+        auto dt = (tx * result_dir[0] + ty * result_dir[1] + tz * result_dir[2])
+                          .eval();
+
+        // Get eigenvalues from our computed direction
+        auto t_real_eigv = (t * result_dir).dot(result_dir);
+        auto dt_real_eigv = (dt * result_dir).dot(result_dir);
+
+        // Compute all eigenvalues using Eigen
+        auto t_eigvs = t.eigenvalues().eval();
+        auto dt_eigvs = dt.eigenvalues().eval();
+
+        // Find index of eigenvalue that is closest to the one we computed
+        using Vec3c = decltype(t_eigvs);
+        auto t_closest_index = Vec3d::Index{0};
+        (t_eigvs - Vec3c::Ones() * t_real_eigv)
+                .cwiseAbs()
+                .minCoeff(&t_closest_index);
+
+        auto dt_closest_index = Vec3d::Index{0};
+        (dt_eigvs - Vec3c::Ones() * dt_real_eigv)
+                .cwiseAbs()
+                .minCoeff(&dt_closest_index);
+
+        // Find which of the (real) eigenvalues ours is
+        auto count_larger_real = [](double ref,
+                                    const std::complex<double>& val) {
+            if(val.imag() != 0) return 0;
+            if(std::abs(ref) >= std::abs(val.real())) return 0;
+            return 1;
+        };
+        auto t_order = t_eigvs.unaryExpr([&](const std::complex<double>& val) {
+                                  return count_larger_real(
+                                          t_eigvs[t_closest_index].real(), val);
+                              })
+                               .sum();
+        auto dt_order = dt_eigvs.unaryExpr([&](const std::complex<double>& val) {
+                                  return count_larger_real(
+                                          dt_eigvs[dt_closest_index].real(), val);
+                              })
+                               .sum();
+
+        points.push_back(PEVPoint{tri(result_center),
+                                  ERank(t_order),
+                                  ERank(dt_order),
+                                  result_dir,
+                                  t_real_eigv,
+                                  dt_real_eigv,
+                                  t_eigvs.sum().imag() != 0,
+                                  dt_eigvs.sum().imag() != 0,
+                                  r.cluster_size});
+    }
+    return points;
+}
+
+
 /**
  * Check if all coefficients are positive or negative
  *
@@ -453,12 +580,13 @@ int sameSign(const BDoubleTri& coeffs)
  *
  * @return One BezierDoubleTriangle for each barycentric coordinate
  */
-std::array<BDoubleTri, 6> bezierDoubleCoeffs(const TensorInterp& s,
-                                             const TensorInterp& t,
-                                             const Triangle& r)
+std::array<BDoubleTri, 6> parallelEigenvectorCoeffs(const TensorInterp& s,
+                                                    const TensorInterp& t,
+                                                    const Triangle& r)
 {
     using Coords = BDoubleTri::Coords;
 
+    // T * r x r
     auto eval_func =
             [&](const Coords& coords, const TensorInterp& t, int i) -> double {
         return (t(coords.head<3>()) * r(coords.tail<3>()))
@@ -473,6 +601,58 @@ std::array<BDoubleTri, 6> bezierDoubleCoeffs(const TensorInterp& s,
 
     return {BDoubleTri{eval1}, BDoubleTri{eval2}, BDoubleTri{eval3},
             BDoubleTri{eval4}, BDoubleTri{eval5}, BDoubleTri{eval6}};
+}
+
+std::array<BDoubleTri, 6> tensorSujudiHaimesCoeffs(const TensorInterp& t,
+                                                   const TensorInterp& tx,
+                                                   const TensorInterp& ty,
+                                                   const TensorInterp& tz,
+                                                   const Triangle& r)
+{
+    using Coords = BDoubleTri::Coords;
+
+    // T * r x r
+    auto eval_ev = [&](const Coords& coords,
+                       const TensorInterp& t,
+                       int i) -> double {
+        auto rv = r(coords.tail<3>());
+        return (t(coords.head<3>()) * rv).cross(rv)[i];
+    };
+
+    // (\nabla T * r) * r x r
+    auto eval_deriv_ev = [&](const Coords& coords,
+                             const TensorInterp& tx,
+                             const TensorInterp& ty,
+                             const TensorInterp& tz,
+                             int i) -> double {
+        auto rv = r(coords.tail<3>());
+
+        return ((tx(coords.head<3>()) * rv[0] + ty(coords.head<3>()) * rv[1]
+                 + tz(coords.head<3>()) * rv[2])
+                * rv)
+                .cross(rv)[i];
+    };
+
+    auto eval1 = [&](const Coords& coords) { return eval_ev(coords, t, 0); };
+    auto eval2 = [&](const Coords& coords) { return eval_ev(coords, t, 1); };
+    auto eval3 = [&](const Coords& coords) { return eval_ev(coords, t, 2); };
+
+    auto eval4 = [&](const Coords& coords) {
+        return eval_deriv_ev(coords, tx, ty, tz, 0);
+    };
+    auto eval5 = [&](const Coords& coords) {
+        return eval_deriv_ev(coords, tx, ty, tz, 1);
+    };
+    auto eval6 = [&](const Coords& coords) {
+        return eval_deriv_ev(coords, tx, ty, tz, 2);
+    };
+
+    return {BDoubleTri{eval1},
+            BDoubleTri{eval2},
+            BDoubleTri{eval3},
+            BDoubleTri{eval4},
+            BDoubleTri{eval5},
+            BDoubleTri{eval6}};
 }
 
 template<typename TPBT>
@@ -561,7 +741,6 @@ TriPairList rootSearch(const std::array<TPBT, 6>& polys,
     }
 
     return result;
-
 }
 
 
@@ -583,7 +762,40 @@ TriPairList parallelEigenvectorSearch(const TensorInterp& s,
     auto compute_tri =[&](const Triangle& r) {
         boost::insert(result,
                       result.end(),
-                      rootSearch(bezierDoubleCoeffs(s, t, r),
+                      rootSearch(parallelEigenvectorCoeffs(s, t, r),
+                                 {r, tri},
+                                 spatial_epsilon,
+                                 direction_epsilon,
+                                 num_splits,
+                                 max_level));
+    };
+
+    // Four triangles covering hemisphere
+    compute_tri(Triangle{{Vec3d{1, 0, 0}, Vec3d{0, 1, 0}, Vec3d{0, 0, 1}}});
+    compute_tri(Triangle{{Vec3d{0, 1, 0}, Vec3d{-1, 0, 0}, Vec3d{0, 0, 1}}});
+    compute_tri(Triangle{{Vec3d{-1, 0, 0}, Vec3d{0, -1, 0}, Vec3d{0, 0, 1}}});
+    compute_tri(Triangle{{Vec3d{0, -1, 0}, Vec3d{1, 0, 0}, Vec3d{0, 0, 1}}});
+
+    return result;
+}
+
+
+TriPairList tensorSujudiHaimesSearch(const TensorInterp& t,
+                                     const TensorInterp& tx,
+                                     const TensorInterp& ty,
+                                     const TensorInterp& tz,
+                                     const Triangle& tri,
+                                     double spatial_epsilon,
+                                     double direction_epsilon,
+                                     uint64_t* num_splits = nullptr,
+                                     uint64_t* max_level = nullptr)
+{
+    auto result = TriPairList{};
+
+    auto compute_tri =[&](const Triangle& r) {
+        boost::insert(result,
+                      result.end(),
+                      rootSearch(tensorSujudiHaimesCoeffs(t, tx, ty, tz, r),
                                  {r, tri},
                                  spatial_epsilon,
                                  direction_epsilon,
@@ -644,6 +856,51 @@ PointList findParallelEigenvectors(const TensorInterp& s,
     return findParallelEigenvectors(
             s,
             t,
+            Triangle{{Vec3d{1., 0., 0.}, Vec3d{0., 1., 0.}, Vec3d{0., 0., 1.}}},
+            opts);
+}
+
+PointList findTensorSujudiHaimes(const TensorInterp& t,
+                                 const TensorInterp& tx,
+                                 const TensorInterp& ty,
+                                 const TensorInterp& tz,
+                                 const Triangle& x,
+                                 const PEVOptions& opts)
+{
+    auto start_tri =
+            Triangle{{Vec3d{1., 0., 0.}, Vec3d{0., 1., 0.}, Vec3d{0., 0., 1.}}};
+
+    auto num_splits = uint64_t{0};
+    auto max_level = uint64_t{0};
+
+    auto tris = tensorSujudiHaimesSearch(t,
+                                         tx,
+                                         ty,
+                                         tz,
+                                         start_tri,
+                                         opts.spatial_epsilon,
+                                         opts.direction_epsilon,
+                                         &num_splits,
+                                         &max_level);
+
+    auto clustered_tris = clusterTris(tris, opts.cluster_epsilon);
+
+    auto representatives = findRepresentativesSH(clustered_tris, t, tx, ty, tz);
+
+    return computeContextInfoSH(representatives, t, tx, ty, tz, x);
+}
+
+PointList findTensorSujudiHaimes(const TensorInterp& t,
+                                 const TensorInterp& tx,
+                                 const TensorInterp& ty,
+                                 const TensorInterp& tz,
+                                 const PEVOptions& opts)
+{
+    return findTensorSujudiHaimes(
+            t,
+            tx,
+            ty,
+            tz,
             Triangle{{Vec3d{1., 0., 0.}, Vec3d{0., 1., 0.}, Vec3d{0., 0., 1.}}},
             opts);
 }
