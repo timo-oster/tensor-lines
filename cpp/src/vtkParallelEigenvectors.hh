@@ -59,6 +59,23 @@ public:
         _min_tensor_norm = value;
     }
 
+    bool GetUseSujudiHaimes() const
+    {
+        return _use_sujudi_haimes;
+    }
+    void SetUseSujudiHaimes(bool value)
+    {
+        _use_sujudi_haimes = value;
+    }
+    void UseSujudiHaimesOn()
+    {
+        _use_sujudi_haimes = true;
+    }
+    void UseSujudiHaimesOff()
+    {
+        _use_sujudi_haimes = false;
+    }
+
     // Get the output data object for a port on this algorithm.
     vtkPolyData* GetOutput();
     vtkPolyData* GetOutput(int);
@@ -108,6 +125,7 @@ private:
     double _cluster_epsilon = 1e-4;
     double _parallelity_epsilon = 1e-6;
     double _min_tensor_norm = 1e-3;
+    bool _use_sujudi_haimes = false;
 };
 
 #endif

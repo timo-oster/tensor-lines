@@ -44,6 +44,7 @@ using Vec3dm = Eigen::Map<Vec3d>;
 struct TriFace
 {
     std::array<vtkIdType, 3> points;
+
     friend bool operator==(const TriFace& t1, const TriFace& t2)
     {
         return t1.points == t2.points;
@@ -158,6 +159,83 @@ std::vector<pev::PointList> computePEVPoints(const std::vector<TriFace>& faces,
         auto points = pev::findParallelEigenvectors(
                 pev::TensorInterp{{s1, s2, s3}},
                 pev::TensorInterp{{t1, t2, t3}},
+                pev::Triangle{{p1, p2, p3}},
+                opts);
+        results[i] = points;
+#pragma omp critical(progress)
+        {
+            progress_alg->UpdateProgress(progress_alg->GetProgress() + step);
+            if(progress_alg->GetAbortExecute())
+            {
+                std::cout << "Terminate request accepted" << std::endl;
+                terminate = true;
+            }
+        }
+    }
+    return results;
+}
+
+std::vector<pev::PointList> computeSHPoints(const std::vector<TriFace>& faces,
+                                             vtkPoints* points,
+                                             vtkDataArray* array1,
+                                             vtkDataArray* array2,
+                                             vtkDataArray* array3,
+                                             vtkDataArray* array4,
+                                             vtkAlgorithm* progress_alg,
+                                             const pev::PEVOptions& opts)
+{
+    const auto step = 1. / faces.size();
+    progress_alg->UpdateProgress(0);
+    auto results = std::vector<pev::PointList>(faces.size());
+    auto terminate = false;
+#pragma omp parallel for
+    for(auto i = std::size_t{0}; i < faces.size(); ++i)
+    {
+#pragma omp flush(terminate)
+        if(terminate) continue;
+
+        auto face = faces[i];
+
+        auto p1 = Vec3d{};
+        points->GetPoint(face.points[0], p1.data());
+        auto p2 = Vec3d{};
+        points->GetPoint(face.points[1], p2.data());
+        auto p3 = Vec3d{};
+        points->GetPoint(face.points[2], p3.data());
+
+        auto s1 = Mat3d{};
+        array1->GetTuple(face.points[0], s1.data());
+        auto s2 = Mat3d{};
+        array1->GetTuple(face.points[1], s2.data());
+        auto s3 = Mat3d{};
+        array1->GetTuple(face.points[2], s3.data());
+
+        auto sx1 = Mat3d{};
+        array2->GetTuple(face.points[0], sx1.data());
+        auto sx2 = Mat3d{};
+        array2->GetTuple(face.points[1], sx2.data());
+        auto sx3 = Mat3d{};
+        array2->GetTuple(face.points[2], sx3.data());
+
+        auto sy1 = Mat3d{};
+        array3->GetTuple(face.points[0], sy1.data());
+        auto sy2 = Mat3d{};
+        array3->GetTuple(face.points[1], sy2.data());
+        auto sy3 = Mat3d{};
+        array3->GetTuple(face.points[2], sy3.data());
+
+        auto sz1 = Mat3d{};
+        array4->GetTuple(face.points[0], sz1.data());
+        auto sz2 = Mat3d{};
+        array4->GetTuple(face.points[1], sz2.data());
+        auto sz3 = Mat3d{};
+        array4->GetTuple(face.points[2], sz3.data());
+
+        auto points = pev::findTensorSujudiHaimes(
+                pev::TensorInterp{{s1, s2, s3}},
+                pev::TensorInterp{{sx1, sx2, sx3}},
+                pev::TensorInterp{{sy1, sy2, sy3}},
+                pev::TensorInterp{{sz1, sz2, sz3}},
                 pev::Triangle{{p1, p2, p3}},
                 opts);
         results[i] = points;
@@ -338,12 +416,16 @@ int vtkParallelEigenvectors::RequestData(vtkInformation* vtkNotUsed(request),
     auto* array1 = this->GetInputArrayToProcess(0, inputVector);
     auto* array2 = this->GetInputArrayToProcess(1, inputVector);
 
+    auto* array3 = this->GetInputArrayToProcess(2, inputVector);
+    auto* array4 = this->GetInputArrayToProcess(3, inputVector);
+
     // Check if the data arrays have the correct number of components
     if(array1->GetNumberOfComponents() != 9
-       || array2->GetNumberOfComponents() != 9)
+       || array2->GetNumberOfComponents() != 9
+       || (_use_sujudi_haimes && (array3->GetNumberOfComponents() != 9
+                                  || array4->GetNumberOfComponents() != 9)))
     {
-        vtkErrorMacro(
-                << "both input arrays must be tensors with 9 components.");
+        vtkErrorMacro(<< "all input arrays must be tensors with 9 components.");
         return 0;
     }
 
@@ -352,9 +434,16 @@ int vtkParallelEigenvectors::RequestData(vtkInformation* vtkNotUsed(request),
                != vtkDataObject::FIELD_ASSOCIATION_POINTS
        || this->GetInputArrayInformation(1)->Get(
                   vtkDataObject::FIELD_ASSOCIATION())
-                  != vtkDataObject::FIELD_ASSOCIATION_POINTS)
+                  != vtkDataObject::FIELD_ASSOCIATION_POINTS
+       || (_use_sujudi_haimes
+           && (this->GetInputArrayInformation(2)->Get(
+                       vtkDataObject::FIELD_ASSOCIATION())
+                       != vtkDataObject::FIELD_ASSOCIATION_POINTS
+               || this->GetInputArrayInformation(3)->Get(
+                          vtkDataObject::FIELD_ASSOCIATION())
+                          != vtkDataObject::FIELD_ASSOCIATION_POINTS)))
     {
-        vtkErrorMacro(<< "both input arrays must be point data.");
+        vtkErrorMacro(<< "all input arrays must be point data.");
         return 0;
     }
 
@@ -406,8 +495,24 @@ int vtkParallelEigenvectors::RequestData(vtkInformation* vtkNotUsed(request),
                                 this->GetDirectionEpsilon(),
                                 this->GetClusterEpsilon()};
 
-    auto fresults = computePEVPoints(
-            faces, input->GetPoints(), array1, array2, this, opts);
+    auto fresults = std::vector<pev::PointList>{};
+
+    if(_use_sujudi_haimes)
+    {
+        fresults = computeSHPoints(faces,
+                                   input->GetPoints(),
+                                   array1,
+                                   array2,
+                                   array3,
+                                   array4,
+                                   this,
+                                   opts);
+    }
+    else
+    {
+        fresults = computePEVPoints(
+                faces, input->GetPoints(), array1, array2, this, opts);
+    }
 
     auto end_pointsearch = high_resolution_clock::now();
 

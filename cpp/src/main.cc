@@ -67,6 +67,10 @@ int main(int argc, char const* argv[])
     auto out_name = std::string{"Parallel_Eigenvectors.vtk"};
     auto s_field_name = std::string{"S"};
     auto t_field_name = std::string{"T"};
+    auto sx_field_name = std::string{"Sx"};
+    auto sy_field_name = std::string{"Sy"};
+    auto sz_field_name = std::string{"Sz"};
+    auto use_sujudi_haimes = false;
 
     try
     {
@@ -100,14 +104,30 @@ int main(int argc, char const* argv[])
                 po::value<std::string>(&s_field_name)
                     ->required()->default_value(s_field_name),
                 "name of the first input tensor field")
-            ("t_field_name,t",
+            ("t-field-name,t",
                 po::value<std::string>(&t_field_name)
                         ->required()->default_value(t_field_name),
                 "name of the second input tensor field")
+            ("sx-field-name",
+                po::value<std::string>(&sx_field_name)
+                    ->required()->default_value(sx_field_name),
+                "name of the x derivative of the input tensor field")
+            ("sy-field-name",
+                po::value<std::string>(&sy_field_name)
+                    ->required()->default_value(sy_field_name),
+                "name of the y derivative of the input tensor field")
+            ("sz-field-name",
+                po::value<std::string>(&sz_field_name)
+                    ->required()->default_value(sz_field_name),
+                "name of the z derivative of the input tensor field")
             ("output,o",
                 po::value<std::string>(&out_name)
                         ->required()->default_value(out_name),
-                "Name of the output file");
+                "Name of the output file")
+            ("sujudi-haimes",
+                po::bool_switch(&use_sujudi_haimes),
+                "Compute Sujudi-Haimes for tensor fields "
+                "(requires tensor derivatives Sx, Sy, Sz)");
 
         auto podesc = po::positional_options_description{};
         podesc.add("input-file", 1);
@@ -125,6 +145,22 @@ int main(int argc, char const* argv[])
             return 0;
         }
         po::notify(vm);
+
+        if(use_sujudi_haimes && !vm["t-field-name"].defaulted())
+        {
+            std::cout << "Warning: You are using --sujudi-haimes. "
+                         "--t-field-name will be ignored."
+                      << std::endl;
+        }
+        else if(!use_sujudi_haimes
+                && (!vm["sx-field-name"].defaulted()
+                    || !vm["sy-field-name"].defaulted()
+                    || !vm["sz-field-name"].defaulted()))
+        {
+            std::cout << "Warning: You have specified sx-, sy-, or "
+                         "sz-field-name but you are not using --sujudi-haimes. "
+                         "These flags will be ignored." << std::endl;
+        }
     }
     catch(std::exception& e)
     {
@@ -163,19 +199,46 @@ int main(int argc, char const* argv[])
     vtkpev->SetClusterEpsilon(cluster_epsilon);
     vtkpev->SetParallelityEpsilon(parallelity_epsilon);
     vtkpev->SetMinTensorNorm(min_tensor_norm);
+    vtkpev->SetUseSujudiHaimes(use_sujudi_haimes);
     vtkpev->AddObserver(vtkCommand::ProgressEvent, progressCallback);
 
     vtkpev->SetInputConnection(0, reader->GetOutputPort(0));
-    vtkpev->SetInputArrayToProcess(0,
-                                   0,
-                                   0,
-                                   vtkDataObject::FIELD_ASSOCIATION_POINTS,
-                                   s_field_name.c_str());
-    vtkpev->SetInputArrayToProcess(1,
-                                   0,
-                                   0,
-                                   vtkDataObject::FIELD_ASSOCIATION_POINTS,
-                                   t_field_name.c_str());
+    if(!use_sujudi_haimes)
+    {
+        vtkpev->SetInputArrayToProcess(0,
+                                       0,
+                                       0,
+                                       vtkDataObject::FIELD_ASSOCIATION_POINTS,
+                                       s_field_name.c_str());
+        vtkpev->SetInputArrayToProcess(1,
+                                       0,
+                                       0,
+                                       vtkDataObject::FIELD_ASSOCIATION_POINTS,
+                                       t_field_name.c_str());
+    }
+    else
+    {
+        vtkpev->SetInputArrayToProcess(0,
+                                       0,
+                                       0,
+                                       vtkDataObject::FIELD_ASSOCIATION_POINTS,
+                                       s_field_name.c_str());
+        vtkpev->SetInputArrayToProcess(1,
+                                       0,
+                                       0,
+                                       vtkDataObject::FIELD_ASSOCIATION_POINTS,
+                                       sx_field_name.c_str());
+        vtkpev->SetInputArrayToProcess(2,
+                                       0,
+                                       0,
+                                       vtkDataObject::FIELD_ASSOCIATION_POINTS,
+                                       sy_field_name.c_str());
+        vtkpev->SetInputArrayToProcess(3,
+                                       0,
+                                       0,
+                                       vtkDataObject::FIELD_ASSOCIATION_POINTS,
+                                       sz_field_name.c_str());
+    }
 
 #ifdef __linux__
     // Set up thread to check for program termination and set AbortExecute
