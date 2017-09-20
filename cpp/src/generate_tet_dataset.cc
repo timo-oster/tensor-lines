@@ -54,6 +54,7 @@ int main(int argc, char const* argv[])
     auto out_name = std::string{"Grid.vtk"};
     auto symmetric = false;
     auto interactive = false;
+    auto gen_derivatives = false;
 
     try
     {
@@ -69,6 +70,9 @@ int main(int argc, char const* argv[])
                 "--random")
             ("interactive,i",
                 "Interactive mode (read matrices from stdin)")
+            ("derivatives,d",
+                po::bool_switch(&gen_derivatives),
+                "Also generate derivatives Sx, Sy, and Sz")
             ("subdivision-level,l",
                 po::value<int32_t>(&num_subdivisions)
                         ->required()
@@ -156,6 +160,43 @@ int main(int argc, char const* argv[])
     }
     grid->GetPointData()->SetTensors(s_field);
     grid->GetPointData()->AddArray(t_field);
+
+    if(gen_derivatives)
+    {
+        auto sx_field = vtkSmartPointer<vtkDoubleArray>::New();
+        sx_field->SetName("Sx");
+        sx_field->SetNumberOfComponents(9);
+        sx_field->SetNumberOfTuples(points->GetNumberOfPoints());
+        auto sy_field = vtkSmartPointer<vtkDoubleArray>::New();
+        sy_field->SetName("Sy");
+        sy_field->SetNumberOfComponents(9);
+        sy_field->SetNumberOfTuples(points->GetNumberOfPoints());
+        auto sz_field = vtkSmartPointer<vtkDoubleArray>::New();
+        sz_field->SetName("Sz");
+        sz_field->SetNumberOfComponents(9);
+        sz_field->SetNumberOfTuples(points->GetNumberOfPoints());
+        for(auto i : range(points->GetNumberOfPoints()))
+        {
+            if(interactive)
+            {
+                sx_field->SetTuple(
+                        i, inputMatrix(make_string() << "Sx" << (i + 1)).data());
+                sy_field->SetTuple(
+                        i, inputMatrix(make_string() << "Sy" << (i + 1)).data());
+                sz_field->SetTuple(
+                        i, inputMatrix(make_string() << "Sx" << (i + 1)).data());
+            }
+            else
+            {
+                sx_field->SetTuple(i, randMatrix(rnd, gen, symmetric).data());
+                sy_field->SetTuple(i, randMatrix(rnd, gen, symmetric).data());
+                sz_field->SetTuple(i, randMatrix(rnd, gen, symmetric).data());
+            }
+        }
+        grid->GetPointData()->AddArray(sx_field);
+        grid->GetPointData()->AddArray(sy_field);
+        grid->GetPointData()->AddArray(sz_field);
+    }
 
     auto sub_filter = vtkSmartPointer<vtkSubdivideTetra>::New();
 
