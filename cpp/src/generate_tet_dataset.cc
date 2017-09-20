@@ -55,6 +55,7 @@ int main(int argc, char const* argv[])
     auto symmetric = false;
     auto interactive = false;
     auto gen_derivatives = false;
+    auto force_center_solution = false;
 
     try
     {
@@ -69,10 +70,15 @@ int main(int argc, char const* argv[])
                 "Generate symmetric tensor. Only works in conjunction with "
                 "--random")
             ("interactive,i",
+                po::bool_switch(&interactive),
                 "Interactive mode (read matrices from stdin)")
             ("derivatives,d",
                 po::bool_switch(&gen_derivatives),
                 "Also generate derivatives Sx, Sy, and Sz")
+            ("force-center-solution,f",
+                po::bool_switch(&force_center_solution),
+                "Force a solution of tensor Sujudi-Haimes on the z-axis "
+                "(only valid when using --derivatives)")
             ("subdivision-level,l",
                 po::value<int32_t>(&num_subdivisions)
                         ->required()
@@ -94,21 +100,30 @@ int main(int argc, char const* argv[])
 
         po::notify(vm);
 
-        if(vm.count("random") > 0 && vm.count("interactive") > 0)
+        if(vm.count("random") > 0 && interactive)
         {
-            throw std::logic_error(
+            throw po::error(
                     "Conflicting options --random and --interactive");
         }
-        if(vm.count("symmetric") > 0 && vm.count("interactive") > 0)
+        if(vm.count("symmetric") > 0 && interactive)
         {
-            throw std::logic_error(
+            throw po::error(
                     "Conflicting options --symmetric and --interactive");
         }
-        if(vm.count("interactive")) interactive = true;
+        if(force_center_solution && !gen_derivatives)
+        {
+            throw po::error("Using --force-center-solution requires using "
+                            "--derivatives");
+        }
+        if(interactive && force_center_solution)
+        {
+            throw po::error("Conflicting options --force-center-solution and "
+                            "--interactive");
+        }
     }
     catch(std::exception& e)
     {
-        std::cerr << "error: " << e.what() << "\n";
+        std::cerr << "Error: " << e.what() << "\n";
         return 1;
     }
     catch(...)
@@ -154,7 +169,20 @@ int main(int argc, char const* argv[])
         }
         else
         {
-            s_field->SetTuple(i, randMatrix(rnd, gen, symmetric).data());
+            auto s_mat = randMatrix(rnd, gen, symmetric);
+
+            if(force_center_solution)
+            {
+                s_mat(0, 2) = 0;
+                s_mat(1, 2) = 0;
+                if(symmetric)
+                {
+                    s_mat(2, 0) = 0;
+                    s_mat(2, 1) = 0;
+                }
+            }
+
+            s_field->SetTuple(i, s_mat.data());
             t_field->SetTuple(i, randMatrix(rnd, gen, symmetric).data());
         }
     }
@@ -188,9 +216,22 @@ int main(int argc, char const* argv[])
             }
             else
             {
+                auto sz_mat = randMatrix(rnd, gen, symmetric);
+
+                if(force_center_solution)
+                {
+                    sz_mat(0, 2) = 0;
+                    sz_mat(1, 2) = 0;
+                    if(symmetric)
+                    {
+                        sz_mat(2, 0) = 0;
+                        sz_mat(2, 1) = 0;
+                    }
+                }
+
                 sx_field->SetTuple(i, randMatrix(rnd, gen, symmetric).data());
                 sy_field->SetTuple(i, randMatrix(rnd, gen, symmetric).data());
-                sz_field->SetTuple(i, randMatrix(rnd, gen, symmetric).data());
+                sz_field->SetTuple(i, sz_mat.data());
             }
         }
         grid->GetPointData()->AddArray(sx_field);
