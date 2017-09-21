@@ -47,7 +47,8 @@ Mat3d randMatrix(R& rnd, G& gen, bool symmetric = false)
 
 int main(int argc, char const* argv[])
 {
-    using namespace pev;
+    using pev::range;
+    using pev::make_string;
 
     auto random_seed = uint32_t{42};
     auto num_subdivisions = int32_t{8};
@@ -150,47 +151,41 @@ int main(int argc, char const* argv[])
     cell->InsertNextId(3);
     grid->InsertNextCell(VTK_TETRA, cell);
 
-    auto s_field = vtkSmartPointer<vtkDoubleArray>::New();
-    s_field->SetName("S");
-    s_field->SetNumberOfComponents(9);
-    s_field->SetNumberOfTuples(points->GetNumberOfPoints());
-    auto t_field = vtkSmartPointer<vtkDoubleArray>::New();
-    t_field->SetName("T");
-    t_field->SetNumberOfComponents(9);
-    t_field->SetNumberOfTuples(points->GetNumberOfPoints());
-    for(auto i : range(points->GetNumberOfPoints()))
+    if(!gen_derivatives)
     {
-        if(interactive)
-        {
-            s_field->SetTuple(
-                    i, inputMatrix(make_string() << "S" << (i + 1)).data());
-            t_field->SetTuple(
-                    i, inputMatrix(make_string() << "T" << (i + 1)).data());
-        }
-        else
-        {
-            auto s_mat = randMatrix(rnd, gen, symmetric);
+        auto s_field = vtkSmartPointer<vtkDoubleArray>::New();
+        s_field->SetName("S");
+        s_field->SetNumberOfComponents(9);
+        s_field->SetNumberOfTuples(points->GetNumberOfPoints());
+        auto t_field = vtkSmartPointer<vtkDoubleArray>::New();
+        t_field->SetName("T");
+        t_field->SetNumberOfComponents(9);
+        t_field->SetNumberOfTuples(points->GetNumberOfPoints());
 
-            if(force_center_solution)
+        for(auto i : range(points->GetNumberOfPoints()))
+        {
+            if(interactive)
             {
-                s_mat(0, 2) = 0;
-                s_mat(1, 2) = 0;
-                if(symmetric)
-                {
-                    s_mat(2, 0) = 0;
-                    s_mat(2, 1) = 0;
-                }
+                s_field->SetTuple(
+                        i, inputMatrix(make_string() << "S" << (i + 1)).data());
+                t_field->SetTuple(
+                        i, inputMatrix(make_string() << "T" << (i + 1)).data());
             }
-
-            s_field->SetTuple(i, s_mat.data());
-            t_field->SetTuple(i, randMatrix(rnd, gen, symmetric).data());
+            else
+            {
+                s_field->SetTuple(i, randMatrix(rnd, gen, symmetric).data());
+                t_field->SetTuple(i, randMatrix(rnd, gen, symmetric).data());
+            }
         }
+        grid->GetPointData()->SetTensors(s_field);
+        grid->GetPointData()->AddArray(t_field);
     }
-    grid->GetPointData()->SetTensors(s_field);
-    grid->GetPointData()->AddArray(t_field);
-
-    if(gen_derivatives)
+    else
     {
+        auto s0_field = vtkSmartPointer<vtkDoubleArray>::New();
+        s0_field->SetName("S0");
+        s0_field->SetNumberOfComponents(9);
+        s0_field->SetNumberOfTuples(points->GetNumberOfPoints());
         auto sx_field = vtkSmartPointer<vtkDoubleArray>::New();
         sx_field->SetName("Sx");
         sx_field->SetNumberOfComponents(9);
@@ -203,40 +198,62 @@ int main(int argc, char const* argv[])
         sz_field->SetName("Sz");
         sz_field->SetNumberOfComponents(9);
         sz_field->SetNumberOfTuples(points->GetNumberOfPoints());
-        for(auto i : range(points->GetNumberOfPoints()))
+        auto s_field = vtkSmartPointer<vtkDoubleArray>::New();
+        s_field->SetName("S");
+        s_field->SetNumberOfComponents(9);
+        s_field->SetNumberOfTuples(points->GetNumberOfPoints());
+
+        auto s0_mat = Mat3d{};
+        auto sx_mat = Mat3d{};
+        auto sy_mat = Mat3d{};
+        auto sz_mat = Mat3d{};
+
+        if(interactive)
         {
-            if(interactive)
+            s0_mat = inputMatrix("S0");
+            sx_mat = inputMatrix("Sx");
+            sy_mat = inputMatrix("Sy");
+            sz_mat = inputMatrix("Sz");
+        }
+        else
+        {
+            s0_mat = randMatrix(rnd, gen, symmetric);
+            sx_mat = randMatrix(rnd, gen, symmetric);
+            sy_mat = randMatrix(rnd, gen, symmetric);
+            sz_mat = randMatrix(rnd, gen, symmetric);
+            if(force_center_solution)
             {
-                sx_field->SetTuple(
-                        i, inputMatrix(make_string() << "Sx" << (i + 1)).data());
-                sy_field->SetTuple(
-                        i, inputMatrix(make_string() << "Sy" << (i + 1)).data());
-                sz_field->SetTuple(
-                        i, inputMatrix(make_string() << "Sx" << (i + 1)).data());
-            }
-            else
-            {
-                auto sz_mat = randMatrix(rnd, gen, symmetric);
-
-                if(force_center_solution)
+                s0_mat(0, 2) = 0;
+                s0_mat(1, 2) = 0;
+                sz_mat(0, 2) = 0;
+                sz_mat(1, 2) = 0;
+                if(symmetric)
                 {
-                    sz_mat(0, 2) = 0;
-                    sz_mat(1, 2) = 0;
-                    if(symmetric)
-                    {
-                        sz_mat(2, 0) = 0;
-                        sz_mat(2, 1) = 0;
-                    }
+                    s0_mat(2, 0) = 0;
+                    s0_mat(2, 1) = 0;
+                    sz_mat(2, 0) = 0;
+                    sz_mat(2, 1) = 0;
                 }
-
-                sx_field->SetTuple(i, randMatrix(rnd, gen, symmetric).data());
-                sy_field->SetTuple(i, randMatrix(rnd, gen, symmetric).data());
-                sz_field->SetTuple(i, sz_mat.data());
             }
         }
+
+        for(auto i : range(points->GetNumberOfPoints()))
+        {
+            s0_field->SetTuple(i, s0_mat.data());
+            sx_field->SetTuple(i, sx_mat.data());
+            sy_field->SetTuple(i, sy_mat.data());
+            sz_field->SetTuple(i, sz_mat.data());
+        }
+        s_field->SetTuple(0, (s0_mat + sx_mat + sy_mat + sz_mat).eval().data());
+        s_field->SetTuple(0, (s0_mat - sx_mat + sy_mat - sz_mat).eval().data());
+        s_field->SetTuple(0, (s0_mat + sx_mat - sy_mat - sz_mat).eval().data());
+        s_field->SetTuple(0, (s0_mat - sx_mat - sy_mat + sz_mat).eval().data());
+
+        grid->GetPointData()->AddArray(s0_field);
         grid->GetPointData()->AddArray(sx_field);
         grid->GetPointData()->AddArray(sy_field);
         grid->GetPointData()->AddArray(sz_field);
+        grid->GetPointData()->AddArray(s_field);
     }
 
     auto sub_filter = vtkSmartPointer<vtkSubdivideTetra>::New();
