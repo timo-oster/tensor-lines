@@ -160,7 +160,7 @@ std::array<Vec2d, 3> project_tri(const Triangle& tri, bool topdown = true)
                 -sqrt23, -sqrt23, sqrt23;
     }
     auto result = std::array<Vec2d, 3>{
-            proj * tri.v1(), proj * tri.v2(), proj * tri.v3()};
+            proj * tri[0], proj * tri[1], proj * tri[2]};
     for(auto& p : result)
     {
         p = (p * pos_image.width() / 2)
@@ -208,7 +208,7 @@ void draw_cross(CImg& image,
                 bool topdown = true)
 {
     static const auto size = 10;
-    auto projected = project_tri(Triangle{pos, pos, pos}, topdown);
+    auto projected = project_tri(Triangle{{pos, pos, pos}}, topdown);
     image.draw_line(int(projected[0].x()) - size,
                     int(projected[0].y()),
                     int(projected[0].x()) + size,
@@ -752,11 +752,6 @@ TriPairList parallelEigenvectorSearch(const TensorInterp& s,
                                       uint64_t* num_splits = nullptr,
                                       uint64_t* max_level = nullptr)
 {
-#ifdef DRAW_DEBUG
-    pos_image.fill(0);
-    dir_image.fill(0);
-#endif
-
     auto result = TriPairList{};
 
     auto compute_tri =[&](const Triangle& r) {
@@ -768,6 +763,10 @@ TriPairList parallelEigenvectorSearch(const TensorInterp& s,
                                  direction_epsilon,
                                  num_splits,
                                  max_level));
+#ifdef DRAW_DEBUG
+    pos_image.fill(0);
+    dir_image.fill(0);
+#endif
     };
 
     // Four triangles covering hemisphere
@@ -801,6 +800,10 @@ TriPairList tensorSujudiHaimesSearch(const TensorInterp& t,
                                  direction_epsilon,
                                  num_splits,
                                  max_level));
+#ifdef DRAW_DEBUG
+    pos_image.fill(0);
+    dir_image.fill(0);
+#endif
     };
 
     // Four triangles covering hemisphere
