@@ -138,10 +138,10 @@ int main(int argc, char const* argv[])
     // Build vtkUnstructuredGrid with tetrahedral cells
     auto grid = vtkSmartPointer<vtkUnstructuredGrid>::New();
     auto points = vtkSmartPointer<vtkPoints>::New();
-    points->InsertNextPoint(1., 1., 1.);
-    points->InsertNextPoint(-1., 1., -1.);
-    points->InsertNextPoint(1., -1., -1.);
-    points->InsertNextPoint(-1., -1., 1.);
+    points->InsertNextPoint( 1.01979867,  1.00974785,  0.96975252);
+    points->InsertNextPoint(-1.01979867,  0.99015215, -0.98975218);
+    points->InsertNextPoint( 0.97980134, -1.01014782, -1.00974785);
+    points->InsertNextPoint(-0.97980134, -0.98975218,  1.02974752);
     grid->SetPoints(points);
 
     auto cell = vtkSmartPointer<vtkIdList>::New();
@@ -244,10 +244,10 @@ int main(int argc, char const* argv[])
             sy_field->SetTuple(i, sy_mat.data());
             sz_field->SetTuple(i, sz_mat.data());
         }
-        s_field->SetTuple(0, (s0_mat + sx_mat + sy_mat + sz_mat).eval().data());
-        s_field->SetTuple(0, (s0_mat - sx_mat + sy_mat - sz_mat).eval().data());
-        s_field->SetTuple(0, (s0_mat + sx_mat - sy_mat - sz_mat).eval().data());
-        s_field->SetTuple(0, (s0_mat - sx_mat - sy_mat + sz_mat).eval().data());
+        s_field->SetTuple(0, (s0_mat + 1.01979867 * sx_mat + 1.00974785 * sy_mat + 0.96975252 * sz_mat).eval().data());
+        s_field->SetTuple(1, (s0_mat - 1.01979867 * sx_mat + 0.99015215 * sy_mat - 0.98975218 * sz_mat).eval().data());
+        s_field->SetTuple(2, (s0_mat + 0.97980134 * sx_mat - 1.01014782 * sy_mat - 1.00974785 * sz_mat).eval().data());
+        s_field->SetTuple(3, (s0_mat - 0.97980134 * sx_mat - 0.98975218 * sy_mat + 1.02974752 * sz_mat).eval().data());
 
         grid->GetPointData()->AddArray(s0_field);
         grid->GetPointData()->AddArray(sx_field);
@@ -261,13 +261,10 @@ int main(int argc, char const* argv[])
     for(auto _ : range(num_subdivisions))
     {
         sub_filter->SetInputData(grid);
-
         auto new_grid = vtkSmartPointer<vtkUnstructuredGrid>(
                 vtkUnstructuredGrid::SafeDownCast(
                         sub_filter->GetOutputDataObject(0)));
-
         sub_filter->Update();
-
         grid->DeepCopy(new_grid);
     }
 
