@@ -10,7 +10,7 @@ template <typename T, typename C>
 struct TensorProductTraits<TensorProductBezierTriangle<T, C, 3>>
 {
     static constexpr std::size_t NCoords = 3;
-    static constexpr std::size_t NCoeffs = 3;
+    static constexpr std::size_t NCoeffs = 10;
 };
 
 template <typename T, typename C>
@@ -59,7 +59,7 @@ private:
     static Coeffs computeCoeffs(const Coeffs& samples);
 };
 
-}
+} // namespace pev
 
 #include "TensorProductBezierTriangle3.tcc"
 
