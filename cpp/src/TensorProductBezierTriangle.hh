@@ -5,11 +5,18 @@
 
 #include <Eigen/Core>
 
-#include <utility>
+#include <tuple>
 #include <type_traits>
+#include <utility>
 
 namespace pev
 {
+template <int D, typename T, typename C, int... Degrees>
+struct TensorProductDerivativeType;
+
+template <int D, typename T, typename C, int... Degrees>
+struct TensorProductDerivative;
+
 
 /**
  * Traits class for accessing typedefs from specializations of
@@ -222,6 +229,19 @@ public:
                 Derived{Derived::template splitCoeffs<3, D>(_coeffs)}};
     }
 
+    template <int D>
+    typename TensorProductDerivativeType<D, T, C, Degrees...>::type
+    derivative(int i)
+    {
+        using Derivative =
+                typename TensorProductDerivativeType<D, T, C, Degrees...>::type;
+        using OpType = TensorProductDerivative<D, T, C, Degrees...>;
+
+        assert(i >= 0 && i < 3);
+
+        return Derivative{OpType::deriv_op(_coeffs, i)};
+    }
+
     friend bool operator==(const Derived& o1, const Derived& o2)
     {
         return o1.coefficients() == o2.coefficients();
@@ -269,7 +289,7 @@ class TensorProductBezierTriangle
 {
 };
 
-}
+} // namespace pev
 
 #include "TensorProductBezierTriangle1.hh"
 #include "TensorProductBezierTriangle3.hh"

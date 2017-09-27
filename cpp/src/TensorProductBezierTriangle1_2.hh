@@ -67,7 +67,37 @@ private:
     static Coeffs computeCoeffs(const Coeffs& samples);
 };
 
-}
+
+template <typename T, typename C>
+struct TensorProductDerivativeType<0, T, C, 1, 2>
+{
+    using type = TensorProductBezierTriangle<T, C, 2>;
+};
+
+
+template <typename T, typename C>
+struct TensorProductDerivativeType<1, T, C, 1, 2>
+{
+    using type = TensorProductBezierTriangle<T, C, 1, 1>;
+};
+
+template<typename T, typename C>
+struct TensorProductDerivative<0, T, C, 1, 2>
+{
+    using Coeffs = typename TensorProductBezierTriangle<T, C, 1, 2>::Coeffs;
+    using DerivCoeffs = typename TensorProductDerivativeType<0, T, C, 1, 2>::type::Coeffs;
+    static DerivCoeffs deriv_op(const Coeffs& in, int dir);
+};
+
+template<typename T, typename C>
+struct TensorProductDerivative<1, T, C, 1, 2>
+{
+    using Coeffs = typename TensorProductBezierTriangle<T, C, 1, 2>::Coeffs;
+    using DerivCoeffs = typename TensorProductDerivativeType<1, T, C, 1, 2>::type::Coeffs;
+    static DerivCoeffs deriv_op(const Coeffs& in, int dir);
+};
+
+} // namespace pev
 
 #include "TensorProductBezierTriangle1_2.tcc"
 

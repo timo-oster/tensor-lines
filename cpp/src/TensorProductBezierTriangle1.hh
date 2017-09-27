@@ -52,7 +52,7 @@ private:
     static Coeffs computeCoeffs(const Coeffs& samples);
 };
 
-}
+} // namespace pev
 
 #include "TensorProductBezierTriangle1.tcc"
 

@@ -70,4 +70,4 @@ TPBT1<T, C>::computeCoeffs(const Coeffs& in)
     return in;
 }
 
-}
+} // namespace pev

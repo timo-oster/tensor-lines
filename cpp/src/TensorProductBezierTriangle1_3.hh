@@ -3,8 +3,8 @@
 
 #include "TensorProductBezierTriangle.hh"
 
-#include <utility>
 #include <type_traits>
+#include <utility>
 
 namespace pev
 {
@@ -16,15 +16,28 @@ struct TensorProductTraits<TensorProductBezierTriangle<T, C, 1, 3>>
     static constexpr std::size_t NCoeffs = 30;
 };
 
+
 template <typename T, typename C>
 class TensorProductBezierTriangle<T, C, 1, 3>
-        : public TensorProductBezierTriangleBase<
-                    TensorProductBezierTriangle<T, C, 1, 3>, T, C, 1, 3>
+        : public TensorProductBezierTriangleBase<TensorProductBezierTriangle<T,
+                                                                             C,
+                                                                             1,
+                                                                             3>,
+                                                 T,
+                                                 C,
+                                                 1,
+                                                 3>
 {
 public:
     using Self = TensorProductBezierTriangle<T, C, 1, 3>;
-    using Base = TensorProductBezierTriangleBase<
-                    TensorProductBezierTriangle<T, C, 1, 3>, T, C, 1, 3>;
+    using Base = TensorProductBezierTriangleBase<TensorProductBezierTriangle<T,
+                                                                             C,
+                                                                             1,
+                                                                             3>,
+                                                 T,
+                                                 C,
+                                                 1,
+                                                 3>;
     using Traits = TensorProductTraits<Self>;
     using Coords = typename Base::Coords;
     using Coeffs = typename Base::Coeffs;
@@ -70,19 +83,55 @@ public:
 private:
     using Basis = Eigen::Matrix<C, Traits::NCoeffs, 1>;
     using DomainPoints = Eigen::Matrix<T, Traits::NCoeffs, Traits::NCoords>;
+    template <int D>
+    using DerivCoeffs =
+            typename TensorProductDerivativeType<D, T, C, 1, 3>::Coeffs;
 
     static const DomainPoints& domainPoints();
 
     static Basis makeBasis(const Coords& pos);
 
     // Splitting and interpolating operators
-    template<int I, int D>
+    template <int I, int D>
     static Coeffs splitCoeffs(const Coeffs& in);
 
     static Coeffs computeCoeffs(const Coeffs& samples);
 };
 
-}
+
+template <typename T, typename C>
+struct TensorProductDerivativeType<0, T, C, 1, 3>
+{
+    using type = TensorProductBezierTriangle<T, C, 3>;
+};
+
+
+template <typename T, typename C>
+struct TensorProductDerivativeType<1, T, C, 1, 3>
+{
+    using type = TensorProductBezierTriangle<T, C, 1, 2>;
+};
+
+
+template<typename T, typename C>
+struct TensorProductDerivative<0, T, C, 1, 3>
+{
+    using Coeffs = typename TensorProductBezierTriangle<T, C, 1, 3>::Coeffs;
+    using DerivCoeffs = typename TensorProductDerivativeType<0, T, C, 1, 3>::type::Coeffs;
+    static DerivCoeffs deriv_op(const Coeffs& in, int dir);
+};
+
+
+template<typename T, typename C>
+struct TensorProductDerivative<1, T, C, 1, 3>
+{
+    using Coeffs = typename TensorProductBezierTriangle<T, C, 1, 3>::Coeffs;
+    using DerivCoeffs = typename TensorProductDerivativeType<1, T, C, 1, 3>::type::Coeffs;
+    static DerivCoeffs deriv_op(const Coeffs& in, int dir);
+};
+
+
+} // namespace pev
 
 #include "TensorProductBezierTriangle1_3.tcc"
 

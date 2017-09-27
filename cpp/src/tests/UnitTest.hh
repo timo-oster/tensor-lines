@@ -22,6 +22,12 @@ class UnitTests : public CxxTest::TestSuite
 
     std::function<double(const Coords1_2&)> _poly1_2;
     std::function<double(const Coords1_3&)> _poly1_3;
+    std::function<double(const Coords1_3&)> _poly1_3_d00;
+    std::function<double(const Coords1_3&)> _poly1_3_d01;
+    std::function<double(const Coords1_3&)> _poly1_3_d02;
+    std::function<double(const Coords1_3&)> _poly1_3_d10;
+    std::function<double(const Coords1_3&)> _poly1_3_d11;
+    std::function<double(const Coords1_3&)> _poly1_3_d12;
     std::function<double(const Coords3&)> _poly3;
 
 public:
@@ -79,6 +85,108 @@ public:
                    + 8.4 * 3 * pos[2] * pos[4] * pos[4] * pos[5]
                    + 8.7 * 3 * pos[2] * pos[4] * pos[5] * pos[5]
                    + 7.6 * 1 * pos[2] * pos[5] * pos[5] * pos[5];
+        };
+
+        _poly1_3_d00 = [](const Coords1_3& pos) {
+            return 3.4 * 1 * pos[3] * pos[3] * pos[3]
+                   + 3.8 * 3 * pos[3] * pos[3] * pos[4]
+                   + 9.2 * 3 * pos[3] * pos[3] * pos[5]
+                   + 7.1 * 3 * pos[3] * pos[4] * pos[4]
+                   + 6.8 * 6 * pos[3] * pos[4] * pos[5]
+                   + 1.5 * 3 * pos[3] * pos[5] * pos[5]
+                   + 6.7 * 1 * pos[4] * pos[4] * pos[4]
+                   + 1.8 * 3 * pos[4] * pos[4] * pos[5]
+                   + 6.2 * 3 * pos[4] * pos[5] * pos[5]
+                   + 8.7 * 1 * pos[5] * pos[5] * pos[5];
+        };
+
+        _poly1_3_d01 = [](const Coords1_3& pos) {
+            return 9.9 * 1 * pos[3] * pos[3] * pos[3]
+                   + 1.4 * 3 * pos[3] * pos[3] * pos[4]
+                   + 5.7 * 3 * pos[3] * pos[3] * pos[5]
+                   + 7.1 * 3 * pos[3] * pos[4] * pos[4]
+                   + 6.1 * 6 * pos[3] * pos[4] * pos[5]
+                   + 7.4 * 3 * pos[3] * pos[5] * pos[5]
+                   + 2.6 * 1 * pos[4] * pos[4] * pos[4]
+                   + 9.4 * 3 * pos[4] * pos[4] * pos[5]
+                   + 4.8 * 3 * pos[4] * pos[5] * pos[5]
+                   + 9.3 * 1 * pos[5] * pos[5] * pos[5];
+        };
+
+        _poly1_3_d02 = [](const Coords1_3& pos) {
+            return 2.7 * 1 * pos[3] * pos[3] * pos[3]
+                   + 6.4 * 3 * pos[3] * pos[3] * pos[4]
+                   + 5.1 * 3 * pos[3] * pos[3] * pos[5]
+                   + 7.2 * 3 * pos[3] * pos[4] * pos[4]
+                   + 6.5 * 6 * pos[3] * pos[4] * pos[5]
+                   + 5.5 * 3 * pos[3] * pos[5] * pos[5]
+                   + 1.2 * 1 * pos[4] * pos[4] * pos[4]
+                   + 8.4 * 3 * pos[4] * pos[4] * pos[5]
+                   + 8.7 * 3 * pos[4] * pos[5] * pos[5]
+                   + 7.6 * 1 * pos[5] * pos[5] * pos[5];
+        };
+
+        _poly1_3_d10 = [](const Coords1_3& pos) {
+            return 3.4 * 1 * 3 * pos[0] * pos[3] * pos[3]
+                   + 3.8 * 3 * 2 * pos[0] * pos[3] * pos[4]
+                   + 9.2 * 3 * 2 * pos[0] * pos[3] * pos[5]
+                   + 7.1 * 3 * 1 * pos[0] * pos[4] * pos[4]
+                   + 6.8 * 6 * 1 * pos[0] * pos[4] * pos[5]
+                   + 1.5 * 3 * 1 * pos[0] * pos[5] * pos[5]
+                   + 9.9 * 1 * 3 * pos[1] * pos[3] * pos[3]
+                   + 1.4 * 3 * 2 * pos[1] * pos[3] * pos[4]
+                   + 5.7 * 3 * 2 * pos[1] * pos[3] * pos[5]
+                   + 7.1 * 3 * 1 * pos[1] * pos[4] * pos[4]
+                   + 6.1 * 6 * 1 * pos[1] * pos[4] * pos[5]
+                   + 7.4 * 3 * 1 * pos[1] * pos[5] * pos[5]
+                   + 2.7 * 1 * 3 * pos[2] * pos[3] * pos[3]
+                   + 6.4 * 3 * 2 * pos[2] * pos[3] * pos[4]
+                   + 5.1 * 3 * 2 * pos[2] * pos[3] * pos[5]
+                   + 7.2 * 3 * 1 * pos[2] * pos[4] * pos[4]
+                   + 6.5 * 6 * 1 * pos[2] * pos[4] * pos[5]
+                   + 5.5 * 3 * 1 * pos[2] * pos[5] * pos[5];
+        };
+
+        _poly1_3_d11 = [](const Coords1_3& pos) {
+            return 3.8 * 3 * 1 * pos[0] * pos[3] * pos[3]
+                   + 7.1 * 3 * 2 * pos[0] * pos[3] * pos[4]
+                   + 6.8 * 6 * 1 * pos[0] * pos[3] * pos[5]
+                   + 6.7 * 1 * 3 * pos[0] * pos[4] * pos[4]
+                   + 1.8 * 3 * 2 * pos[0] * pos[4] * pos[5]
+                   + 6.2 * 3 * 1 * pos[0] * pos[5] * pos[5]
+                   + 1.4 * 3 * 1 * pos[1] * pos[3] * pos[3]
+                   + 7.1 * 3 * 2 * pos[1] * pos[3] * pos[4]
+                   + 6.1 * 6 * 1 * pos[1] * pos[3] * pos[5]
+                   + 2.6 * 1 * 3 * pos[1] * pos[4] * pos[4]
+                   + 9.4 * 3 * 2 * pos[1] * pos[4] * pos[5]
+                   + 4.8 * 3 * 1 * pos[1] * pos[5] * pos[5]
+                   + 6.4 * 3 * 1 * pos[2] * pos[3] * pos[3]
+                   + 7.2 * 3 * 2 * pos[2] * pos[3] * pos[4]
+                   + 6.5 * 6 * 1 * pos[2] * pos[3] * pos[5]
+                   + 1.2 * 1 * 3 * pos[2] * pos[4] * pos[4]
+                   + 8.4 * 3 * 2 * pos[2] * pos[4] * pos[5]
+                   + 8.7 * 3 * 1 * pos[2] * pos[5] * pos[5];
+        };
+
+        _poly1_3_d12 = [](const Coords1_3& pos) {
+            return 9.2 * 3 * 1 * pos[0] * pos[3] * pos[3]
+                   + 6.8 * 6 * 1 * pos[0] * pos[3] * pos[4]
+                   + 1.5 * 3 * 2 * pos[0] * pos[3] * pos[5]
+                   + 1.8 * 3 * 1 * pos[0] * pos[4] * pos[4]
+                   + 6.2 * 3 * 2 * pos[0] * pos[4] * pos[5]
+                   + 8.7 * 1 * 3 * pos[0] * pos[5] * pos[5]
+                   + 5.7 * 3 * 1 * pos[1] * pos[3] * pos[3]
+                   + 6.1 * 6 * 1 * pos[1] * pos[3] * pos[4]
+                   + 7.4 * 3 * 2 * pos[1] * pos[3] * pos[5]
+                   + 9.4 * 3 * 1 * pos[1] * pos[4] * pos[4]
+                   + 4.8 * 3 * 2 * pos[1] * pos[4] * pos[5]
+                   + 9.3 * 1 * 3 * pos[1] * pos[5] * pos[5]
+                   + 5.1 * 3 * 1 * pos[2] * pos[3] * pos[3]
+                   + 6.5 * 6 * 1 * pos[2] * pos[3] * pos[4]
+                   + 5.5 * 3 * 2 * pos[2] * pos[3] * pos[5]
+                   + 8.4 * 3 * 1 * pos[2] * pos[4] * pos[4]
+                   + 8.7 * 3 * 2 * pos[2] * pos[4] * pos[5]
+                   + 7.6 * 1 * 3 * pos[2] * pos[5] * pos[5];
         };
 
         _poly3 = [](const Coords3& pos) {
@@ -202,6 +310,82 @@ public:
                                          .finished();
                 TS_ASSERT_DELTA(split[i](randpos), _poly1_3(globalpos), 1e-9);
             }
+        }
+    }
+
+    void testPoly1_3Deriv()
+    {
+        auto bezier1_3 = TPBT1_3(_poly1_3);
+        auto bezier1_3_d00 = bezier1_3.derivative<0>(0);
+        for(auto _ : pev::range(15))
+        {
+            auto randpos =
+                    ((Coords1_3::Random() + Coords1_3::Ones()) / 2).eval();
+            randpos.head<3>() /= randpos.head<3>().sum();
+            randpos.tail<3>() /= randpos.tail<3>().sum();
+            TS_ASSERT_DELTA(bezier1_3_d00(randpos.tail<3>()),
+                            _poly1_3_d00(randpos),
+                            1e-9);
+        }
+
+        auto bezier1_3_d01 = bezier1_3.derivative<0>(1);
+        for(auto _ : pev::range(15))
+        {
+            auto randpos =
+                    ((Coords1_3::Random() + Coords1_3::Ones()) / 2).eval();
+            randpos.head<3>() /= randpos.head<3>().sum();
+            randpos.tail<3>() /= randpos.tail<3>().sum();
+            TS_ASSERT_DELTA(bezier1_3_d01(randpos.tail<3>()),
+                            _poly1_3_d01(randpos),
+                            1e-9);
+        }
+
+        auto bezier1_3_d02 = bezier1_3.derivative<0>(2);
+        for(auto _ : pev::range(15))
+        {
+            auto randpos =
+                    ((Coords1_3::Random() + Coords1_3::Ones()) / 2).eval();
+            randpos.head<3>() /= randpos.head<3>().sum();
+            randpos.tail<3>() /= randpos.tail<3>().sum();
+            TS_ASSERT_DELTA(bezier1_3_d02(randpos.tail<3>()),
+                            _poly1_3_d02(randpos),
+                            1e-9);
+        }
+
+        auto bezier1_3_d10 = bezier1_3.derivative<1>(0);
+        for(auto _ : pev::range(15))
+        {
+            auto randpos =
+                    ((Coords1_3::Random() + Coords1_3::Ones()) / 2).eval();
+            randpos.head<3>() /= randpos.head<3>().sum();
+            randpos.tail<3>() /= randpos.tail<3>().sum();
+            TS_ASSERT_DELTA(bezier1_3_d10(randpos),
+                            _poly1_3_d10(randpos),
+                            1e-9);
+        }
+
+        auto bezier1_3_d11 = bezier1_3.derivative<1>(1);
+        for(auto _ : pev::range(15))
+        {
+            auto randpos =
+                    ((Coords1_3::Random() + Coords1_3::Ones()) / 2).eval();
+            randpos.head<3>() /= randpos.head<3>().sum();
+            randpos.tail<3>() /= randpos.tail<3>().sum();
+            TS_ASSERT_DELTA(bezier1_3_d11(randpos),
+                            _poly1_3_d11(randpos),
+                            1e-9);
+        }
+
+        auto bezier1_3_d12 = bezier1_3.derivative<1>(2);
+        for(auto _ : pev::range(15))
+        {
+            auto randpos =
+                    ((Coords1_3::Random() + Coords1_3::Ones()) / 2).eval();
+            randpos.head<3>() /= randpos.head<3>().sum();
+            randpos.tail<3>() /= randpos.tail<3>().sum();
+            TS_ASSERT_DELTA(bezier1_3_d12(randpos),
+                            _poly1_3_d12(randpos),
+                            1e-9);
         }
     }
 

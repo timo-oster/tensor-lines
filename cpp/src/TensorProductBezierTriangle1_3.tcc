@@ -445,4 +445,146 @@ TPBT1_3<T, C>::computeCoeffs(const Coeffs& in)
     return out;
 }
 
+template<typename T, typename C>
+typename TensorProductDerivative<0, T, C, 1, 3>::DerivCoeffs
+TensorProductDerivative<0, T, C, 1, 3>::deriv_op(const Coeffs& in, int dir)
+{
+    assert(dir >= 0 && dir < 3);
+
+    static_assert(std::tuple_size<DerivCoeffs>::value == 10, "Wrong number of elements");
+    switch(dir)
+    {
+        case 0:
+        {
+            auto out = DerivCoeffs{};
+            out[0] = in[0];
+            out[1] = in[1];
+            out[2] = in[2];
+            out[3] = in[3];
+            out[4] = in[4];
+            out[5] = in[5];
+            out[6] = in[6];
+            out[7] = in[7];
+            out[8] = in[8];
+            out[9] = in[9];
+            return out;
+        }
+        case 1:
+        {
+            auto out = DerivCoeffs{};
+            out[0] = in[10];
+            out[1] = in[11];
+            out[2] = in[12];
+            out[3] = in[13];
+            out[4] = in[14];
+            out[5] = in[15];
+            out[6] = in[16];
+            out[7] = in[17];
+            out[8] = in[18];
+            out[9] = in[19];
+            return out;
+        }
+        case 2:
+        {
+            auto out = DerivCoeffs{};
+            out[0] = in[20];
+            out[1] = in[21];
+            out[2] = in[22];
+            out[3] = in[23];
+            out[4] = in[24];
+            out[5] = in[25];
+            out[6] = in[26];
+            out[7] = in[27];
+            out[8] = in[28];
+            out[9] = in[29];
+            return out;
+        }
+        default:
+            assert(false);
+    }
 }
+
+template<typename T, typename C>
+typename TensorProductDerivative<1, T, C, 1, 3>::DerivCoeffs
+TensorProductDerivative<1, T, C, 1, 3>::deriv_op(const Coeffs& in, int dir)
+{
+    assert(dir >= 0 && dir < 3);
+
+    static_assert(std::tuple_size<DerivCoeffs>::value == 18, "Wrong number of elements");
+    switch(dir)
+    {
+        case 0:
+        {
+            auto out = DerivCoeffs{};
+            out[0] = 3. * in[0];
+            out[1] = 3. * in[1];
+            out[2] = 3. * in[2];
+            out[3] = 3. * in[3];
+            out[4] = 3. * in[4];
+            out[5] = 3. * in[5];
+            out[6] = 3. * in[10];
+            out[7] = 3. * in[11];
+            out[8] = 3. * in[12];
+            out[9] = 3. * in[13];
+            out[10] = 3. * in[14];
+            out[11] = 3. * in[15];
+            out[12] = 3. * in[20];
+            out[13] = 3. * in[21];
+            out[14] = 3. * in[22];
+            out[15] = 3. * in[23];
+            out[16] = 3. * in[24];
+            out[17] = 3. * in[25];
+            return out;
+        }
+        case 1:
+        {
+            auto out = DerivCoeffs{};
+            out[0] = 3. * in[1];
+            out[1] = 3. * in[3];
+            out[2] = 3. * in[4];
+            out[3] = 3. * in[6];
+            out[4] = 3. * in[7];
+            out[5] = 3. * in[8];
+            out[6] = 3. * in[11];
+            out[7] = 3. * in[13];
+            out[8] = 3. * in[14];
+            out[9] = 3. * in[16];
+            out[10] = 3. * in[17];
+            out[11] = 3. * in[18];
+            out[12] = 3. * in[21];
+            out[13] = 3. * in[23];
+            out[14] = 3. * in[24];
+            out[15] = 3. * in[26];
+            out[16] = 3. * in[27];
+            out[17] = 3. * in[28];
+            return out;
+        }
+        case 2:
+        {
+            auto out = DerivCoeffs{};
+            out[0] = 3. * in[2];
+            out[1] = 3. * in[4];
+            out[2] = 3. * in[5];
+            out[3] = 3. * in[7];
+            out[4] = 3. * in[8];
+            out[5] = 3. * in[9];
+            out[6] = 3. * in[12];
+            out[7] = 3. * in[14];
+            out[8] = 3. * in[15];
+            out[9] = 3. * in[17];
+            out[10] = 3. * in[18];
+            out[11] = 3. * in[19];
+            out[12] = 3. * in[22];
+            out[13] = 3. * in[24];
+            out[14] = 3. * in[25];
+            out[15] = 3. * in[27];
+            out[16] = 3. * in[28];
+            out[17] = 3. * in[29];
+            return out;
+        }
+        default:
+            assert(false);
+    }
+}
+
+} // namespace pev
