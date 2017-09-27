@@ -187,6 +187,10 @@ int main(int argc, char const* argv[])
     }
 #endif // __linux__
 
+#ifndef NDEBUG
+    std::cout << "Running in DEBUG mode" << std::endl;
+#endif
+
     auto reader = vtkSmartPointer<vtkUnstructuredGridReader>::New();
     reader->SetFileName(input_file.c_str());
 
