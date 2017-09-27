@@ -14,6 +14,7 @@ source_group("Source Files" FILES ${PEV_SOURCES})
 
 add_executable(parallel_eigenvectors ${PEV_SOURCES} ${PEV_HEADERS})
 add_executable(generate_tet_dataset generate_tet_dataset.cc)
+add_executable(generate_grid_dataset generate_grid_dataset.cc)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
    OR CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
@@ -42,6 +43,7 @@ find_package(Boost REQUIRED COMPONENTS program_options)
 if(Boost_FOUND)
     target_link_libraries(parallel_eigenvectors ${Boost_LIBRARIES})
     target_link_libraries(generate_tet_dataset ${Boost_LIBRARIES})
+    target_link_libraries(generate_grid_dataset ${Boost_LIBRARIES})
     include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
     link_directories(${Boost_LIBRARY_DIRS})
     if(WIN32)
@@ -54,6 +56,7 @@ if(VTK_FOUND)
     include(${VTK_USE_FILE})
     target_link_libraries(parallel_eigenvectors ${VTK_LIBRARIES})
     target_link_libraries(generate_tet_dataset ${VTK_LIBRARIES})
+    target_link_libraries(generate_grid_dataset ${VTK_LIBRARIES})
 endif()
 
 option(DRAW_DEBUG "Visualize the recursion algorithm (needs CImg)" OFF)
@@ -71,5 +74,9 @@ install(TARGETS parallel_eigenvectors
     RUNTIME DESTINATION "${INSTALL_BIN_DIR}" COMPONENT bin)
 
 install(TARGETS generate_tet_dataset
+    EXPORT ParallelEigenvectorsTargets
+    RUNTIME DESTINATION "${INSTALL_BIN_DIR}" COMPONENT bin)
+
+install(TARGETS generate_grid_dataset
     EXPORT ParallelEigenvectorsTargets
     RUNTIME DESTINATION "${INSTALL_BIN_DIR}" COMPONENT bin)
