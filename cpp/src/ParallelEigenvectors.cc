@@ -7,6 +7,8 @@
 
 #include <boost/algorithm/cxx11/any_of.hpp>
 #include <boost/algorithm/minmax_element.hpp>
+#include <boost/range/algorithm/max_element.hpp>
+#include <boost/range/adaptor/transformed.hpp>
 #include <boost/optional/optional.hpp>
 #include <boost/range/join.hpp>
 #include <boost/range/algorithm_ext/insert.hpp>
@@ -102,9 +104,9 @@ struct SubPackage
     TriPair trip;
     std::array<TPBT, 6> poly_funcs;
     bool last_split_dir;
-    int split_level;
+    uint64_t split_level;
 
-    template<int D>
+    template<std::size_t D>
     std::array<SubPackage, 4> split()
     {
         static_assert(D >= 0 && D < 2,
@@ -117,7 +119,7 @@ struct SubPackage
         }
 
         auto tri_split = trip.split<D>();
-        auto part = [&](int i) {
+        auto part = [&](std::size_t i) {
             return SubPackage{tri_split[i],
                               {poly_funcs_subs[0][i],
                                poly_funcs_subs[1][i],
@@ -221,7 +223,7 @@ void draw_cross(CImg& image,
                     color);
 }
 
-#endif
+#endif // DRAW_DEBUG
 
 
 /**
@@ -571,6 +573,29 @@ int sameSign(const BDoubleTri& coeffs)
 }
 
 
+template <std::size_t D,
+          typename TPBT,
+          typename T,
+          typename C,
+          std::size_t... Degrees>
+auto derivatives(
+        const TensorProductBezierTriangleBase<TPBT, T, C, Degrees...>& poly)
+        -> std::array<
+                typename TensorProductDerivativeType<D, T, C, Degrees...>::type,
+                2>
+{
+    auto d0 = poly.template derivative<D>(0);
+    auto d1 = poly.template derivative<D>(1);
+    auto d2 = poly.template derivative<D>(2);
+
+    auto da = (d1 - d0)/std::sqrt(2);
+
+    auto db = (2 * d2 - d0 - d1) / std::sqrt(6);
+
+    return {da, db};
+}
+
+
 /**
  * @brief Compute coefficients of BezierDoubleTriangle describing the error
  *     function of \a t over the direction triangle \a r
@@ -695,14 +720,31 @@ TriPairList rootSearch(const std::array<TPBT, 6>& polys,
             continue;
         }
 
+        auto max_deriv_space = 0.;
+        for(const auto& p: pack.poly_funcs)
+        {
+            using namespace boost::adaptors;
+            auto d_space = derivatives<0>(p);
+            auto max_elem = boost::max_element(
+                    d_space[0].coefficients()
+                    | transformed(+[](double val) { return std::abs(val); }));
+            max_deriv_space = std::max(*max_elem, max_deriv_space);
+        }
+
+        auto max_deriv_dir = 0.;
+        for(const auto& p: pack.poly_funcs)
+        {
+            using namespace boost::adaptors;
+            auto d_space = derivatives<1>(p);
+            auto max_elem = boost::max_element(
+                    d_space[0].coefficients()
+                    | transformed(+[](double val) { return std::abs(val); }));
+            max_deriv_dir = std::max(*max_elem, max_deriv_dir);
+        }
+
         // If maximum subdivision accuracy reached, accept point as solution
-        auto dir_sub_reached =
-                (pack.trip.direction_tri[0] - pack.trip.direction_tri[1])
-                        .norm()
-                < direction_epsilon;
-        auto pos_sub_reached =
-                (pack.trip.spatial_tri[0] - pack.trip.spatial_tri[1]).norm()
-                < spatial_epsilon;
+        auto dir_sub_reached = max_deriv_dir < direction_epsilon;
+        auto pos_sub_reached = max_deriv_space < spatial_epsilon;
 
         if(pos_sub_reached && dir_sub_reached)
         {

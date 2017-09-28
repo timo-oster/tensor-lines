@@ -123,7 +123,7 @@ std::vector<pev::PointList> computePEVPoints(const std::vector<TriFace>& faces,
                                              vtkAlgorithm* progress_alg,
                                              const pev::PEVOptions& opts)
 {
-    const auto step = 1. / faces.size();
+    const auto step = 1. / double(faces.size());
     progress_alg->UpdateProgress(0);
     auto results = std::vector<pev::PointList>(faces.size());
     auto terminate = false;
@@ -184,7 +184,7 @@ std::vector<pev::PointList> computeSHPoints(const std::vector<TriFace>& faces,
                                              vtkAlgorithm* progress_alg,
                                              const pev::PEVOptions& opts)
 {
-    const auto step = 1. / faces.size();
+    const auto step = 1. / double(faces.size());
     progress_alg->UpdateProgress(0);
     auto results = std::vector<pev::PointList>(faces.size());
     auto terminate = false;
@@ -254,7 +254,7 @@ std::vector<pev::PointList> computeSHPoints(const std::vector<TriFace>& faces,
 }
 
 
-vtkStandardNewMacro(vtkParallelEigenvectors);
+vtkStandardNewMacro(vtkParallelEigenvectors)
 
 
 vtkParallelEigenvectors::vtkParallelEigenvectors()

@@ -10,6 +10,8 @@
 #include <sstream>
 #include <type_traits>
 
+#define BOOST_RESULT_OF_USE_DECLTYPE
+
 namespace pev
 {
 using Vec3d = Eigen::Vector3d;
