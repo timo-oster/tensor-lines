@@ -106,7 +106,7 @@ int main(int argc, char const* argv[])
             throw po::error(
                     "Conflicting options --random and --interactive");
         }
-        if(vm.count("symmetric") > 0 && interactive)
+        if(symmetric && interactive)
         {
             throw po::error(
                     "Conflicting options --symmetric and --interactive");
