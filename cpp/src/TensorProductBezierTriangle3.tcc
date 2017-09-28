@@ -47,7 +47,7 @@ typename TPBT3<T, C>::Basis TPBT3<T, C>::makeBasis(const Coords& pos)
 
 
 template<typename T, typename C>
-template<int I, int D>
+template<std::size_t I, std::size_t D>
 typename TPBT3<T, C>::Coeffs
 TPBT3<T, C>::splitCoeffs(const Coeffs& in)
 {

@@ -1,5 +1,5 @@
-#ifndef CPP_TENSOR_PRODUCT_BEZIER_TRIANGLE_1_HH
-#define CPP_TENSOR_PRODUCT_BEZIER_TRIANGLE_1_HH
+#ifndef CPP_TENSOR_PRODUCT_BEZIER_TRIANGLE_2_HH
+#define CPP_TENSOR_PRODUCT_BEZIER_TRIANGLE_2_HH
 
 #include "TensorProductBezierTriangle.hh"
 
@@ -7,28 +7,31 @@ namespace pev
 {
 
 template <typename T, typename C>
-struct TensorProductTraits<TensorProductBezierTriangle<T, C, 1>>
+struct TensorProductTraits<TensorProductBezierTriangle<T, C, 2>>
 {
     static constexpr std::size_t NCoords = 3;
-    static constexpr std::size_t NCoeffs = 3;
+    static constexpr std::size_t NCoeffs = 6;
 };
 
 template <typename T, typename C>
-class TensorProductBezierTriangle<T, C, 1>
+class TensorProductBezierTriangle<T, C, 2>
         : public TensorProductBezierTriangleBase<
-                TensorProductBezierTriangle<T, C, 1>, T, C, 1>
+                TensorProductBezierTriangle<T, C, 2>, T, C, 2>
 {
 public:
     using Base = TensorProductBezierTriangleBase<
-                    TensorProductBezierTriangle<T, C, 1>, T, C, 1>;
+                    TensorProductBezierTriangle<T, C, 2>, T, C, 2>;
     using Coords = typename Base::Coords;
     using Coeffs = typename Base::Coeffs;
 
     enum Indices : std::size_t
     {
-        i100 = 0,
-        i010,
-        i001
+        i200 = 0,
+        i110,
+        i101,
+        i020,
+        i011,
+        i002
     };
 
     friend Base;
@@ -36,7 +39,7 @@ public:
     using Base::Base;
 
 private:
-    using Self = TensorProductBezierTriangle<T, C, 1>;
+    using Self = TensorProductBezierTriangle<T, C, 2>;
     using Traits = TensorProductTraits<Self>;
     using Basis = Eigen::Matrix<C, Traits::NCoeffs, 1>;
     using DomainPoints = Eigen::Matrix<C, Traits::NCoeffs, Traits::NCoords>;
@@ -54,6 +57,6 @@ private:
 
 } // namespace pev
 
-#include "TensorProductBezierTriangle1.tcc"
+#include "TensorProductBezierTriangle2.tcc"
 
 #endif

@@ -11,10 +11,10 @@
 
 namespace pev
 {
-template <int D, typename T, typename C, int... Degrees>
+template <std::size_t D, typename T, typename C, std::size_t... Degrees>
 struct TensorProductDerivativeType;
 
-template <int D, typename T, typename C, int... Degrees>
+template <std::size_t D, typename T, typename C, std::size_t... Degrees>
 struct TensorProductDerivative;
 
 
@@ -105,7 +105,7 @@ struct TensorProductTraits;
  * @tparam Degrees Degrees of the polynomials participating in the tensor
  *     product
  */
-template <typename Derived, typename T, typename C, int... Degrees>
+template <typename Derived, typename T, typename C, std::size_t... Degrees>
 class TensorProductBezierTriangleBase
 {
 public:
@@ -170,7 +170,7 @@ public:
     /**
      * Access the i-th coefficient.
      */
-    T& operator[](int i)
+    T& operator[](std::size_t i)
     {
         return _coeffs[i];
     }
@@ -178,7 +178,7 @@ public:
     /**
      * Access the i-th coefficient.
      */
-    const T& operator[](int i) const
+    const T& operator[](std::size_t i) const
     {
         return _coeffs[i];
     }
@@ -218,10 +218,10 @@ public:
      * @tparam D Space in which to split
      * @return Array of four new polynomials representing the split parts.
      */
-    template<int D=0>
+    template<std::size_t D=0>
     std::array<Derived, 4> split() const
     {
-        static_assert(D >=0 && D < sizeof...(Degrees),
+        static_assert(D < sizeof...(Degrees),
                       "D must be smaller than the number of Degrees");
         return {Derived{Derived::template splitCoeffs<0, D>(_coeffs)},
                 Derived{Derived::template splitCoeffs<1, D>(_coeffs)},
@@ -229,17 +229,95 @@ public:
                 Derived{Derived::template splitCoeffs<3, D>(_coeffs)}};
     }
 
-    template <int D>
+    template <std::size_t D>
     typename TensorProductDerivativeType<D, T, C, Degrees...>::type
-    derivative(int i)
+    derivative(std::size_t i) const
     {
         using Derivative =
                 typename TensorProductDerivativeType<D, T, C, Degrees...>::type;
         using OpType = TensorProductDerivative<D, T, C, Degrees...>;
 
-        assert(i >= 0 && i < 3);
+        assert(i < 3);
 
         return Derivative{OpType::deriv_op(_coeffs, i)};
+    }
+
+    void operator+=(const Derived& other)
+    {
+        for(auto i: range(_coeffs.size()))
+        {
+            _coeffs[i] += other[i];
+        }
+    }
+
+    void operator-=(const Derived& other)
+    {
+        for(auto i: range(_coeffs.size()))
+        {
+            _coeffs[i] -= other[i];
+        }
+    }
+
+    template <typename Scalar>
+    void operator*=(const Scalar& scalar)
+    {
+        for(auto& c: _coeffs)
+        {
+            c *= scalar;
+        }
+    }
+
+    template <typename Scalar>
+    void operator/=(const Scalar& scalar)
+    {
+        for(auto& c: _coeffs)
+        {
+            c /= scalar;
+        }
+    }
+
+    Derived operator-() const
+    {
+        auto r_coeffs = Coeffs{};
+        for(auto i: range(r_coeffs.size()))
+        {
+            r_coeffs[i] = -this->coefficients()[i];
+        }
+        return Derived{r_coeffs};
+    }
+
+    Derived operator+(const Derived& other) const
+    {
+        auto result = Derived{*this};
+        result += other;
+        return result;
+    }
+
+    Derived operator-(const Derived& other) const
+    {
+        return *this + (-other);
+    }
+
+    template <typename Scalar>
+    Derived operator*(const Scalar& scalar) const
+    {
+        auto result = Derived{*this};
+        result *= scalar;
+        return result;
+    }
+
+    template <typename Scalar>
+    Derived operator/(const Scalar& scalar) const
+    {
+        auto result = Derived{*this};
+        result /= scalar;
+        return result;
+    }
+
+    template <typename Scalar>
+    friend Derived operator*(const Scalar& scalar, const Derived& poly)
+    {
+        return poly * scalar;
     }
 
     friend bool operator==(const Derived& o1, const Derived& o2)
@@ -284,7 +362,7 @@ private:
  * @tparam C Type of the coordinates (must be scalar)
  * @tparam Degrees Degrees of the polynomials
  */
-template <typename T, typename C, int... Degrees>
+template <typename T, typename C, std::size_t... Degrees>
 class TensorProductBezierTriangle
 {
 };
@@ -292,7 +370,9 @@ class TensorProductBezierTriangle
 } // namespace pev
 
 #include "TensorProductBezierTriangle1.hh"
+#include "TensorProductBezierTriangle2.hh"
 #include "TensorProductBezierTriangle3.hh"
+#include "TensorProductBezierTriangle1_1.hh"
 #include "TensorProductBezierTriangle1_2.hh"
 #include "TensorProductBezierTriangle1_3.hh"
 

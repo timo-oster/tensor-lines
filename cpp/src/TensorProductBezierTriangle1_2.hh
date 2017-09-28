@@ -26,7 +26,7 @@ public:
     using Coords = typename Base::Coords;
     using Coeffs = typename Base::Coeffs;
 
-    enum Indices : int
+    enum Indices : std::size_t
     {
         i100200 = 0,
         i100110,
@@ -55,13 +55,16 @@ public:
 private:
     using Basis = Eigen::Matrix<C, Traits::NCoeffs, 1>;
     using DomainPoints = Eigen::Matrix<C, Traits::NCoeffs, Traits::NCoords>;
+    template <std::size_t D>
+    using DerivCoeffs =
+            typename TensorProductDerivativeType<D, T, C, 1, 2>::Coeffs;
 
     static const DomainPoints& domainPoints();
 
     static Basis makeBasis(const Coords& pos);
 
     // Splitting and interpolating operators
-    template<int I, int D>
+    template<std::size_t I, std::size_t D>
     static Coeffs splitCoeffs(const Coeffs& in);
 
     static Coeffs computeCoeffs(const Coeffs& samples);
@@ -81,20 +84,22 @@ struct TensorProductDerivativeType<1, T, C, 1, 2>
     using type = TensorProductBezierTriangle<T, C, 1, 1>;
 };
 
-template<typename T, typename C>
+template <typename T, typename C>
 struct TensorProductDerivative<0, T, C, 1, 2>
 {
     using Coeffs = typename TensorProductBezierTriangle<T, C, 1, 2>::Coeffs;
-    using DerivCoeffs = typename TensorProductDerivativeType<0, T, C, 1, 2>::type::Coeffs;
-    static DerivCoeffs deriv_op(const Coeffs& in, int dir);
+    using DerivCoeffs =
+            typename TensorProductDerivativeType<0, T, C, 1, 2>::type::Coeffs;
+    static DerivCoeffs deriv_op(const Coeffs& in, std::size_t dir);
 };
 
-template<typename T, typename C>
+template <typename T, typename C>
 struct TensorProductDerivative<1, T, C, 1, 2>
 {
     using Coeffs = typename TensorProductBezierTriangle<T, C, 1, 2>::Coeffs;
-    using DerivCoeffs = typename TensorProductDerivativeType<1, T, C, 1, 2>::type::Coeffs;
-    static DerivCoeffs deriv_op(const Coeffs& in, int dir);
+    using DerivCoeffs =
+            typename TensorProductDerivativeType<1, T, C, 1, 2>::type::Coeffs;
+    static DerivCoeffs deriv_op(const Coeffs& in, std::size_t dir);
 };
 
 } // namespace pev

@@ -26,7 +26,7 @@ public:
     using Coords = typename Base::Coords;
     using Coeffs = typename Base::Coeffs;
 
-    enum Indices : int
+    enum Indices : std::size_t
     {
         i300 = 0,
         i210,
@@ -53,7 +53,7 @@ private:
     static Basis makeBasis(const Coords& pos);
 
     // Splitting and interpolating operators
-    template<int I, int D=0>
+    template<std::size_t I, std::size_t D=0>
     static Coeffs splitCoeffs(const Coeffs& in);
 
     static Coeffs computeCoeffs(const Coeffs& samples);
