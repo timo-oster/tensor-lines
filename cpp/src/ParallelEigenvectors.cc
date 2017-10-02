@@ -9,6 +9,7 @@
 #include <boost/algorithm/minmax_element.hpp>
 #include <boost/range/algorithm/max_element.hpp>
 #include <boost/range/adaptor/transformed.hpp>
+#include <boost/range/algorithm/transform.hpp>
 #include <boost/optional/optional.hpp>
 #include <boost/range/join.hpp>
 #include <boost/range/algorithm_ext/insert.hpp>
@@ -602,6 +603,28 @@ auto derivatives(
 }
 
 
+template <std::size_t D,
+          typename TPBT,
+          typename T,
+          typename C,
+          std::size_t... Degrees>
+double derivatives_upper_bound(
+        const TensorProductBezierTriangleBase<TPBT, T, C, Degrees...>& poly)
+{
+    auto upper_bound = typename TPBT::Coeffs{};
+    // estimate upper bound of gradient magnitude by L1 norm of control points
+    auto abssum = [](double v1, double v2) {
+        return std::abs(v1) + std::abs(v2);
+    };
+    auto derivs = derivatives<D>(poly);
+    boost::transform(derivs[0].coefficients(),
+                     derivs[1].coefficients(),
+                     std::begin(upper_bound),
+                     abssum);
+    return *boost::max_element(upper_bound);
+}
+
+
 /**
  * @brief Compute coefficients of BezierDoubleTriangle describing the error
  *     function of \a t over the direction triangle \a r
@@ -729,23 +752,15 @@ TriPairList rootSearch(const std::array<TPBT, 6>& polys,
         auto max_deriv_space = 0.;
         for(const auto& p: pack.poly_funcs)
         {
-            using namespace boost::adaptors;
-            auto d_space = derivatives<0>(p);
-            auto max_elem = boost::max_element(
-                    d_space[0].coefficients()
-                    | transformed(+[](double val) { return std::abs(val); }));
-            max_deriv_space = std::max(*max_elem, max_deriv_space);
+            auto upper_bound = derivatives_upper_bound<0>(p);
+            max_deriv_space = std::max(upper_bound, max_deriv_space);
         }
 
         auto max_deriv_dir = 0.;
         for(const auto& p: pack.poly_funcs)
         {
-            using namespace boost::adaptors;
-            auto d_space = derivatives<1>(p);
-            auto max_elem = boost::max_element(
-                    d_space[0].coefficients()
-                    | transformed(+[](double val) { return std::abs(val); }));
-            max_deriv_dir = std::max(*max_elem, max_deriv_dir);
+            auto upper_bound = derivatives_upper_bound<1>(p);
+            max_deriv_dir = std::max(upper_bound, max_deriv_dir);
         }
 
         // If maximum subdivision accuracy reached, accept point as solution
