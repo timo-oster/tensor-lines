@@ -49,9 +49,13 @@ struct PEVPoint
     Vec3d eivec; ///< Eigenvector direction
     double s_eival; ///< Eigenvalue for tensor field S
     double t_eival; ///< Eigenvalue for tensor field T
-    bool s_has_imaginary; //< S has any imaginary eigenvalues at the position
-    bool t_has_imaginary; //< T has any imaginary eigenvalues at the position
-    std::size_t cluster_size; //< Number of candidate points that contributed
+    bool s_has_imaginary; ///< S has any imaginary eigenvalues at the position
+    bool t_has_imaginary; ///< T has any imaginary eigenvalues at the position
+    std::size_t cluster_size; ///< Number of candidate points that contributed
+    double pos_uncertainty; ///< Size of the last subdivision cell in
+                                 /// position space
+    double dir_uncertainty; ///< Size of the last subdivision cell in
+                                 /// direction space
 };
 
 /**

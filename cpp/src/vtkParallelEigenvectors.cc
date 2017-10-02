@@ -477,6 +477,12 @@ int vtkParallelEigenvectors::RequestData(vtkInformation* vtkNotUsed(request),
     auto csize = vtkSmartPointer<vtkIntArray>::New();
     csize->SetName("Cluster Size");
     output->GetPointData()->AddArray(csize);
+    auto pos_unc = vtkSmartPointer<vtkDoubleArray>::New();
+    pos_unc->SetName("Position Uncertainty");
+    output->GetPointData()->AddArray(pos_unc);
+    auto dir_unc = vtkSmartPointer<vtkDoubleArray>::New();
+    dir_unc->SetName("Direction Uncertainty");
+    output->GetPointData()->AddArray(dir_unc);
 
     // map faces to cell ids
     auto face_map = buildFaceMap(input);
@@ -534,6 +540,8 @@ int vtkParallelEigenvectors::RequestData(vtkInformation* vtkNotUsed(request),
             imag1->InsertValue(pid, p.s_has_imaginary ? 1. : 0.);
             imag2->InsertValue(pid, p.t_has_imaginary ? 1. : 0.);
             csize->InsertValue(pid, p.cluster_size);
+            pos_unc->InsertValue(pid, p.pos_uncertainty);
+            dir_unc->InsertValue(pid, p.dir_uncertainty);
 
             // Add pev point to all cells participating in this face
             for(auto c : cids)

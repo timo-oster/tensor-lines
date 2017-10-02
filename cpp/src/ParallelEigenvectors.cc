@@ -463,15 +463,18 @@ PointList computeContextInfo(const std::vector<ClusterRepr>& representatives,
                               })
                                .sum();
 
-        points.push_back(PEVPoint{tri(result_center),
-                                  ERank(s_order),
-                                  ERank(t_order),
-                                  result_dir,
-                                  s_real_eigv,
-                                  t_real_eigv,
-                                  s_eigvs.sum().imag() != 0,
-                                  t_eigvs.sum().imag() != 0,
-                                  r.cluster_size});
+        points.push_back(
+                PEVPoint{tri(result_center),
+                         ERank(s_order),
+                         ERank(t_order),
+                         result_dir,
+                         s_real_eigv,
+                         t_real_eigv,
+                         s_eigvs.sum().imag() != 0,
+                         t_eigvs.sum().imag() != 0,
+                         r.cluster_size,
+                         (r.spatial_tri[1] - r.spatial_tri[0]).norm(),
+                         (r.direction_tri[1] - r.direction_tri[0]).norm()});
     }
     return points;
 }
@@ -546,15 +549,18 @@ PointList computeContextInfoSH(const std::vector<ClusterRepr>& representatives,
                               })
                                .sum();
 
-        points.push_back(PEVPoint{tri(result_center),
-                                  ERank(t_order),
-                                  ERank(dt_order),
-                                  result_dir,
-                                  t_real_eigv,
-                                  dt_real_eigv,
-                                  t_eigvs.sum().imag() != 0,
-                                  dt_eigvs.sum().imag() != 0,
-                                  r.cluster_size});
+        points.push_back(
+                PEVPoint{tri(result_center),
+                         ERank(t_order),
+                         ERank(dt_order),
+                         result_dir,
+                         t_real_eigv,
+                         dt_real_eigv,
+                         t_eigvs.sum().imag() != 0,
+                         dt_eigvs.sum().imag() != 0,
+                         r.cluster_size,
+                         (r.spatial_tri[1] - r.spatial_tri[0]).norm(),
+                         (r.direction_tri[1] - r.direction_tri[0]).norm()});
     }
     return points;
 }
