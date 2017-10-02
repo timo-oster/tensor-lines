@@ -780,6 +780,12 @@ TriPairList rootSearch(const std::array<TPBT, 6>& polys,
             }
         }
 
+        if(result.size() > 100000)
+        {
+            std::cerr << "Aborting search due to too many solutions" << std::endl;
+            break;
+        }
+
 #ifdef DRAW_DEBUG
         draw_tri(pos_image, pack.trip.spatial_tri, yellow, false, false);
         draw_tri(dir_image, pack.trip.direction_tri, yellow, false, true);
