@@ -30,7 +30,9 @@ using namespace pev;
 /**
  * Tensor Product of linear and quadratic polynomials on barycentric coordinates
  */
-using BDoubleTri = TensorProductBezierTriangle<double, double, 1, 2>;
+using TPBT1_2 = TensorProductBezierTriangle<double, double, 1, 2>;
+
+using TPBT1_3 = TensorProductBezierTriangle<double, double, 1, 3>;
 
 
 /**
@@ -86,15 +88,19 @@ struct TriPair
  */
 using TriPairList = std::vector<TriPair>;
 
+
 /**
  * Representative TriPair in a cluster of similar TriPairs
  */
+template <typename TPBT>
 struct ClusterRepr
 {
     std::size_t cluster_size;
     Triangle direction_tri;
-    Triangle spatial_tri;
+    Triangle spatial_tri;;
+    std::array<TPBT, 6> poly_funcs;
 };
+
 
 /**
  * Structure for holding information needed during subdivision
@@ -134,7 +140,21 @@ struct SubPackage
 
         return {part(0), part(1), part(2), part(3)};
     }
+
+    friend bool operator==(const SubPackage& s1, const SubPackage& s2)
+    {
+        return s1.trip == s2.trip && s1.last_split_dir == s2.last_split_dir
+               && s1.split_level == s2.split_level
+               && s1.poly_funcs == s2.poly_funcs;
+    }
 };
+
+
+/**
+ * List of parallel eigenvector point candidates
+ */
+template<typename TPBT>
+using ResultList = std::vector<SubPackage<TPBT>>;
 
 
 #ifdef DRAW_DEBUG
@@ -237,6 +257,51 @@ double distance(const Triangle& t1, const Triangle& t2)
 }
 
 
+template <std::size_t D,
+          typename TPBT,
+          typename T,
+          typename C,
+          std::size_t... Degrees>
+auto derivatives(
+        const TensorProductBezierTriangleBase<TPBT, T, C, Degrees...>& poly)
+        -> std::array<
+                typename TensorProductDerivativeType<D, T, C, Degrees...>::type,
+                2>
+{
+    auto d0 = poly.template derivative<D>(0);
+    auto d1 = poly.template derivative<D>(1);
+    auto d2 = poly.template derivative<D>(2);
+
+    auto da = (d1 - d0)/std::sqrt(2);
+
+    auto db = (2 * d2 - d0 - d1) / std::sqrt(6);
+
+    return {da, db};
+}
+
+
+template <std::size_t D,
+          typename TPBT,
+          typename T,
+          typename C,
+          std::size_t... Degrees>
+double derivatives_upper_bound(
+        const TensorProductBezierTriangleBase<TPBT, T, C, Degrees...>& poly)
+{
+    auto upper_bound = typename TPBT::Coeffs{};
+    // estimate upper bound of gradient magnitude by L1 norm of control points
+    auto abssum = [](double v1, double v2) {
+        return std::abs(v1) + std::abs(v2);
+    };
+    auto derivs = derivatives<D>(poly);
+    boost::transform(derivs[0].coefficients(),
+                     derivs[1].coefficients(),
+                     std::begin(upper_bound),
+                     abssum);
+    return *boost::max_element(upper_bound);
+}
+
+
 /**
  * Cluster all triangles in a list that are closer than a given distance
  *
@@ -245,22 +310,25 @@ double distance(const Triangle& t1, const Triangle& t2)
  *
  * @return List of clusters (each cluster is a list of candidates)
  */
-std::vector<TriPairList> clusterTris(const TriPairList& tris, double epsilon)
+template <typename TPBT>
+std::vector<ResultList<TPBT>> clusterTris(const ResultList<TPBT>& tris,
+                                          double epsilon)
 {
-    auto classes = std::vector<TriPairList>{};
+    auto classes = std::vector<ResultList<TPBT>>{};
     for(const auto& t : tris)
     {
         classes.push_back({t});
     }
 
-    auto has_close_elements = [&](const TriPairList& c1,
-                                  const TriPairList& c2) {
+    auto has_close_elements = [&](const ResultList<TPBT>& c1,
+                                  const ResultList<TPBT>& c2) {
         if(c1 == c2) return false;
         for(const auto& t1 : c1)
         {
             for(const auto& t2 : c2)
             {
-                if(distance(t1.spatial_tri, t2.spatial_tri) <= epsilon)
+                if(distance(t1.trip.spatial_tri, t2.trip.spatial_tri)
+                   <= epsilon)
                 {
                     return true;
                 }
@@ -307,21 +375,21 @@ std::vector<TriPairList> clusterTris(const TriPairList& tris, double epsilon)
  *
  * @return List of candidates, each a representative of a cluster
  */
-std::vector<ClusterRepr>
-findRepresentatives(const std::vector<TriPairList>& clusters,
+std::vector<ClusterRepr<TPBT1_2>>
+findRepresentatives(const std::vector<ResultList<TPBT1_2>>& clusters,
                     const TensorInterp& s_interp,
                     const TensorInterp& t_interp)
 {
-    auto result = std::vector<ClusterRepr>{};
+    auto result = std::vector<ClusterRepr<TPBT1_2>>{};
     for(const auto& c : clusters)
     {
-        const auto* min_angle_tri = &*(c.cbegin());
+        const auto* min_angle_res = &*(c.cbegin());
         auto min_sin = 1.;
-        for(const auto& trip : c)
+        for(const auto& res : c)
         {
-            auto dir =
-                    trip.direction_tri({1. / 3., 1. / 3., 1. / 3.}).normalized();
-            auto center = trip.spatial_tri({1. / 3., 1. / 3., 1. / 3.});
+            auto dir = res.trip.direction_tri({1. / 3., 1. / 3., 1. / 3.})
+                               .normalized();
+            auto center = res.trip.spatial_tri({1. / 3., 1. / 3., 1. / 3.});
             auto s = s_interp(center);
             auto t = t_interp(center);
 
@@ -333,34 +401,36 @@ findRepresentatives(const std::vector<TriPairList>& clusters,
             if(ms < min_sin)
             {
                 min_sin = ms;
-                min_angle_tri = &trip;
+                min_angle_res = &res;
             }
         }
 
         result.push_back({c.size(),
-                          min_angle_tri->direction_tri,
-                          min_angle_tri->spatial_tri});
+                          min_angle_res->trip.direction_tri,
+                          min_angle_res->trip.spatial_tri,
+                          min_angle_res->poly_funcs});
     }
     return result;
 }
 
-std::vector<ClusterRepr>
-findRepresentativesSH(const std::vector<TriPairList>& clusters,
+
+std::vector<ClusterRepr<TPBT1_3>>
+findRepresentativesSH(const std::vector<ResultList<TPBT1_3>>& clusters,
                       const TensorInterp& t_interp,
                       const TensorInterp& tx_interp,
                       const TensorInterp& ty_interp,
                       const TensorInterp& tz_interp)
 {
-    auto result = std::vector<ClusterRepr>{};
+    auto result = std::vector<ClusterRepr<TPBT1_3>>{};
     for(const auto& c : clusters)
     {
-        const auto* min_angle_tri = &*(c.cbegin());
+        const auto* min_angle_res = &*(c.cbegin());
         auto min_sin = 1.;
-        for(const auto& trip : c)
+        for(const auto& res : c)
         {
-            auto dir =
-                    trip.direction_tri({1. / 3., 1. / 3., 1. / 3.}).normalized();
-            auto center = trip.spatial_tri({1. / 3., 1. / 3., 1. / 3.});
+            auto dir = res.trip.direction_tri({1. / 3., 1. / 3., 1. / 3.})
+                               .normalized();
+            auto center = res.trip.spatial_tri({1. / 3., 1. / 3., 1. / 3.});
             auto t = t_interp(center);
             auto tx = tx_interp(center);
             auto ty = ty_interp(center);
@@ -377,13 +447,14 @@ findRepresentativesSH(const std::vector<TriPairList>& clusters,
             if(ms < min_sin)
             {
                 min_sin = ms;
-                min_angle_tri = &trip;
+                min_angle_res = &res;
             }
         }
 
         result.push_back({c.size(),
-                          min_angle_tri->direction_tri,
-                          min_angle_tri->spatial_tri});
+                          min_angle_res->trip.direction_tri,
+                          min_angle_res->trip.spatial_tri,
+                          min_angle_res->poly_funcs});
     }
     return result;
 }
@@ -401,10 +472,11 @@ findRepresentativesSH(const std::vector<TriPairList>& clusters,
  * @param tri Spatial triangle
  * @return List of PEVPoints with context info
  */
-PointList computeContextInfo(const std::vector<ClusterRepr>& representatives,
-                             const TensorInterp& s_interp,
-                             const TensorInterp& t_interp,
-                             const Triangle& tri)
+PointList
+computeContextInfo(const std::vector<ClusterRepr<TPBT1_2>>& representatives,
+                   const TensorInterp& s_interp,
+                   const TensorInterp& t_interp,
+                   const Triangle& tri)
 {
     auto points = PointList{};
     points.reserve(representatives.size());
@@ -464,6 +536,36 @@ PointList computeContextInfo(const std::vector<ClusterRepr>& representatives,
                               })
                                .sum();
 
+        // Compute angle between gradients of target functions to measure
+        // numerical precision
+        auto center0 = (TensorProductDerivativeType<0, double, double, 1, 2>::
+                                type::Coords::Ones()
+                        / 3.).eval();
+        auto center1 = (TensorProductDerivativeType<1, double, double, 1, 2>::
+                                type::Coords::Ones()
+                        / 3.).eval();
+
+        auto gradients = std::vector<Eigen::Vector4d>{};
+        gradients.reserve(r.poly_funcs.size());
+
+        auto max_cos = 0.;
+
+        for(const auto& poly: r.poly_funcs)
+        {
+            auto deriv0 = derivatives<0>(poly);
+            auto deriv1 = derivatives<1>(poly);
+            auto grad = Eigen::Vector4d(deriv0[0](center0),
+                                        deriv0[1](center0),
+                                        deriv1[0](center1),
+                                        deriv1[1](center1));
+            grad.normalize();
+            for(const auto& g: gradients)
+            {
+                max_cos = std::max(max_cos, std::abs(grad.dot(g)));
+            }
+            gradients.push_back(grad);
+        }
+
         points.push_back(
                 PEVPoint{tri(result_center),
                          ERank(s_order),
@@ -475,18 +577,20 @@ PointList computeContextInfo(const std::vector<ClusterRepr>& representatives,
                          t_eigvs.sum().imag() != 0,
                          r.cluster_size,
                          (r.spatial_tri[1] - r.spatial_tri[0]).norm(),
-                         (r.direction_tri[1] - r.direction_tri[0]).norm()});
+                         (r.direction_tri[1] - r.direction_tri[0]).norm(),
+                         std::acos(max_cos)});
     }
     return points;
 }
 
 
-PointList computeContextInfoSH(const std::vector<ClusterRepr>& representatives,
-                               const TensorInterp& t_interp,
-                               const TensorInterp& tx_interp,
-                               const TensorInterp& ty_interp,
-                               const TensorInterp& tz_interp,
-                               const Triangle& tri)
+PointList
+computeContextInfoSH(const std::vector<ClusterRepr<TPBT1_3>>& representatives,
+                     const TensorInterp& t_interp,
+                     const TensorInterp& tx_interp,
+                     const TensorInterp& ty_interp,
+                     const TensorInterp& tz_interp,
+                     const Triangle& tri)
 {
     auto points = PointList{};
     points.reserve(representatives.size());
@@ -544,11 +648,42 @@ PointList computeContextInfoSH(const std::vector<ClusterRepr>& representatives,
                                           t_eigvs[t_closest_index].real(), val);
                               })
                                .sum();
-        auto dt_order = dt_eigvs.unaryExpr([&](const std::complex<double>& val) {
-                                  return count_larger_real(
-                                          dt_eigvs[dt_closest_index].real(), val);
-                              })
-                               .sum();
+        auto dt_order =
+                dt_eigvs.unaryExpr([&](const std::complex<double>& val) {
+                            return count_larger_real(
+                                    dt_eigvs[dt_closest_index].real(), val);
+                        })
+                        .sum();
+
+        // Compute angle between gradients of target functions to measure
+        // numerical precision
+        auto center0 = (TensorProductDerivativeType<0, double, double, 1, 3>::
+                                type::Coords::Ones()
+                        / 3.).eval();
+        auto center1 = (TensorProductDerivativeType<1, double, double, 1, 3>::
+                                type::Coords::Ones()
+                        / 3.).eval();
+
+        auto gradients = std::vector<Eigen::Vector4d>{};
+        gradients.reserve(r.poly_funcs.size());
+
+        auto max_cos = 0.;
+
+        for(const auto& poly: r.poly_funcs)
+        {
+            auto deriv0 = derivatives<0>(poly);
+            auto deriv1 = derivatives<1>(poly);
+            auto grad = Eigen::Vector4d(deriv0[0](center0),
+                                        deriv0[1](center0),
+                                        deriv1[0](center1),
+                                        deriv1[1](center1));
+            grad.normalize();
+            for(const auto& g: gradients)
+            {
+                max_cos = std::max(max_cos, std::abs(grad.dot(g)));
+            }
+            gradients.push_back(grad);
+        }
 
         points.push_back(
                 PEVPoint{tri(result_center),
@@ -561,7 +696,8 @@ PointList computeContextInfoSH(const std::vector<ClusterRepr>& representatives,
                          dt_eigvs.sum().imag() != 0,
                          r.cluster_size,
                          (r.spatial_tri[1] - r.spatial_tri[0]).norm(),
-                         (r.direction_tri[1] - r.direction_tri[0]).norm()});
+                         (r.direction_tri[1] - r.direction_tri[0]).norm(),
+                         std::acos(max_cos)});
     }
     return points;
 }
@@ -572,56 +708,12 @@ PointList computeContextInfoSH(const std::vector<ClusterRepr>& representatives,
  *
  * @return 1 for all positive, -1 for all negative, 0 otherwise
  */
-int sameSign(const BDoubleTri& coeffs)
+template <typename TPBT>
+int sameSign(const TPBT& coeffs)
 {
     auto mima = std::minmax_element(std::begin(coeffs.coefficients()),
                                     std::end(coeffs.coefficients()));
     return *(mima.first) * *(mima.second) > 0 ? sgn(*(mima.second)) : 0;
-}
-
-
-template <std::size_t D,
-          typename TPBT,
-          typename T,
-          typename C,
-          std::size_t... Degrees>
-auto derivatives(
-        const TensorProductBezierTriangleBase<TPBT, T, C, Degrees...>& poly)
-        -> std::array<
-                typename TensorProductDerivativeType<D, T, C, Degrees...>::type,
-                2>
-{
-    auto d0 = poly.template derivative<D>(0);
-    auto d1 = poly.template derivative<D>(1);
-    auto d2 = poly.template derivative<D>(2);
-
-    auto da = (d1 - d0)/std::sqrt(2);
-
-    auto db = (2 * d2 - d0 - d1) / std::sqrt(6);
-
-    return {da, db};
-}
-
-
-template <std::size_t D,
-          typename TPBT,
-          typename T,
-          typename C,
-          std::size_t... Degrees>
-double derivatives_upper_bound(
-        const TensorProductBezierTriangleBase<TPBT, T, C, Degrees...>& poly)
-{
-    auto upper_bound = typename TPBT::Coeffs{};
-    // estimate upper bound of gradient magnitude by L1 norm of control points
-    auto abssum = [](double v1, double v2) {
-        return std::abs(v1) + std::abs(v2);
-    };
-    auto derivs = derivatives<D>(poly);
-    boost::transform(derivs[0].coefficients(),
-                     derivs[1].coefficients(),
-                     std::begin(upper_bound),
-                     abssum);
-    return *boost::max_element(upper_bound);
 }
 
 
@@ -634,11 +726,11 @@ double derivatives_upper_bound(
  *
  * @return One BezierDoubleTriangle for each barycentric coordinate
  */
-std::array<BDoubleTri, 6> parallelEigenvectorCoeffs(const TensorInterp& s,
+std::array<TPBT1_2, 6> parallelEigenvectorCoeffs(const TensorInterp& s,
                                                     const TensorInterp& t,
                                                     const Triangle& r)
 {
-    using Coords = BDoubleTri::Coords;
+    using Coords = TPBT1_2::Coords;
 
     // T * r x r
     auto eval_func =
@@ -653,17 +745,18 @@ std::array<BDoubleTri, 6> parallelEigenvectorCoeffs(const TensorInterp& s,
     auto eval5 = [&](const Coords& coords) { return eval_func(coords, t, 1); };
     auto eval6 = [&](const Coords& coords) { return eval_func(coords, t, 2); };
 
-    return {BDoubleTri{eval1}, BDoubleTri{eval2}, BDoubleTri{eval3},
-            BDoubleTri{eval4}, BDoubleTri{eval5}, BDoubleTri{eval6}};
+    return {TPBT1_2{eval1}, TPBT1_2{eval2}, TPBT1_2{eval3},
+            TPBT1_2{eval4}, TPBT1_2{eval5}, TPBT1_2{eval6}};
 }
 
-std::array<BDoubleTri, 6> tensorSujudiHaimesCoeffs(const TensorInterp& t,
+
+std::array<TPBT1_3, 6> tensorSujudiHaimesCoeffs(const TensorInterp& t,
                                                    const TensorInterp& tx,
                                                    const TensorInterp& ty,
                                                    const TensorInterp& tz,
                                                    const Triangle& r)
 {
-    using Coords = BDoubleTri::Coords;
+    using Coords = TPBT1_3::Coords;
 
     // T * r x r
     auto eval_ev = [&](const Coords& coords,
@@ -701,25 +794,26 @@ std::array<BDoubleTri, 6> tensorSujudiHaimesCoeffs(const TensorInterp& t,
         return eval_deriv_ev(coords, tx, ty, tz, 2);
     };
 
-    return {BDoubleTri{eval1},
-            BDoubleTri{eval2},
-            BDoubleTri{eval3},
-            BDoubleTri{eval4},
-            BDoubleTri{eval5},
-            BDoubleTri{eval6}};
+    return {TPBT1_3{eval1},
+            TPBT1_3{eval2},
+            TPBT1_3{eval3},
+            TPBT1_3{eval4},
+            TPBT1_3{eval5},
+            TPBT1_3{eval6}};
 }
 
-template<typename TPBT>
-TriPairList rootSearch(const std::array<TPBT, 6>& polys,
-                       const TriPair& trip,
-                       double spatial_epsilon,
-                       double direction_epsilon,
-                       uint64_t* num_splits = nullptr,
-                       uint64_t* max_level = nullptr)
+
+template <typename TPBT>
+ResultList<TPBT> rootSearch(const std::array<TPBT, 6>& polys,
+                            const TriPair& trip,
+                            double spatial_epsilon,
+                            double direction_epsilon,
+                            uint64_t* num_splits = nullptr,
+                            uint64_t* max_level = nullptr)
 {
     auto tstck = std::stack<SubPackage<TPBT>>{};
     tstck.push({trip, polys, true, 0});
-    auto result = TriPairList{};
+    auto result = ResultList<TPBT>{};
 
     while(!tstck.empty())
     {
@@ -735,7 +829,7 @@ TriPairList rootSearch(const std::array<TPBT, 6>& polys,
         // current subdivision triangles
         auto has_nonzero = boost::algorithm::any_of(
                 pack.poly_funcs,
-                [](const BDoubleTri& c) { return sameSign(c) != 0; });
+                [](const TPBT& c) { return sameSign(c) != 0; });
 
         // Discard triangles if no roots can occur inside
         if(has_nonzero)
@@ -775,7 +869,7 @@ TriPairList rootSearch(const std::array<TPBT, 6>& polys,
             pos_frame.display(pos_image);
             dir_frame.display(dir_image);
 #endif
-            result.push_back(pack.trip);
+            result.push_back(pack);
             continue;
         }
 
@@ -797,7 +891,8 @@ TriPairList rootSearch(const std::array<TPBT, 6>& polys,
 
         if(result.size() > 100000)
         {
-            std::cerr << "Aborting search due to too many solutions" << std::endl;
+            std::cerr << "Aborting search due to too many solutions"
+                      << std::endl;
             break;
         }
 
@@ -813,15 +908,15 @@ TriPairList rootSearch(const std::array<TPBT, 6>& polys,
 }
 
 
-TriPairList parallelEigenvectorSearch(const TensorInterp& s,
-                                      const TensorInterp& t,
-                                      const Triangle& tri,
-                                      double spatial_epsilon,
-                                      double direction_epsilon,
-                                      uint64_t* num_splits = nullptr,
-                                      uint64_t* max_level = nullptr)
+ResultList<TPBT1_2> parallelEigenvectorSearch(const TensorInterp& s,
+                                              const TensorInterp& t,
+                                              const Triangle& tri,
+                                              double spatial_epsilon,
+                                              double direction_epsilon,
+                                              uint64_t* num_splits = nullptr,
+                                              uint64_t* max_level = nullptr)
 {
-    auto result = TriPairList{};
+    auto result = ResultList<TPBT1_2>{};
 
     auto compute_tri =[&](const Triangle& r) {
         boost::insert(result,
@@ -848,17 +943,17 @@ TriPairList parallelEigenvectorSearch(const TensorInterp& s,
 }
 
 
-TriPairList tensorSujudiHaimesSearch(const TensorInterp& t,
-                                     const TensorInterp& tx,
-                                     const TensorInterp& ty,
-                                     const TensorInterp& tz,
-                                     const Triangle& tri,
-                                     double spatial_epsilon,
-                                     double direction_epsilon,
-                                     uint64_t* num_splits = nullptr,
-                                     uint64_t* max_level = nullptr)
+ResultList<TPBT1_3> tensorSujudiHaimesSearch(const TensorInterp& t,
+                                             const TensorInterp& tx,
+                                             const TensorInterp& ty,
+                                             const TensorInterp& tz,
+                                             const Triangle& tri,
+                                             double spatial_epsilon,
+                                             double direction_epsilon,
+                                             uint64_t* num_splits = nullptr,
+                                             uint64_t* max_level = nullptr)
 {
-    auto result = TriPairList{};
+    auto result = ResultList<TPBT1_3>{};
 
     auto compute_tri =[&](const Triangle& r) {
         boost::insert(result,
@@ -885,6 +980,7 @@ TriPairList tensorSujudiHaimesSearch(const TensorInterp& t,
 }
 
 } // namespace
+
 
 namespace pev
 {
@@ -932,6 +1028,7 @@ PointList findParallelEigenvectors(const TensorInterp& s,
             opts);
 }
 
+
 PointList findTensorSujudiHaimes(const TensorInterp& t,
                                  const TensorInterp& tx,
                                  const TensorInterp& ty,
@@ -961,6 +1058,7 @@ PointList findTensorSujudiHaimes(const TensorInterp& t,
 
     return computeContextInfoSH(representatives, t, tx, ty, tz, x);
 }
+
 
 PointList findTensorSujudiHaimes(const TensorInterp& t,
                                  const TensorInterp& tx,

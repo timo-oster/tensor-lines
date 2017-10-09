@@ -483,6 +483,9 @@ int vtkParallelEigenvectors::RequestData(vtkInformation* vtkNotUsed(request),
     auto dir_unc = vtkSmartPointer<vtkDoubleArray>::New();
     dir_unc->SetName("Direction Uncertainty");
     output->GetPointData()->AddArray(dir_unc);
+    auto grad_angle = vtkSmartPointer<vtkDoubleArray>::New();
+    grad_angle->SetName("Maximum Gradient Angle");
+    output->GetPointData()->AddArray(grad_angle);
 
     // map faces to cell ids
     auto face_map = buildFaceMap(input);
@@ -542,6 +545,7 @@ int vtkParallelEigenvectors::RequestData(vtkInformation* vtkNotUsed(request),
             csize->InsertValue(pid, p.cluster_size);
             pos_unc->InsertValue(pid, p.pos_uncertainty);
             dir_unc->InsertValue(pid, p.dir_uncertainty);
+            grad_angle->InsertValue(pid, p.deriv_angle);
 
             // Add pev point to all cells participating in this face
             for(auto c : cids)

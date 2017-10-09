@@ -53,9 +53,11 @@ struct PEVPoint
     bool t_has_imaginary; ///< T has any imaginary eigenvalues at the position
     std::size_t cluster_size; ///< Number of candidate points that contributed
     double pos_uncertainty; ///< Size of the last subdivision cell in
-                                 /// position space
+                            /// position space
     double dir_uncertainty; ///< Size of the last subdivision cell in
-                                 /// direction space
+                            /// direction space
+    double deriv_angle; ///< Largest angle between two gradients of the local
+                        /// target functions
 };
 
 /**
