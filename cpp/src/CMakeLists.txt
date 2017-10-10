@@ -80,3 +80,5 @@ install(TARGETS generate_tet_dataset
 install(TARGETS generate_grid_dataset
     EXPORT ParallelEigenvectorsTargets
     RUNTIME DESTINATION "${INSTALL_BIN_DIR}" COMPONENT bin)
+
+add_subdirectory(tests)
