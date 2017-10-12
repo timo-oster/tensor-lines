@@ -1,8 +1,10 @@
-#define CATCH_CONFIG_MAIN
-#include <catch.hpp>
+#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
+#include <doctest.h>
 
 #include "../TensorProductBezierTriangle.hh"
 #include "../utils.hh"
+
+using doctest::Approx;
 
 using TPBT1_2 = pev::TensorProductBezierTriangle<double, double, 1, 2>;
 using TPBT1_3 = pev::TensorProductBezierTriangle<double, double, 1, 3>;

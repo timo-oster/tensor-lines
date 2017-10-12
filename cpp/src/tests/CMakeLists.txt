@@ -3,7 +3,7 @@ option(BUILD_TESTS "Build the unit tests" OFF)
 option(RUN_TESTS "Run the unit tests after each build" OFF)
 
 if(${BUILD_TESTS})
-    add_executable(unit_tests CatchTests.cpp)
+    add_executable(unit_tests UnitTests.cpp)
     if(${RUN_TESTS})
         add_custom_target(tests ALL
                           COMMAND unit_tests
