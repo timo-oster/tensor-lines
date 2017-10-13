@@ -156,15 +156,11 @@ int main(int argc, char const* argv[])
     s_data->SetNumberOfTuples(grid->GetNumberOfPoints());
     grid->GetPointData()->AddArray(s_data);
 
-    s_data->Print(std::cout);
-
     auto sx_data = vtkSmartPointer<vtkDoubleArray>::New();
     sx_data->SetName("Sx");
     sx_data->SetNumberOfComponents(9);
     sx_data->SetNumberOfTuples(grid->GetNumberOfPoints());
     grid->GetPointData()->AddArray(sx_data);
-
-    sx_data->Print(std::cout);
 
     auto sy_data = vtkSmartPointer<vtkDoubleArray>::New();
     sy_data->SetName("Sy");
@@ -172,15 +168,11 @@ int main(int argc, char const* argv[])
     sy_data->SetNumberOfTuples(grid->GetNumberOfPoints());
     grid->GetPointData()->AddArray(sy_data);
 
-    sy_data->Print(std::cout);
-
     auto sz_data = vtkSmartPointer<vtkDoubleArray>::New();
     sz_data->SetName("Sz");
     sz_data->SetNumberOfComponents(9);
     sz_data->SetNumberOfTuples(grid->GetNumberOfPoints());
     grid->GetPointData()->AddArray(sz_data);
-
-    sz_data->Print(std::cout);
 
     for(auto i: range(grid->GetNumberOfPoints()))
     {
@@ -195,8 +187,6 @@ int main(int argc, char const* argv[])
         sy_data->SetTuple(i, sy.data());
         sz_data->SetTuple(i, sz.data());
     }
-
-    grid->Print(std::cout);
 
     auto tri_filt = vtkSmartPointer<vtkDataSetTriangleFilter>::New();
     tri_filt->Print(std::cout);

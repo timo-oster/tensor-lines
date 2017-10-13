@@ -6,19 +6,14 @@
 #include <Eigen/LU>
 
 #include <boost/algorithm/cxx11/any_of.hpp>
-#include <boost/algorithm/minmax_element.hpp>
 #include <boost/range/algorithm/max_element.hpp>
-#include <boost/range/adaptor/transformed.hpp>
 #include <boost/range/algorithm/transform.hpp>
-#include <boost/optional/optional.hpp>
-#include <boost/range/join.hpp>
 #include <boost/range/algorithm_ext/insert.hpp>
 
 #include <algorithm>
 #include <array>
 #include <iostream>
 #include <map>
-#include <queue>
 #include <stack>
 #include <utility>
 #include <vector>
@@ -90,7 +85,7 @@ using TriPairList = std::vector<TriPair>;
 
 
 /**
- * Representative TriPair in a cluster of similar TriPairs
+ * Representative Solution in a cluster of similar Solution
  */
 template <typename TPBT>
 struct ClusterRepr
@@ -763,7 +758,8 @@ std::array<TPBT1_3, 6> tensorSujudiHaimesCoeffs(const TensorInterp& t,
                        const TensorInterp& t,
                        int i) -> double {
         auto rv = r(coords.tail<3>());
-        return (t(coords.head<3>()) * rv).cross(rv)[i];
+        auto tv = t(coords.head<3>());
+        return (tv * rv).cross(rv)[i];
     };
 
     // (\nabla T * r) * r x r
@@ -773,11 +769,11 @@ std::array<TPBT1_3, 6> tensorSujudiHaimesCoeffs(const TensorInterp& t,
                              const TensorInterp& tz,
                              int i) -> double {
         auto rv = r(coords.tail<3>());
+        auto txv = tx(coords.head<3>());
+        auto tyv = ty(coords.head<3>());
+        auto tzv = tz(coords.head<3>());
 
-        return ((tx(coords.head<3>()) * rv[0] + ty(coords.head<3>()) * rv[1]
-                 + tz(coords.head<3>()) * rv[2])
-                * rv)
-                .cross(rv)[i];
+        return ((txv * rv[0] + tyv * rv[1] + tzv * rv[2]) * rv).cross(rv)[i];
     };
 
     auto eval1 = [&](const Coords& coords) { return eval_ev(coords, t, 0); };
@@ -891,7 +887,7 @@ ResultList<TPBT> rootSearch(const std::array<TPBT, 6>& polys,
 
         if(result.size() > 100000)
         {
-            std::cerr << "Aborting search due to too many solutions"
+            std::cerr << "\nAborting search due to too many solutions"
                       << std::endl;
             break;
         }
