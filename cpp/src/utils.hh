@@ -29,6 +29,25 @@ struct MinNotZero
     }
 };
 
+struct MinAbs
+{
+    template <typename T>
+    T operator()(const T& x, const T& y) const
+    {
+        if((x*y) < T{0}) return T{0};
+        return std::min(std::abs(x), std::abs(y));
+    }
+};
+
+struct MaxAbs
+{
+    template <typename T>
+    T operator()(const T& x, const T& y) const
+    {
+        return std::max(std::abs(x), std::abs(y));
+    }
+};
+
 
 /**
  * @brief An adaptor class to negate a unary predicate functor
