@@ -64,7 +64,7 @@ struct negator
     Predicate pred;
 
     template <typename T>
-    auto operator()(const T& arg) const -> decltype(!pred(arg))
+    decltype(auto) operator()(const T& arg) const
     {
         return !pred(arg);
     }
@@ -86,101 +86,56 @@ int sgn(T val)
 
 
 template <class T>
-inline typename std::make_signed<T>::type as_signed(T t)
+inline typename std::make_signed_t<T> as_signed(T t)
 {
-    return typename std::make_signed<T>::type(t);
+    return typename std::make_signed_t<T>(t);
 }
 
 
 template <class T>
-inline typename std::make_unsigned<T>::type as_unsigned(T t)
+inline typename std::make_unsigned_t<T> as_unsigned(T t)
 {
-    return typename std::make_unsigned<T>::type(t);
+    return typename std::make_unsigned_t<T>(t);
 }
 
 
 template <typename T, typename U, typename V = int>
 inline auto range(T start, U end, V step = 1)
-        -> decltype(
-            boost::irange<
-                typename std::decay<
-                    decltype(true ? std::declval<T>() : std::declval<U>())
-                >::type
-            >(
-                std::declval<T>(),
-                std::declval<U>(),
-                std::declval<V>()))
 {
-    using D = typename std::decay<decltype(true ? start : end)>::type;
+    using D = typename std::decay_t<decltype(true ? start : end)>;
     return boost::irange<D>(start, end, step);
 }
 
 
 template <typename T>
 inline auto range(T end)
-        -> decltype(boost::irange(std::declval<T>(), std::declval<T>()))
 {
     return boost::irange(T{0}, end);
 }
 
 
-/// erase_if for associative (unordered) containers
-template <typename AssocContainer,
-          typename Predicate,
-          typename std::enable_if<
-              std::is_same<
-                  typename std::decay<
-                      typename AssocContainer::value_type::first_type
-                  >::type,
-                  typename AssocContainer::key_type
-              >::value,
-              int
-          >::type = 0>
-std::size_t erase_if(AssocContainer& container, Predicate pred)
-{
-    auto to_erase = std::vector<typename AssocContainer::key_type>{};
-    for(const auto& e : container)
-    {
-        if(pred(e)) to_erase.push_back(e.first);
-    }
-    auto erased = std::size_t{0};
-    for(const auto& k : to_erase)
-    {
-        erased += container.erase(k);
-    }
-    return erased;
-}
-
-
-/// erase_if for (unordered) sets
+/// erase_if for (unordered) containers
 template <typename Container,
-          typename Predicate,
-          typename std::enable_if<
-              std::is_same<
-                  typename Container::value_type,
-                  typename Container::key_type
-              >::value,
-              int
-          >::type = 0>
+          typename Predicate>
 std::size_t erase_if(Container& container, Predicate pred)
 {
-    auto to_erase = std::vector<typename Container::key_type>{};
-    for(const auto& e : container)
+    for(auto it = std::begin(container); it != std::end(container);)
     {
-        if(pred(e)) to_erase.push_back(e);
+        if(pred(*it))
+        {
+            it = container.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
     }
-    auto erased = std::size_t{0};
-    for(const auto& e : to_erase)
-    {
-        erased = container.erase(e);
-    }
-    return erased;
 }
 
 
 /// pretty print an Eigen::Vector3* without line breaks
 template <typename T,
-          typename = typename std::enable_if<T::SizeAtCompileTime == 3>::type>
+          typename = typename std::enable_if_t<T::SizeAtCompileTime == 3>>
 std::string print(const T& in)
 {
     std::stringstream out;
