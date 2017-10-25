@@ -63,10 +63,10 @@ struct negator
 {
     Predicate pred;
 
-    template <typename T>
-    decltype(auto) operator()(const T& arg) const
+    template <typename... Args>
+    decltype(auto) operator()(Args&&... args) const
     {
-        return !pred(arg);
+        return !pred(std::forward<Args>(args)...);
     }
 };
 
@@ -86,23 +86,23 @@ int sgn(T val)
 
 
 template <class T>
-inline typename std::make_signed_t<T> as_signed(T t)
+inline std::make_signed_t<T> as_signed(T t)
 {
-    return typename std::make_signed_t<T>(t);
+    return std::make_signed_t<T>(t);
 }
 
 
 template <class T>
-inline typename std::make_unsigned_t<T> as_unsigned(T t)
+inline std::make_unsigned_t<T> as_unsigned(T t)
 {
-    return typename std::make_unsigned_t<T>(t);
+    return std::make_unsigned_t<T>(t);
 }
 
 
 template <typename T, typename U, typename V = int>
 inline auto range(T start, U end, V step = 1)
 {
-    using D = typename std::decay_t<decltype(true ? start : end)>;
+    using D = std::decay_t<decltype(true ? start : end)>;
     return boost::irange<D>(start, end, step);
 }
 
