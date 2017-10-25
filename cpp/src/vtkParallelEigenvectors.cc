@@ -419,6 +419,13 @@ int vtkParallelEigenvectors::RequestData(vtkInformation* vtkNotUsed(request),
     auto* array3 = this->GetInputArrayToProcess(2, inputVector);
     auto* array4 = this->GetInputArrayToProcess(3, inputVector);
 
+    if(!(array1 && array2 && !(_use_sujudi_haimes && !(array3 && array4))))
+    {
+        vtkErrorMacro(<< "not all input arrays could be found (Maybe you "
+                         "specified the wrong name?).");
+        return 0;
+    }
+
     // Check if the data arrays have the correct number of components
     if(array1->GetNumberOfComponents() != 9
        || array2->GetNumberOfComponents() != 9
