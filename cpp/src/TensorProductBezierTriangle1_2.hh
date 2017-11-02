@@ -89,7 +89,7 @@ struct TensorProductDerivative<0, T, C, 1, 2>
 {
     using Coeffs = typename TensorProductBezierTriangle<T, C, 1, 2>::Coeffs;
     using DerivCoeffs =
-            typename TensorProductDerivativeType<0, T, C, 1, 2>::type::Coeffs;
+            typename TensorProductDerivativeType_t<0, T, C, 1, 2>::Coeffs;
     static DerivCoeffs deriv_op(const Coeffs& in, std::size_t dir);
 };
 
@@ -98,7 +98,7 @@ struct TensorProductDerivative<1, T, C, 1, 2>
 {
     using Coeffs = typename TensorProductBezierTriangle<T, C, 1, 2>::Coeffs;
     using DerivCoeffs =
-            typename TensorProductDerivativeType<1, T, C, 1, 2>::type::Coeffs;
+            typename TensorProductDerivativeType_t<1, T, C, 1, 2>::Coeffs;
     static DerivCoeffs deriv_op(const Coeffs& in, std::size_t dir);
 };
 

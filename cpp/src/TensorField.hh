@@ -1,8 +1,8 @@
 #ifndef CPP_TENSOR_FIED_HH
 #define CPP_TENSOR_FIED_HH
 
+#include "ParallelEigenvectorDefinitions.hh"
 #include "utils.hh"
-
 
 namespace pev
 {
@@ -79,5 +79,55 @@ public:
         return Mat3d::Zero();
     }
 };
+
+class TensorVortexSimple : public TensorField
+{
+public:
+    Mat3d t(const Vec3d& x) const override
+    {
+        auto vec = Vec3d{-x[1], x[0], 1.};
+        return vec * vec.transpose();
+    }
+
+    Mat3d tx(const Vec3d& x) const override
+    {
+        auto result = Mat3d{};
+
+        result(0, 0) = 0.;
+        result(0, 1) = -x[1];
+        result(0, 2) = 0.;
+        result(1, 0) = -x[1];
+        result(1, 1) = 2.*x[0];
+        result(1, 2) = 1.;
+        result(2, 0) = 0.;
+        result(2, 1) = 1.;
+        result(2, 2) = 0.;
+
+        return result;
+    }
+
+    Mat3d ty(const Vec3d& x) const override
+    {
+        auto result = Mat3d{};
+
+        result(0, 0) = 2.*x[1];
+        result(0, 1) = -x[0];
+        result(0, 2) = -1.;
+        result(1, 0) = -x[0];
+        result(1, 1) = 0.;
+        result(1, 2) = 0.;
+        result(2, 0) = -1.;
+        result(2, 1) = 0.;
+        result(2, 2) = 0.;
+
+        return result;
+    }
+
+    Mat3d tz(const Vec3d& /*x*/) const override
+    {
+        return Mat3d::Zero();
+    }
+};
+
 } // namespace pev
 #endif

@@ -2,6 +2,7 @@
 #include <doctest.h>
 
 #include "../TensorProductBezierTriangle.hh"
+#include "../ParallelEigenvectorDefinitions.hh"
 #include "../utils.hh"
 
 using doctest::Approx;
@@ -180,6 +181,24 @@ TEST_CASE("Testing polynomial reproduction for degrees 1, 2")
                                     == Approx(_poly1_2(globalpos)));
                         }
                     }
+                }
+            }
+        }
+
+        WHEN("We try reproducing it with TensorProductBezierTriangle<double, "
+             "double, 1, 3> (higher degree)")
+        {
+            auto bezier1_3 = TPBT1_3(_poly1_2);
+
+            THEN("It must correctly reproduce the value at 15 random locations")
+            {
+                for(auto i : pev::range(15))
+                {
+                    auto randpos = ((Coords1_3::Random() + Coords1_3::Ones())
+                                    / 2).eval();
+                    randpos.head<3>() /= randpos.head<3>().sum();
+                    randpos.tail<3>() /= randpos.tail<3>().sum();
+                    REQUIRE(bezier1_3(randpos) == Approx(_poly1_2(randpos)));
                 }
             }
         }
@@ -538,5 +557,46 @@ TEST_CASE("Testing polynomial reproduction for degrees 1, 3")
                 }
             }
         }
+    }
+}
+
+using SameSignTypes = doctest::Types<float, double, int16_t, int32_t, int64_t>;
+
+TEST_CASE_TEMPLATE("Test SameSign functions", T, SameSignTypes)
+{
+    SUBCASE("Positive numbers")
+    {
+        REQUIRE(pev::sameSign(std::vector<T>{1, 2, 3, 4, 5}) == 1);
+    }
+    SUBCASE("Negative numbers")
+    {
+        REQUIRE(pev::sameSign(std::vector<T>{-1, -2, -1, -3, -4}) == -1);
+    }
+    SUBCASE("Positive or negative numbers containing 0")
+    {
+        REQUIRE(pev::sameSign(std::vector<T>{0, 2, 3, 4, 5}) == 0);
+        REQUIRE(pev::sameSign(std::vector<T>{-1, -2, 0, -3, -4}) == 0);
+    }
+    SUBCASE("Differently signed numbers")
+    {
+        REQUIRE(pev::sameSign(std::vector<T>{1, -2, 0, 3, -4}) == 0);
+
+    }
+    SUBCASE("Single Element")
+    {
+        REQUIRE(pev::sameSign(std::vector<T>{5}) == 1);
+        REQUIRE(pev::sameSign(std::vector<T>{-3}) == -1);
+        REQUIRE(pev::sameSign(std::vector<T>{0}) == 0);
+    }
+    SUBCASE("Two Elements")
+    {
+        REQUIRE(pev::sameSign(std::vector<T>{5, 2}) == 1);
+        REQUIRE(pev::sameSign(std::vector<T>{-3, -7}) == -1);
+        REQUIRE(pev::sameSign(std::vector<T>{0, 0}) == 0);
+        REQUIRE(pev::sameSign(std::vector<T>{-3, 7}) == 0);
+        REQUIRE(pev::sameSign(std::vector<T>{-13, 0}) == 0);
+        REQUIRE(pev::sameSign(std::vector<T>{0, 79}) == 0);
+        REQUIRE(pev::sameSign(std::vector<T>{45, 0}) == 0);
+        REQUIRE(pev::sameSign(std::vector<T>{0, -16}) == 0);
     }
 }

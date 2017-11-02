@@ -8,11 +8,16 @@
 #include <tuple>
 #include <type_traits>
 #include <utility>
+#include <stdexcept>
 
 namespace pev
 {
 template <std::size_t D, typename T, typename C, std::size_t... Degrees>
 struct TensorProductDerivativeType;
+
+template <std::size_t D, typename T, typename C, std::size_t... Degrees>
+using TensorProductDerivativeType_t =
+        typename TensorProductDerivativeType<D, T, C, Degrees...>::type;
 
 template <std::size_t D, typename T, typename C, std::size_t... Degrees>
 struct TensorProductDerivative;
@@ -112,6 +117,8 @@ public:
     using Traits = TensorProductTraits<Derived>;
     using Coords = Eigen::Matrix<C, Traits::NCoords, 1>;
     using Coeffs = std::array<T, Traits::NCoeffs>;
+    // constexpr static std::size_t NCoords = sizeof...(Degrees) * 3;
+    // constexpr static std::size_t NCoeffs = (((Degrees+1)*(Degrees+2))/2) * ...;
 
     TensorProductBezierTriangleBase() = default;
 
@@ -126,9 +133,7 @@ public:
     // Check for type that is callable with Coords and returns something convertible to T
     template <typename Function>
     using is_legal_init_function =
-            typename std::is_convertible<
-                typename std::result_of<Function(Coords)>::type,
-                T>;
+            std::is_convertible<std::result_of_t<Function(Coords)>, T>;
 
     /**
      * Create polynomial interpolating the given function at the control points.
@@ -218,23 +223,34 @@ public:
      * @tparam D Space in which to split
      * @return Array of four new polynomials representing the split parts.
      */
-    template<std::size_t D=0>
+    template <std::size_t D=0>
     std::array<Derived, 4> split() const
     {
-        static_assert(D < sizeof...(Degrees),
-                      "D must be smaller than the number of Degrees");
-        return {Derived{Derived::template splitCoeffs<0, D>(_coeffs)},
-                Derived{Derived::template splitCoeffs<1, D>(_coeffs)},
-                Derived{Derived::template splitCoeffs<2, D>(_coeffs)},
-                Derived{Derived::template splitCoeffs<3, D>(_coeffs)}};
+        return {split<D>(0), split<D>(1), split<D>(2), split<D>(3)};
+    }
+
+    template <std::size_t D=0>
+    Derived split(std::size_t part) const
+    {
+        if(D >= sizeof...(Degrees))
+            throw(std::invalid_argument(
+                    "D must be smaller than the number of Degrees"));
+        switch(part)
+        {
+            case 0: return Derived{Derived::template splitCoeffs<0, D>(_coeffs)};
+            case 1: return Derived{Derived::template splitCoeffs<1, D>(_coeffs)};
+            case 2: return Derived{Derived::template splitCoeffs<2, D>(_coeffs)};
+            case 3: return Derived{Derived::template splitCoeffs<3, D>(_coeffs)};
+            default: throw std::invalid_argument("Part must be smaller than 4!");
+        }
     }
 
     template <std::size_t D>
-    typename TensorProductDerivativeType<D, T, C, Degrees...>::type
+    TensorProductDerivativeType_t<D, T, C, Degrees...>
     derivative(std::size_t i) const
     {
         using Derivative =
-                typename TensorProductDerivativeType<D, T, C, Degrees...>::type;
+                TensorProductDerivativeType_t<D, T, C, Degrees...>;
         using OpType = TensorProductDerivative<D, T, C, Degrees...>;
 
         assert(i < 3);
@@ -375,5 +391,6 @@ class TensorProductBezierTriangle
 #include "TensorProductBezierTriangle1_1.hh"
 #include "TensorProductBezierTriangle1_2.hh"
 #include "TensorProductBezierTriangle1_3.hh"
+#include "TensorProductBezierTriangle2_2.hh"
 
 #endif

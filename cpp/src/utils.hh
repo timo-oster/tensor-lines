@@ -14,9 +14,6 @@
 
 namespace pev
 {
-using Vec3d = Eigen::Vector3d;
-using Mat3d = Eigen::Matrix3d;
-
 
 struct MinNotZero
 {
@@ -48,6 +45,64 @@ struct MaxAbs
     }
 };
 
+struct Max
+{
+    template <typename T>
+    T operator()(const T& x, const T& y) const
+    {
+        return std::max(x, y);
+    }
+};
+
+struct Min
+{
+    template <typename T>
+    T operator()(const T& x, const T& y) const
+    {
+        return std::min(x, y);
+    }
+};
+
+
+template <typename T, typename = std::enable_if_t<std::is_signed<T>::value>>
+int sgn(T val)
+{
+    return (T{0} < val) - (val < T{0});
+}
+
+
+struct SameSign
+{
+    template <typename T1,
+              typename T2,
+              typename = std::enable_if_t<std::is_signed<T1>::value
+                                          && std::is_signed<T2>::value>>
+    int operator()(const T1& x, const T2& y) const
+    {
+        return x * y > 0 ? sgn(x) : 0;
+    }
+};
+
+/**
+ * Check if all numbers of a sequence are positive or negative
+ *
+ * @return 1 for all positive, -1 for all negative, 0 otherwise
+ */
+template <typename Sequence>
+int sameSign(const Sequence& numbers)
+{
+    auto nelem = std::distance(std::begin(numbers), std::end(numbers));
+    if(nelem == 0) return 0;
+    auto first = *std::begin(numbers);
+    if(nelem == 1) return sgn(first);
+    return std::accumulate(std::next(std::begin(numbers)),
+                           std::end(numbers),
+                           sgn(first),
+                           SameSign{});
+}
+
+template<typename... Ts> struct make_void { typedef void type;};
+template<typename... Ts> using void_t = typename make_void<Ts...>::type;
 
 /**
  * @brief An adaptor class to negate a unary predicate functor
@@ -77,14 +132,6 @@ negator<Predicate> negate(Predicate predicate)
     return negator<Predicate>{predicate};
 }
 
-
-template <typename T>
-int sgn(T val)
-{
-    return (T{0} < val) - (val < T{0});
-}
-
-
 template <class T>
 inline std::make_signed_t<T> as_signed(T t)
 {
@@ -97,6 +144,23 @@ inline std::make_unsigned_t<T> as_unsigned(T t)
 {
     return std::make_unsigned_t<T>(t);
 }
+
+
+template <typename T>
+constexpr bool is_equality_comparable =
+        std::is_convertible<decltype(std::declval<T>() == std::declval<T>()),
+                            bool>::value &&
+                std::is_convertible<decltype(std::declval<T>()
+                                             != std::declval<T>()),
+                                    bool>::value;
+
+template <typename T>
+constexpr bool is_comparable =
+        std::is_convertible<decltype(std::declval<T>() < std::declval<T>()),
+                            bool>::value &&
+                std::is_convertible<decltype(std::declval<T>()
+                                             > std::declval<T>()),
+                                    bool>::value;
 
 
 template <typename T, typename U, typename V = int>
@@ -117,7 +181,7 @@ inline auto range(T end)
 /// erase_if for (unordered) containers
 template <typename Container,
           typename Predicate>
-std::size_t erase_if(Container& container, Predicate pred)
+void erase_if(Container& container, Predicate pred)
 {
     for(auto it = std::begin(container); it != std::end(container);)
     {
@@ -158,6 +222,6 @@ struct make_string
         return ss.str();
     }
 };
-}
+} // namespace pev
 
 #endif // CPP_UTILS_HH

@@ -1,8 +1,7 @@
 #ifndef CPP_PARALLEL_EIGENVECTORS_HH
 #define CPP_PARALLEL_EIGENVECTORS_HH
 
-#include "TensorProductBezierTriangle.hh"
-#include "utils.hh"
+#include "ParallelEigenvectorDefinitions.hh"
 
 #ifdef DRAW_DEBUG
 #include <CImg.h>
@@ -12,7 +11,7 @@
 #endif
 
 #include <vector>
-
+#include <array>
 
 namespace pev
 {
@@ -26,40 +25,6 @@ extern CImgDisplay pos_frame;
 extern CImgDisplay dir_frame;
 #endif
 
-
-/**
- * Rank/order of an eigenvalue of a 3x3 matrix
- */
-enum class ERank : int
-{
-    First = 0,
-    Second = 1,
-    Third = 2
-};
-
-
-/**
- * Parallel eigenvector point.
- */
-struct PEVPoint
-{
-    Vec3d pos; ///< position
-    ERank s_rank; ///< rank of eigenvector of tensor field S
-    ERank t_rank; ///< rank of eigenvector of tensor field T
-    Vec3d eivec; ///< Eigenvector direction
-    double s_eival; ///< Eigenvalue for tensor field S
-    double t_eival; ///< Eigenvalue for tensor field T
-    bool s_has_imaginary; ///< S has any imaginary eigenvalues at the position
-    bool t_has_imaginary; ///< T has any imaginary eigenvalues at the position
-    std::size_t cluster_size; ///< Number of candidate points that contributed
-    double pos_uncertainty; ///< Size of the last subdivision cell in
-                            /// position space
-    double dir_uncertainty; ///< Size of the last subdivision cell in
-                            /// direction space
-    double deriv_angle; ///< Largest angle between two gradients of the local
-                        /// target functions
-};
-
 /**
  * List of found parallel eigenvector points
  */
@@ -67,30 +32,13 @@ using PointList = std::vector<PEVPoint>;
 
 
 /**
- * Linear tensor field expressed in barycentric coordinates
- */
-using TensorInterp = TensorProductBezierTriangle<Mat3d, double, 1>;
-
-
-/**
- * Triangle in 3d expressed in barycentric coordinates
- */
-using Triangle = TensorProductBezierTriangle<Vec3d, double, 1>;
-
-
-/**
  * @brief Options for the PEV point search
  */
 struct PEVOptions
 {
-    PEVOptions(double s = 1e-6, double d = 1e-6, double c = 5e-6)
-            : spatial_epsilon(s), direction_epsilon(d), cluster_epsilon(c)
-    {
-    }
-
-    double spatial_epsilon;
-    double direction_epsilon;
-    double cluster_epsilon;
+    double spatial_epsilon = 1e-6;
+    double direction_epsilon = 1e-6;
+    double cluster_epsilon = 5e-6;
 };
 
 
@@ -117,9 +65,9 @@ struct PEVOptions
  * @return The number of false positives and a list of found parallel
  *     eigenvector points on the triangle
  */
-PointList findParallelEigenvectors(const TensorInterp& s,
-                                   const TensorInterp& t,
-                                   const Triangle& x,
+PointList findParallelEigenvectors(const std::array<Mat3d, 3>& s,
+                                   const std::array<Mat3d, 3>& t,
+                                   const std::array<Vec3d, 3>& x,
                                    const PEVOptions& opts = PEVOptions{});
 
 /**
@@ -142,22 +90,18 @@ PointList findParallelEigenvectors(const TensorInterp& s,
  * @return The number of false positives and a list of found parallel
  *     eigenvector points on the triangle in barycentric coordinates
  */
-PointList findParallelEigenvectors(const TensorInterp& s,
-                                   const TensorInterp& t,
+PointList findParallelEigenvectors(const std::array<Mat3d, 3>& s,
+                                   const std::array<Mat3d, 3>& t,
                                    const PEVOptions& opts = PEVOptions{});
 
 
-PointList findTensorSujudiHaimes(const TensorInterp& t,
-                                 const TensorInterp& tx,
-                                 const TensorInterp& ty,
-                                 const TensorInterp& tz,
-                                 const Triangle& x,
+PointList findTensorSujudiHaimes(const std::array<Mat3d, 3>& t,
+                                 const std::array<std::array<Mat3d, 3>, 3>& dt,
+                                 const std::array<Vec3d, 3>& x,
                                  const PEVOptions& opts = PEVOptions{});
 
-PointList findTensorSujudiHaimes(const TensorInterp& t,
-                                 const TensorInterp& tx,
-                                 const TensorInterp& ty,
-                                 const TensorInterp& tz,
+PointList findTensorSujudiHaimes(const std::array<Mat3d, 3>& t,
+                                 const std::array<std::array<Mat3d, 3>, 3>& dt,
                                  const PEVOptions& opts = PEVOptions{});
 
 } // namespace pev

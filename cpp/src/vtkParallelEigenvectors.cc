@@ -1,6 +1,7 @@
 #include "vtkParallelEigenvectors.hh"
 
 #include "ParallelEigenvectors.hh"
+#include "utils.hh"
 
 #include <Eigen/Geometry>
 
@@ -157,9 +158,9 @@ std::vector<pev::PointList> computePEVPoints(const std::vector<TriFace>& faces,
         array2->GetTuple(face.points[2], t3.data());
 
         auto points = pev::findParallelEigenvectors(
-                pev::TensorInterp{{s1, s2, s3}},
-                pev::TensorInterp{{t1, t2, t3}},
-                pev::Triangle{{p1, p2, p3}},
+                {s1, s2, s3},
+                {t1, t2, t3},
+                {p1, p2, p3},
                 opts);
         results[i] = points;
 #pragma omp critical(progress)
@@ -232,11 +233,9 @@ std::vector<pev::PointList> computeSHPoints(const std::vector<TriFace>& faces,
         array4->GetTuple(face.points[2], sz3.data());
 
         auto points = pev::findTensorSujudiHaimes(
-                pev::TensorInterp{{s1, s2, s3}},
-                pev::TensorInterp{{sx1, sx2, sx3}},
-                pev::TensorInterp{{sy1, sy2, sy3}},
-                pev::TensorInterp{{sz1, sz2, sz3}},
-                pev::Triangle{{p1, p2, p3}},
+                {s1, s2, s3},
+                {{{{sx1, sx2, sx3}}, {{sy1, sy2, sy3}}, {{sz1, sz2, sz3}}}},
+                {p1, p2, p3},
                 opts);
         results[i] = points;
 #pragma omp critical(progress)

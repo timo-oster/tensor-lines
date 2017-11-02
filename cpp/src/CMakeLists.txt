@@ -1,26 +1,24 @@
 set(PEV_SOURCES
         main.cc
         ParallelEigenvectors.cc
+        ParallelEigenvectorsEvaluator.cc
+        TensorSujudiHaimesEvaluator.cc
         vtkParallelEigenvectors.cc)
 
 set(PEV_HEADERS
-    ParallelEigenvectors.hh
     utils.hh
+    ParallelEigenvectors.hh
+    ParallelEigenvectorsEvaluator.hh
+    TensorSujudiHaimesEvaluator.hh
     vtkParallelEigenvectors.hh
     TensorProductBezierTriangle.hh)
 
 source_group("Header Files" FILES ${PEV_HEADERS})
 source_group("Source Files" FILES ${PEV_SOURCES})
 
-add_executable(parallel_eigenvectors ${PEV_SOURCES} ${PEV_HEADERS})
+add_executable(parallel_eigenvectors ${PEV_SOURCES})
 add_executable(generate_tet_dataset generate_tet_dataset.cc)
 add_executable(generate_grid_dataset generate_grid_dataset.cc)
-
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
-   OR CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-endif()
-
 
 find_package(Eigen3 REQUIRED)
 if(EIGEN3_FOUND)

@@ -29,7 +29,7 @@
 
 bool term = false;
 
-void terminate(int signum)
+void terminate(int /*signum*/)
 {
     if(!term)
     {

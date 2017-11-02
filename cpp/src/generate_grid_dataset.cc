@@ -23,7 +23,8 @@ using namespace pev;
 
 enum class FieldType
 {
-    TEST
+    TEST,
+    VORTEX_SIMPLE
 };
 
 std::unique_ptr<TensorField> makeTensorField(FieldType ftype)
@@ -32,6 +33,8 @@ std::unique_ptr<TensorField> makeTensorField(FieldType ftype)
     {
         case FieldType::TEST:
             return std::unique_ptr<TestField>{new TestField{}};
+        case FieldType::VORTEX_SIMPLE:
+            return std::unique_ptr<TensorVortexSimple>{new TensorVortexSimple{}};
         default:
             return nullptr;
     }
@@ -48,6 +51,10 @@ std::istream& operator>>(std::istream& in, FieldType& ftype)
     {
         ftype = FieldType::TEST;
     }
+    else if(token == "VORTEX_SIMPLE")
+    {
+        ftype = FieldType::VORTEX_SIMPLE;
+    }
     else
     {
         throw po::validation_error(po::validation_error::invalid_option_value, "ftype", token);
@@ -62,6 +69,9 @@ std::ostream& operator<<(std::ostream& out, const FieldType& ftype)
     {
         case FieldType::TEST:
             out << "test";
+            break;
+        case FieldType::VORTEX_SIMPLE:
+            out << "vortex_simple";
             break;
         default:
             assert(false);
@@ -189,7 +199,6 @@ int main(int argc, char const* argv[])
     }
 
     auto tri_filt = vtkSmartPointer<vtkDataSetTriangleFilter>::New();
-    tri_filt->Print(std::cout);
     tri_filt->SetInputData(grid);
 
 

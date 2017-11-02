@@ -62,14 +62,14 @@ private:
 // template <typename T, typename C>
 // struct TensorProductDerivativeType<0, T, C, 1, 1>
 // {
-//     using type = TensorProductBezierTriangle<T, C, 2>;
+//     using type = TensorProductBezierTriangle<T, C, 1>;
 // };
 
 
 // template <typename T, typename C>
 // struct TensorProductDerivativeType<1, T, C, 1, 1>
 // {
-//     using type = TensorProductBezierTriangle<T, C, 1, 1>;
+//     using type = TensorProductBezierTriangle<T, C, 1>;
 // };
 
 // template <typename T, typename C>
@@ -77,7 +77,7 @@ private:
 // {
 //     using Coeffs = typename TensorProductBezierTriangle<T, C, 1, 1>::Coeffs;
 //     using DerivCoeffs =
-//             typename TensorProductDerivativeType<0, T, C, 1, 1>::type::Coeffs;
+//             typename TensorProductDerivativeType_t<0, T, C, 1, 1>::Coeffs;
 //     static DerivCoeffs deriv_op(const Coeffs& in, int dir);
 // };
 
@@ -86,7 +86,7 @@ private:
 // {
 //     using Coeffs = typename TensorProductBezierTriangle<T, C, 1, 1>::Coeffs;
 //     using DerivCoeffs =
-//             typename TensorProductDerivativeType<1, T, C, 1, 1>::type::Coeffs;
+//             typename TensorProductDerivativeType_t<1, T, C, 1, 1>::Coeffs;
 //     static DerivCoeffs deriv_op(const Coeffs& in, int dir);
 // };
 
