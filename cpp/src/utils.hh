@@ -26,6 +26,7 @@ struct MinNotZero
     }
 };
 
+
 struct MinAbs
 {
     template <typename T>
@@ -36,6 +37,7 @@ struct MinAbs
     }
 };
 
+
 struct MaxAbs
 {
     template <typename T>
@@ -45,6 +47,7 @@ struct MaxAbs
     }
 };
 
+
 struct Max
 {
     template <typename T>
@@ -53,6 +56,7 @@ struct Max
         return std::max(x, y);
     }
 };
+
 
 struct Min
 {
@@ -83,6 +87,7 @@ struct SameSign
     }
 };
 
+
 /**
  * Check if all numbers of a sequence are positive or negative
  *
@@ -101,8 +106,10 @@ int sameSign(const Sequence& numbers)
                            SameSign{});
 }
 
+
 template<typename... Ts> struct make_void { typedef void type;};
 template<typename... Ts> using void_t = typename make_void<Ts...>::type;
+
 
 /**
  * @brief An adaptor class to negate a unary predicate functor
@@ -132,6 +139,7 @@ negator<Predicate> negate(Predicate predicate)
     return negator<Predicate>{predicate};
 }
 
+
 template <class T>
 inline std::make_signed_t<T> as_signed(T t)
 {
@@ -153,6 +161,7 @@ constexpr bool is_equality_comparable =
                 std::is_convertible<decltype(std::declval<T>()
                                              != std::declval<T>()),
                                     bool>::value;
+
 
 template <typename T>
 constexpr bool is_comparable =
