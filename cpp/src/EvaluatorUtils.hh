@@ -3,7 +3,7 @@
 
 #include "Evaluator.hh"
 
-#include <algorithm>
+#include <array>
 #include <iterator>
 
 #include <boost/range/adaptor/transformed.hpp>

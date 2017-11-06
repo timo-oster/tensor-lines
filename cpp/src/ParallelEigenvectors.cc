@@ -7,36 +7,17 @@
 #include <Eigen/Eigenvalues>
 #include <Eigen/LU>
 
-#include <boost/algorithm/cxx11/any_of.hpp>
-#include <boost/range/numeric.hpp>
-#include <boost/range/algorithm/max_element.hpp>
 #include <boost/range/algorithm/min_element.hpp>
-#include <boost/range/algorithm/transform.hpp>
 #include <boost/range/algorithm_ext/insert.hpp>
 
-#include <algorithm>
-#include <iostream>
-#include <map>
 #include <stack>
-#include <utility>
+#include <iterator>
+#include <complex>
+#include <type_traits>
 
 namespace
 {
 using namespace pev;
-
-/**
- * Tensor Product of linear and quadratic polynomials on barycentric coordinates
- */
-using TPBT1_2 = TensorProductBezierTriangle<double, double, 1, 2>;
-
-using TPBT1_3 = TensorProductBezierTriangle<double, double, 1, 3>;
-
-using TPBT1_1 = TensorProductBezierTriangle<double, double, 1, 1>;
-
-using TPBT2_2 = TensorProductBezierTriangle<double, double, 2, 2>;
-
-using TPBT2 = TensorProductBezierTriangle<double, double, 2>;
-
 
 /**
  * Representative Solution in a cluster of similar solutions
@@ -47,96 +28,6 @@ struct ClusterRepr
     std::size_t cluster_size;
     Evaluator eval;
 };
-
-
-#ifdef DRAW_DEBUG
-
-const double red[3] = {255, 0, 0};
-const double yellow[3] = {255, 127, 0};
-const double green[3] = {0, 255, 0};
-const double blue[3] = {128, 255, 255};
-const double dark_blue[3] = {0, 0, 255};
-const double white[3] = {255, 255, 255};
-
-using Vec2d = Eigen::Vector2d;
-
-std::array<Vec2d, 3> project_tri(const Triangle& tri, bool topdown = true)
-{
-    auto proj = Eigen::Matrix<double, 2, 3>{};
-    static const auto sqrt23 = std::sqrt(2.0) / std::sqrt(3.0);
-    if(topdown)
-    {
-        proj << 1, 1, 0,
-                1, -1, 0;
-    }
-    else
-    {
-        proj << 1, -1, 0,
-                -sqrt23, -sqrt23, sqrt23;
-    }
-    auto result = std::array<Vec2d, 3>{
-            proj * tri[0], proj * tri[1], proj * tri[2]};
-    for(auto& p : result)
-    {
-        p = (p * pos_image.width() / 2)
-            + Vec2d{pos_image.width() / 2, pos_image.height() / 2};
-    }
-    return result;
-}
-
-
-void draw_tri(CImg& image,
-              const Triangle& tri,
-              const double* color,
-              bool fill = true,
-              bool topdown = true)
-{
-    auto projected = project_tri(tri, topdown);
-    if(fill)
-    {
-        image.draw_triangle(int(projected[0].x()),
-                            int(projected[0].y()),
-                            int(projected[1].x()),
-                            int(projected[1].y()),
-                            int(projected[2].x()),
-                            int(projected[2].y()),
-                            color);
-    }
-    else
-    {
-        image.draw_triangle(int(projected[0].x()),
-                            int(projected[0].y()),
-                            int(projected[1].x()),
-                            int(projected[1].y()),
-                            int(projected[2].x()),
-                            int(projected[2].y()),
-                            color,
-                            1.0,
-                            0xffffffff);
-    }
-}
-
-
-void draw_cross(CImg& image,
-                const Vec3d& pos,
-                const double* color,
-                bool topdown = true)
-{
-    static const auto size = 10;
-    auto projected = project_tri(Triangle{{pos, pos, pos}}, topdown);
-    image.draw_line(int(projected[0].x()) - size,
-                    int(projected[0].y()),
-                    int(projected[0].x()) + size,
-                    int(projected[0].y()),
-                    color);
-    image.draw_line(int(projected[0].x()),
-                    int(projected[0].y() - size),
-                    int(projected[0].x()),
-                    int(projected[0].y() + size),
-                    color);
-}
-
-#endif // DRAW_DEBUG
 
 
 /**

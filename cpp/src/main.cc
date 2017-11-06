@@ -27,6 +27,7 @@
 #include <signal.h>
 #include <thread>
 
+
 bool term = false;
 
 void terminate(int /*signum*/)
@@ -42,6 +43,7 @@ void terminate(int /*signum*/)
 }
 #endif // __linux__
 
+
 namespace po = boost::program_options;
 
 void ProgressFunction(vtkObject* caller,
@@ -53,6 +55,7 @@ void ProgressFunction(vtkObject* caller,
     std::cout << "Progress: " << std::fixed << std::setprecision(4)
               << (filter->GetProgress() * 100) << "%    \r";
 }
+
 
 int main(int argc, char const* argv[])
 {

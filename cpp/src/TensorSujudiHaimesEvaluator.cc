@@ -6,6 +6,10 @@
 #include <boost/range/algorithm/min_element.hpp>
 #include <boost/range/algorithm/max_element.hpp>
 
+#include <vector>
+#include <tuple>
+#include <utility>
+
 namespace pev
 {
 

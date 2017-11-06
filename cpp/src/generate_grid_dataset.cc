@@ -16,6 +16,7 @@
 #include <iostream>
 #include <string>
 #include <memory>
+#include <stdexcept>
 
 namespace po = boost::program_options;
 
@@ -26,6 +27,7 @@ enum class FieldType
     TEST,
     VORTEX_SIMPLE
 };
+
 
 std::unique_ptr<TensorField> makeTensorField(FieldType ftype)
 {
@@ -39,6 +41,7 @@ std::unique_ptr<TensorField> makeTensorField(FieldType ftype)
             return nullptr;
     }
 }
+
 
 std::istream& operator>>(std::istream& in, FieldType& ftype)
 {
@@ -63,6 +66,7 @@ std::istream& operator>>(std::istream& in, FieldType& ftype)
     return in;
 }
 
+
 std::ostream& operator<<(std::ostream& out, const FieldType& ftype)
 {
     switch(ftype)
@@ -78,6 +82,7 @@ std::ostream& operator<<(std::ostream& out, const FieldType& ftype)
     }
     return out;
 }
+
 
 int main(int argc, char const* argv[])
 {

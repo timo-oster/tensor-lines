@@ -5,7 +5,6 @@
 
 #include <Eigen/Core>
 
-#include <tuple>
 #include <type_traits>
 #include <utility>
 #include <stdexcept>
@@ -44,6 +43,7 @@ struct TensorProductDerivative;
  */
 template <typename Derived>
 struct TensorProductTraits;
+
 
 /**
  * @brief Base class for specializations of TensorProductBezierTriangle.
@@ -349,6 +349,7 @@ private:
     // Coefficients of the Bezier Triangle
     Coeffs _coeffs = {};
 };
+
 
 /**
  * Unspecialized class template for a tensor product of Bernstein-Bézier

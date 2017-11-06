@@ -52,6 +52,7 @@ struct TriFace
     }
 };
 
+
 struct FaceHash
 {
     std::size_t offset;
@@ -176,6 +177,7 @@ std::vector<pev::PointList> computePEVPoints(const std::vector<TriFace>& faces,
     return results;
 }
 
+
 std::vector<pev::PointList> computeSHPoints(const std::vector<TriFace>& faces,
                                              vtkPoints* points,
                                              vtkDataArray* array1,
@@ -288,6 +290,7 @@ vtkPolyData* vtkParallelEigenvectors::GetOutput(int port)
 {
     return vtkPolyData::SafeDownCast(this->GetOutputDataObject(port));
 }
+
 
 int vtkParallelEigenvectors::ProcessRequest(vtkInformation* request,
                                             vtkInformationVector** inputVector,

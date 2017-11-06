@@ -8,7 +8,9 @@
 #include <cstddef>
 #include <ostream>
 #include <sstream>
+#include <iterator>
 #include <type_traits>
+#include <utility>
 
 #define BOOST_RESULT_OF_USE_DECLTYPE
 

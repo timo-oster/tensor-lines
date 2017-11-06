@@ -2,10 +2,6 @@
 
 #include <boost/program_options.hpp>
 
-#include <iostream>
-#include <random>
-#include <string>
-
 #include <vtkCell.h>
 #include <vtkCellIterator.h>
 #include <vtkDoubleArray.h>
@@ -16,6 +12,11 @@
 #include <vtkSubdivideTetra.h>
 #include <vtkUnstructuredGrid.h>
 #include <vtkUnstructuredGridWriter.h>
+
+#include <iostream>
+#include <random>
+#include <string>
+#include <stdexcept>
 
 namespace po = boost::program_options;
 
@@ -31,6 +32,7 @@ Mat3d inputMatrix(const std::string& name)
     return result;
 }
 
+
 template <typename R, typename G>
 Mat3d randMatrix(R& rnd, G& gen, bool symmetric = false)
 {
@@ -44,6 +46,7 @@ Mat3d randMatrix(R& rnd, G& gen, bool symmetric = false)
     }
     return result;
 }
+
 
 int main(int argc, char const* argv[])
 {
