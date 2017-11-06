@@ -62,7 +62,7 @@ tensorSujudiHaimesCoeffs(const TensorInterp& t,
 }
 
 
-std::pair<TPBT<double, 2, 2>, TPBT<double, 2>>
+std::pair<TPBT<double, 2, 2>, TPBT<double, 0, 2>>
 tensorSujudiHaimesEstCoeffs(const TensorInterp& t, const Triangle& r)
 {
     // ||T * r||^2
@@ -73,11 +73,11 @@ tensorSujudiHaimesEstCoeffs(const TensorInterp& t, const Triangle& r)
     };
 
     // ||r||^2
-    auto eval_r = [&](const TPBT<double, 2>::Coords& coords) -> double {
-        return r(coords).norm();
+    auto eval_r = [&](const TPBT<double, 0, 2>::Coords& coords) -> double {
+        return r(coords.tail<3>()).norm();
     };
 
-    return {TPBT<double, 2, 2>{eval_tr}, TPBT<double, 2>{eval_r}};
+    return {TPBT<double, 2, 2>{eval_tr}, TPBT<double, 0, 2>{eval_r}};
 }
 
 

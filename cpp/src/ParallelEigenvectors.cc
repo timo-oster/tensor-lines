@@ -1,6 +1,6 @@
 #include "ParallelEigenvectors.hh"
 
-#include "TensorProductBezierTriangle.hh"
+#include "TensorProductBezierTriangles.hh"
 #include "TensorSujudiHaimesEvaluator.hh"
 #include "ParallelEigenvectorsEvaluator.hh"
 

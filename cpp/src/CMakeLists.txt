@@ -16,7 +16,43 @@ set(PEV_HEADERS
 source_group("Header Files" FILES ${PEV_HEADERS})
 source_group("Source Files" FILES ${PEV_SOURCES})
 
-add_executable(parallel_eigenvectors ${PEV_SOURCES})
+find_package(PythonInterp 3 REQUIRED)
+
+set(TPBT_COLLECTION_HEADER TensorProductBezierTriangles.hh)
+set(HEADER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/generate_collection_header.py)
+set(HEADER_GEN ${PYTHON_EXECUTABLE} ${HEADER_SCRIPT} -o ${TPBT_COLLECTION_HEADER})
+
+set(TPBT_GEN_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/generate_tpbt.py)
+set(GENERATOR1 ${PYTHON_EXECUTABLE} ${TPBT_GEN_SCRIPT} 3)
+set(GENERATOR2 ${PYTHON_EXECUTABLE} ${TPBT_GEN_SCRIPT} 2 3)
+
+execute_process(COMMAND ${GENERATOR1} -p
+  OUTPUT_VARIABLE GENERATED_SOURCES1)
+execute_process(COMMAND ${GENERATOR2} -p
+  OUTPUT_VARIABLE GENERATED_SOURCES2)
+string(REPLACE "\n" ";" GENERATED_SOURCES1 ${GENERATED_SOURCES1})
+string(REPLACE "\n" ";" GENERATED_SOURCES2 ${GENERATED_SOURCES2})
+set(GENERATED_SOURCES ${GENERATED_SOURCES1} ${GENERATED_SOURCES2})
+
+execute_process(COMMAND ${CMAKE} -E echo ${GENERATED_SOURCES})
+
+add_custom_command(OUTPUT ${TPBT_COLLECTION_HEADER}
+                   COMMAND ${HEADER_GEN} ${GENERATED_SOURCES}
+                   DEPENDS ${HEADER_SCRIPT}
+                   COMMENT Generate collection header for specializations of TensorProductBezierTriangle)
+
+add_custom_command(OUTPUT ${GENERATED_SOURCES1}
+  COMMAND ${GENERATOR1}
+  DEPENDS ${TPBT_GEN_SCRIPT}
+  COMMENT "Generate specializations of TensorProductBezierTriangle for 1 space")
+add_custom_command(OUTPUT ${GENERATED_SOURCES2}
+  COMMAND ${GENERATOR2}
+  DEPENDS ${TPBT_GEN_SCRIPT}
+  COMMENT "Generate specializations of TensorProductBezierTriangle for 2 spaces")
+
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
+
+add_executable(parallel_eigenvectors ${PEV_SOURCES} ${GENERATED_SOURCES} ${TPBT_COLLECTION_HEADER})
 add_executable(generate_tet_dataset generate_tet_dataset.cc)
 add_executable(generate_grid_dataset generate_grid_dataset.cc)
 

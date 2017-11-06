@@ -2,7 +2,7 @@
 #define CPP_EVALUATOR_HH
 
 #include "ParallelEigenvectorDefinitions.hh"
-#include "TensorProductBezierTriangle.hh"
+#include "TensorProductBezierTriangles.hh"
 
 #include <iterator>
 #include <type_traits>

@@ -1,9 +1,9 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest.h>
 
-#include "../TensorProductBezierTriangle.hh"
-#include "../ParallelEigenvectorDefinitions.hh"
-#include "../utils.hh"
+#include "TensorProductBezierTriangles.hh"
+#include "ParallelEigenvectorDefinitions.hh"
+#include "utils.hh"
 
 using doctest::Approx;
 
@@ -346,7 +346,7 @@ TEST_CASE("Testing polynomial reproduction for degrees 1, 3")
                                      / 2).eval();
                             randpos.head<3>() /= randpos.head<3>().sum();
                             randpos.tail<3>() /= randpos.tail<3>().sum();
-                            REQUIRE(bezier1_3_d00(randpos.tail<3>())
+                            REQUIRE(bezier1_3_d00(randpos)
                                     == Approx(_poly1_3_d00(randpos)));
                         }
                     }
@@ -382,7 +382,7 @@ TEST_CASE("Testing polynomial reproduction for degrees 1, 3")
                                      / 2).eval();
                             randpos.head<3>() /= randpos.head<3>().sum();
                             randpos.tail<3>() /= randpos.tail<3>().sum();
-                            REQUIRE(bezier1_3_d01(randpos.tail<3>())
+                            REQUIRE(bezier1_3_d01(randpos)
                                     == Approx(_poly1_3_d01(randpos)));
                         }
                     }
@@ -418,7 +418,7 @@ TEST_CASE("Testing polynomial reproduction for degrees 1, 3")
                                      / 2).eval();
                             randpos.head<3>() /= randpos.head<3>().sum();
                             randpos.tail<3>() /= randpos.tail<3>().sum();
-                            REQUIRE(bezier1_3_d02(randpos.tail<3>())
+                            REQUIRE(bezier1_3_d02(randpos)
                                     == Approx(_poly1_3_d02(randpos)));
                         }
                     }

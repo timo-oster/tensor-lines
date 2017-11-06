@@ -385,12 +385,4 @@ class TensorProductBezierTriangle
 
 } // namespace pev
 
-#include "TensorProductBezierTriangle1.hh"
-#include "TensorProductBezierTriangle2.hh"
-#include "TensorProductBezierTriangle3.hh"
-#include "TensorProductBezierTriangle1_1.hh"
-#include "TensorProductBezierTriangle1_2.hh"
-#include "TensorProductBezierTriangle1_3.hh"
-#include "TensorProductBezierTriangle2_2.hh"
-
 #endif
