@@ -27,15 +27,15 @@ public:
     {
         auto result = Mat3d{};
 
-        result(0, 0) = (1.0/2.0)*pow(x[0], 2) + (5.0/4.0)*pow(x[1], 2);
-        result(0, 1) = -3.0/4.0*x[0]*x[1];
-        result(0, 2) = (1.0/4.0)*x[1]*(-pow(x[0], 2) - pow(x[1], 2) + 4);
-        result(1, 0) = -3.0/4.0*x[0]*x[1];
-        result(1, 1) = (5.0/4.0)*pow(x[0], 2) + (1.0/2.0)*pow(x[1], 2);
-        result(1, 2) = (1.0/4.0)*x[0]*(pow(x[0], 2) + pow(x[1], 2) - 4);
-        result(2, 0) = (1.0/4.0)*x[1]*(-pow(x[0], 2) - pow(x[1], 2) + 4);
-        result(2, 1) = (1.0/4.0)*x[0]*(pow(x[0], 2) + pow(x[1], 2) - 4);
-        result(2, 2) = (1.0/4.0)*pow(pow(x[0], 2) + pow(x[1], 2), 2) + 1;
+        result(0, 0) = (1.0/4.0)*(-2*pow(x[0], 2)*(pow(x[0], 2) + pow(x[1], 2) + 1) - 3*pow(x[1], 2) + 4*(pow(x[0], 2) + pow(x[1], 2))*(pow(x[0], 2) + pow(x[1], 2) + 1))/((pow(x[0], 2) + pow(x[1], 2))*(pow(x[0], 2) + pow(x[1], 2) + 1));
+        result(0, 1) = (1.0/4.0)*x[0]*x[1]*(-2*pow(x[0], 2) - 2*pow(x[1], 2) + 1)/((pow(x[0], 2) + pow(x[1], 2))*(pow(x[0], 2) + pow(x[1], 2) + 1));
+        result(0, 2) = (3.0/4.0)*x[1]/(pow(x[0], 2) + pow(x[1], 2) + 1);
+        result(1, 0) = -x[0]*x[1]*(2*pow(x[0], 2) + 2*pow(x[1], 2) - 1)/(4*pow(x[0], 4) + 8*pow(x[0], 2)*pow(x[1], 2) + 4*pow(x[0], 2) + 4*pow(x[1], 4) + 4*pow(x[1], 2));
+        result(1, 1) = (1.0/4.0)*(4*pow(x[0], 2)*(pow(x[0], 2) + pow(x[1], 2)) + pow(x[0], 2) + 2*pow(x[1], 2)*(pow(x[0], 2) + pow(x[1], 2) + 1))/((pow(x[0], 2) + pow(x[1], 2))*(pow(x[0], 2) + pow(x[1], 2) + 1));
+        result(1, 2) = -3*x[0]/(4*pow(x[0], 2) + 4*pow(x[1], 2) + 4);
+        result(2, 0) = (3.0/4.0)*x[1]/(pow(x[0], 2) + pow(x[1], 2) + 1);
+        result(2, 1) = -3*x[0]/(4*pow(x[0], 2) + 4*pow(x[1], 2) + 4);
+        result(2, 2) = (1.0/4.0)*(pow(x[0], 2) + pow(x[1], 2) + 4)/(pow(x[0], 2) + pow(x[1], 2) + 1);
 
         return result;
     }
@@ -44,15 +44,15 @@ public:
     {
         auto result = Mat3d{};
 
-        result(0, 0) = x[0];
-        result(0, 1) = -3.0/4.0*x[1];
-        result(0, 2) = -1.0/2.0*x[0]*x[1];
-        result(1, 0) = -3.0/4.0*x[1];
-        result(1, 1) = (5.0/2.0)*x[0];
-        result(1, 2) = (3.0/4.0)*pow(x[0], 2) + (1.0/4.0)*pow(x[1], 2) - 1;
-        result(2, 0) = -1.0/2.0*x[0]*x[1];
-        result(2, 1) = (3.0/4.0)*pow(x[0], 2) + (1.0/4.0)*pow(x[1], 2) - 1;
-        result(2, 2) = x[0]*(pow(x[0], 2) + pow(x[1], 2));
+        result(0, 0) = -1.0/2.0*x[0]*(-2*pow(x[0], 2)*(pow(x[0], 2) + pow(x[1], 2) + 1) - 3*pow(x[1], 2) + 4*(pow(x[0], 2) + pow(x[1], 2))*(pow(x[0], 2) + pow(x[1], 2) + 1))/((pow(x[0], 2) + pow(x[1], 2))*pow(pow(x[0], 2) + pow(x[1], 2) + 1, 2)) - 1.0/2.0*x[0]*(-2*pow(x[0], 2)*(pow(x[0], 2) + pow(x[1], 2) + 1) - 3*pow(x[1], 2) + 4*(pow(x[0], 2) + pow(x[1], 2))*(pow(x[0], 2) + pow(x[1], 2) + 1))/(pow(pow(x[0], 2) + pow(x[1], 2), 2)*(pow(x[0], 2) + pow(x[1], 2) + 1)) + (1.0/4.0)*(-4*pow(x[0], 3) + 8*x[0]*(pow(x[0], 2) + pow(x[1], 2)) + 4*x[0]*(pow(x[0], 2) + pow(x[1], 2) + 1))/((pow(x[0], 2) + pow(x[1], 2))*(pow(x[0], 2) + pow(x[1], 2) + 1));
+        result(0, 1) = -1.0/2.0*pow(x[0], 2)*x[1]*(-2*pow(x[0], 2) - 2*pow(x[1], 2) + 1)/((pow(x[0], 2) + pow(x[1], 2))*pow(pow(x[0], 2) + pow(x[1], 2) + 1, 2)) - pow(x[0], 2)*x[1]/((pow(x[0], 2) + pow(x[1], 2))*(pow(x[0], 2) + pow(x[1], 2) + 1)) - 1.0/2.0*pow(x[0], 2)*x[1]*(-2*pow(x[0], 2) - 2*pow(x[1], 2) + 1)/(pow(pow(x[0], 2) + pow(x[1], 2), 2)*(pow(x[0], 2) + pow(x[1], 2) + 1)) + (1.0/4.0)*x[1]*(-2*pow(x[0], 2) - 2*pow(x[1], 2) + 1)/((pow(x[0], 2) + pow(x[1], 2))*(pow(x[0], 2) + pow(x[1], 2) + 1));
+        result(0, 2) = -3.0/2.0*x[0]*x[1]/pow(pow(x[0], 2) + pow(x[1], 2) + 1, 2);
+        result(1, 0) = -4*pow(x[0], 2)*x[1]/(4*pow(x[0], 4) + 8*pow(x[0], 2)*pow(x[1], 2) + 4*pow(x[0], 2) + 4*pow(x[1], 4) + 4*pow(x[1], 2)) - x[0]*x[1]*(2*pow(x[0], 2) + 2*pow(x[1], 2) - 1)*(-16*pow(x[0], 3) - 16*x[0]*pow(x[1], 2) - 8*x[0])/pow(4*pow(x[0], 4) + 8*pow(x[0], 2)*pow(x[1], 2) + 4*pow(x[0], 2) + 4*pow(x[1], 4) + 4*pow(x[1], 2), 2) - x[1]*(2*pow(x[0], 2) + 2*pow(x[1], 2) - 1)/(4*pow(x[0], 4) + 8*pow(x[0], 2)*pow(x[1], 2) + 4*pow(x[0], 2) + 4*pow(x[1], 4) + 4*pow(x[1], 2));
+        result(1, 1) = -1.0/2.0*x[0]*(4*pow(x[0], 2)*(pow(x[0], 2) + pow(x[1], 2)) + pow(x[0], 2) + 2*pow(x[1], 2)*(pow(x[0], 2) + pow(x[1], 2) + 1))/((pow(x[0], 2) + pow(x[1], 2))*pow(pow(x[0], 2) + pow(x[1], 2) + 1, 2)) - 1.0/2.0*x[0]*(4*pow(x[0], 2)*(pow(x[0], 2) + pow(x[1], 2)) + pow(x[0], 2) + 2*pow(x[1], 2)*(pow(x[0], 2) + pow(x[1], 2) + 1))/(pow(pow(x[0], 2) + pow(x[1], 2), 2)*(pow(x[0], 2) + pow(x[1], 2) + 1)) + (1.0/4.0)*(8*pow(x[0], 3) + 4*x[0]*pow(x[1], 2) + 8*x[0]*(pow(x[0], 2) + pow(x[1], 2)) + 2*x[0])/((pow(x[0], 2) + pow(x[1], 2))*(pow(x[0], 2) + pow(x[1], 2) + 1));
+        result(1, 2) = 24*pow(x[0], 2)/pow(4*pow(x[0], 2) + 4*pow(x[1], 2) + 4, 2) - 3/(4*pow(x[0], 2) + 4*pow(x[1], 2) + 4);
+        result(2, 0) = -3.0/2.0*x[0]*x[1]/pow(pow(x[0], 2) + pow(x[1], 2) + 1, 2);
+        result(2, 1) = 24*pow(x[0], 2)/pow(4*pow(x[0], 2) + 4*pow(x[1], 2) + 4, 2) - 3/(4*pow(x[0], 2) + 4*pow(x[1], 2) + 4);
+        result(2, 2) = (1.0/2.0)*x[0]/(pow(x[0], 2) + pow(x[1], 2) + 1) - 1.0/2.0*x[0]*(pow(x[0], 2) + pow(x[1], 2) + 4)/pow(pow(x[0], 2) + pow(x[1], 2) + 1, 2);
 
         return result;
     }
@@ -61,15 +61,77 @@ public:
     {
         auto result = Mat3d{};
 
-        result(0, 0) = (5.0/2.0)*x[1];
-        result(0, 1) = -3.0/4.0*x[0];
-        result(0, 2) = -1.0/4.0*pow(x[0], 2) - 3.0/4.0*pow(x[1], 2) + 1;
-        result(1, 0) = -3.0/4.0*x[0];
-        result(1, 1) = x[1];
-        result(1, 2) = (1.0/2.0)*x[0]*x[1];
-        result(2, 0) = -1.0/4.0*pow(x[0], 2) - 3.0/4.0*pow(x[1], 2) + 1;
-        result(2, 1) = (1.0/2.0)*x[0]*x[1];
-        result(2, 2) = x[1]*(pow(x[0], 2) + pow(x[1], 2));
+        result(0, 0) = -1.0/2.0*x[1]*(-2*pow(x[0], 2)*(pow(x[0], 2) + pow(x[1], 2) + 1) - 3*pow(x[1], 2) + 4*(pow(x[0], 2) + pow(x[1], 2))*(pow(x[0], 2) + pow(x[1], 2) + 1))/((pow(x[0], 2) + pow(x[1], 2))*pow(pow(x[0], 2) + pow(x[1], 2) + 1, 2)) - 1.0/2.0*x[1]*(-2*pow(x[0], 2)*(pow(x[0], 2) + pow(x[1], 2) + 1) - 3*pow(x[1], 2) + 4*(pow(x[0], 2) + pow(x[1], 2))*(pow(x[0], 2) + pow(x[1], 2) + 1))/(pow(pow(x[0], 2) + pow(x[1], 2), 2)*(pow(x[0], 2) + pow(x[1], 2) + 1)) + (1.0/4.0)*(-4*pow(x[0], 2)*x[1] + 8*x[1]*(pow(x[0], 2) + pow(x[1], 2)) + 8*x[1]*(pow(x[0], 2) + pow(x[1], 2) + 1) - 6*x[1])/((pow(x[0], 2) + pow(x[1], 2))*(pow(x[0], 2) + pow(x[1], 2) + 1));
+        result(0, 1) = -1.0/2.0*x[0]*pow(x[1], 2)*(-2*pow(x[0], 2) - 2*pow(x[1], 2) + 1)/((pow(x[0], 2) + pow(x[1], 2))*pow(pow(x[0], 2) + pow(x[1], 2) + 1, 2)) - x[0]*pow(x[1], 2)/((pow(x[0], 2) + pow(x[1], 2))*(pow(x[0], 2) + pow(x[1], 2) + 1)) - 1.0/2.0*x[0]*pow(x[1], 2)*(-2*pow(x[0], 2) - 2*pow(x[1], 2) + 1)/(pow(pow(x[0], 2) + pow(x[1], 2), 2)*(pow(x[0], 2) + pow(x[1], 2) + 1)) + (1.0/4.0)*x[0]*(-2*pow(x[0], 2) - 2*pow(x[1], 2) + 1)/((pow(x[0], 2) + pow(x[1], 2))*(pow(x[0], 2) + pow(x[1], 2) + 1));
+        result(0, 2) = -3.0/2.0*pow(x[1], 2)/pow(pow(x[0], 2) + pow(x[1], 2) + 1, 2) + (3.0/4.0)/(pow(x[0], 2) + pow(x[1], 2) + 1);
+        result(1, 0) = -4*x[0]*pow(x[1], 2)/(4*pow(x[0], 4) + 8*pow(x[0], 2)*pow(x[1], 2) + 4*pow(x[0], 2) + 4*pow(x[1], 4) + 4*pow(x[1], 2)) - x[0]*x[1]*(2*pow(x[0], 2) + 2*pow(x[1], 2) - 1)*(-16*pow(x[0], 2)*x[1] - 16*pow(x[1], 3) - 8*x[1])/pow(4*pow(x[0], 4) + 8*pow(x[0], 2)*pow(x[1], 2) + 4*pow(x[0], 2) + 4*pow(x[1], 4) + 4*pow(x[1], 2), 2) - x[0]*(2*pow(x[0], 2) + 2*pow(x[1], 2) - 1)/(4*pow(x[0], 4) + 8*pow(x[0], 2)*pow(x[1], 2) + 4*pow(x[0], 2) + 4*pow(x[1], 4) + 4*pow(x[1], 2));
+        result(1, 1) = -1.0/2.0*x[1]*(4*pow(x[0], 2)*(pow(x[0], 2) + pow(x[1], 2)) + pow(x[0], 2) + 2*pow(x[1], 2)*(pow(x[0], 2) + pow(x[1], 2) + 1))/((pow(x[0], 2) + pow(x[1], 2))*pow(pow(x[0], 2) + pow(x[1], 2) + 1, 2)) - 1.0/2.0*x[1]*(4*pow(x[0], 2)*(pow(x[0], 2) + pow(x[1], 2)) + pow(x[0], 2) + 2*pow(x[1], 2)*(pow(x[0], 2) + pow(x[1], 2) + 1))/(pow(pow(x[0], 2) + pow(x[1], 2), 2)*(pow(x[0], 2) + pow(x[1], 2) + 1)) + (1.0/4.0)*(8*pow(x[0], 2)*x[1] + 4*pow(x[1], 3) + 4*x[1]*(pow(x[0], 2) + pow(x[1], 2) + 1))/((pow(x[0], 2) + pow(x[1], 2))*(pow(x[0], 2) + pow(x[1], 2) + 1));
+        result(1, 2) = 24*x[0]*x[1]/pow(4*pow(x[0], 2) + 4*pow(x[1], 2) + 4, 2);
+        result(2, 0) = -3.0/2.0*pow(x[1], 2)/pow(pow(x[0], 2) + pow(x[1], 2) + 1, 2) + (3.0/4.0)/(pow(x[0], 2) + pow(x[1], 2) + 1);
+        result(2, 1) = 24*x[0]*x[1]/pow(4*pow(x[0], 2) + 4*pow(x[1], 2) + 4, 2);
+        result(2, 2) = (1.0/2.0)*x[1]/(pow(x[0], 2) + pow(x[1], 2) + 1) - 1.0/2.0*x[1]*(pow(x[0], 2) + pow(x[1], 2) + 4)/pow(pow(x[0], 2) + pow(x[1], 2) + 1, 2);
+
+        return result;
+    }
+
+    Mat3d tz(const Vec3d& /*x*/) const override
+    {
+        return Mat3d::Zero();
+    }
+};
+
+
+class TestField2 : public TensorField
+{
+public:
+    Mat3d t(const Vec3d& x) const override
+    {
+        auto result = Mat3d{};
+
+
+        result(0, 0) = (3.0L/8.0L)*pow(x[0], 2) - 1.0L/4.0L*x[0]*x[1] + (3.0L/8.0L)*pow(x[1], 2) + 1.0L/10.0L;
+        result(0, 1) = (1.0L/8.0L)*pow(x[0], 2) - 1.0L/8.0L*pow(x[1], 2);
+        result(0, 2) = (1.0L/8.0L)*pow(x[0], 3) - 3.0L/8.0L*pow(x[0], 2)*x[1] + (1.0L/8.0L)*x[0]*pow(x[1], 2) - 3.0L/8.0L*pow(x[1], 3) + (9.0L/10.0L)*x[1];
+        result(1, 0) = (1.0L/8.0L)*pow(x[0], 2) - 1.0L/8.0L*pow(x[1], 2);
+        result(1, 1) = (3.0L/8.0L)*pow(x[0], 2) + (1.0L/4.0L)*x[0]*x[1] + (3.0L/8.0L)*pow(x[1], 2) + 1.0L/10.0L;
+        result(1, 2) = (3.0L/8.0L)*pow(x[0], 3) + (1.0L/8.0L)*pow(x[0], 2)*x[1] + (3.0L/8.0L)*x[0]*pow(x[1], 2) - 9.0L/10.0L*x[0] + (1.0L/8.0L)*pow(x[1], 3);
+        result(2, 0) = 0.;
+        result(2, 1) = 0.;
+        result(2, 2) = 1.;
+
+        return result;
+    }
+
+    Mat3d tx(const Vec3d& x) const override
+    {
+        auto result = Mat3d{};
+
+        result(0, 0) = (3.0L/4.0L)*x[0] - 1.0L/4.0L*x[1];
+        result(0, 1) = (1.0L/4.0L)*x[0];
+        result(0, 2) = (3.0L/8.0L)*pow(x[0], 2) - 3.0L/4.0L*x[0]*x[1] + (1.0L/8.0L)*pow(x[1], 2);
+        result(1, 0) = (1.0L/4.0L)*x[0];
+        result(1, 1) = (3.0L/4.0L)*x[0] + (1.0L/4.0L)*x[1];
+        result(1, 2) = (9.0L/8.0L)*pow(x[0], 2) + (1.0L/4.0L)*x[0]*x[1] + (3.0L/8.0L)*pow(x[1], 2) - 9.0L/10.0L;
+        result(2, 0) = 0.;
+        result(2, 1) = 0.;
+        result(2, 2) = 0.;
+
+        return result;
+    }
+
+    Mat3d ty(const Vec3d& x) const override
+    {
+        auto result = Mat3d{};
+
+        result(0, 0) = -1.0L/4.0L*x[0] + (3.0L/4.0L)*x[1];
+        result(0, 1) = -1.0L/4.0L*x[1];
+        result(0, 2) = -3.0L/8.0L*pow(x[0], 2) + (1.0L/4.0L)*x[0]*x[1] - 9.0L/8.0L*pow(x[1], 2) + 9.0L/10.0L;
+        result(1, 0) = -1.0L/4.0L*x[1];
+        result(1, 1) = (1.0L/4.0L)*x[0] + (3.0L/4.0L)*x[1];
+        result(1, 2) = (1.0L/8.0L)*pow(x[0], 2) + (3.0L/4.0L)*x[0]*x[1] + (3.0L/8.0L)*pow(x[1], 2);
+        result(2, 0) = 0.;
+        result(2, 1) = 0.;
+        result(2, 2) = 0.;
 
         return result;
     }
@@ -128,6 +190,59 @@ public:
         return Mat3d::Zero();
     }
 };
+
+
+class Identity : public TensorField
+{
+public:
+    Mat3d t(const Vec3d& x) const override
+    {
+        return Mat3d::Identity();
+    }
+
+    Mat3d tx(const Vec3d& x) const override
+    {
+        return Mat3d::Zero();
+    }
+
+    Mat3d ty(const Vec3d& x) const override
+    {
+        return Mat3d::Zero();
+    }
+
+    Mat3d tz(const Vec3d& /*x*/) const override
+    {
+        return Mat3d::Zero();
+    }
+};
+
+class ConstantNonSymmetric : public TensorField
+{
+public:
+    Mat3d t(const Vec3d& x) const override
+    {
+        return (Mat3d{} << 1., -0.5,  0.5,
+                           0.,  0.5, -0.25,
+                           0.,  0.,   0.25)
+                .finished();
+    }
+
+    Mat3d tx(const Vec3d& x) const override
+    {
+        return Mat3d::Zero();
+    }
+
+    Mat3d ty(const Vec3d& x) const override
+    {
+        return Mat3d::Zero();
+    }
+
+    Mat3d tz(const Vec3d& /*x*/) const override
+    {
+        return Mat3d::Zero();
+    }
+};
+
 
 } // namespace pev
 #endif

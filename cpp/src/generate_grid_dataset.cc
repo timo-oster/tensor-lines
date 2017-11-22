@@ -27,7 +27,10 @@ using Mat3dr = Eigen::Matrix<double, 3, 3, Eigen::RowMajor>;
 enum class FieldType
 {
     TEST,
-    VORTEX_SIMPLE
+    TEST2,
+    VORTEX_SIMPLE,
+    IDENTITY,
+    CONSTANT
 };
 
 
@@ -37,8 +40,15 @@ std::unique_ptr<TensorField> makeTensorField(FieldType ftype)
     {
         case FieldType::TEST:
             return std::unique_ptr<TestField>{new TestField{}};
+        case FieldType::TEST2:
+            return std::unique_ptr<TestField2>{new TestField2{}};
         case FieldType::VORTEX_SIMPLE:
             return std::unique_ptr<TensorVortexSimple>{new TensorVortexSimple{}};
+        case FieldType::IDENTITY:
+            return std::unique_ptr<Identity>{new Identity{}};
+        case FieldType::CONSTANT:
+            return std::unique_ptr<ConstantNonSymmetric>{
+                    new ConstantNonSymmetric{}};
         default:
             return nullptr;
     }
@@ -56,9 +66,21 @@ std::istream& operator>>(std::istream& in, FieldType& ftype)
     {
         ftype = FieldType::TEST;
     }
+    else if(token == "TEST2")
+    {
+        ftype = FieldType::TEST2;
+    }
     else if(token == "VORTEX_SIMPLE")
     {
         ftype = FieldType::VORTEX_SIMPLE;
+    }
+    else if(token == "IDENTITY")
+    {
+        ftype = FieldType::IDENTITY;
+    }
+    else if(token == "CONSTANT")
+    {
+        ftype = FieldType::CONSTANT;
     }
     else
     {
@@ -76,8 +98,17 @@ std::ostream& operator<<(std::ostream& out, const FieldType& ftype)
         case FieldType::TEST:
             out << "test";
             break;
+        case FieldType::TEST2:
+            out << "test2";
+            break;
         case FieldType::VORTEX_SIMPLE:
             out << "vortex_simple";
+            break;
+        case FieldType::IDENTITY:
+            out << "identity";
+            break;
+        case FieldType::CONSTANT:
+            out << "constant";
             break;
         default:
             assert(false);
