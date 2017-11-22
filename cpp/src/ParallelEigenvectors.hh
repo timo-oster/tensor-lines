@@ -20,8 +20,8 @@ using PointList = std::vector<PEVPoint>;
  */
 struct PEVOptions
 {
-    double spatial_epsilon = 1e-6;
-    double direction_epsilon = 1e-6;
+    double tolerance = 1e-6;
+    double min_ev = 1e-6;
     double cluster_epsilon = 5e-6;
 };
 
