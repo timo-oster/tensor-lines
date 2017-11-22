@@ -22,6 +22,8 @@ namespace po = boost::program_options;
 
 using namespace pev;
 
+using Mat3dr = Eigen::Matrix<double, 3, 3, Eigen::RowMajor>;
+
 enum class FieldType
 {
     TEST,
@@ -193,10 +195,10 @@ int main(int argc, char const* argv[])
     {
         using MapV3d = Eigen::Map<Vec3d>;
         auto pos = Vec3d{MapV3d{grid->GetPoint(i)}};
-        auto s = tfield->t(pos);
-        auto sx = tfield->tx(pos);
-        auto sy = tfield->ty(pos);
-        auto sz = tfield->tz(pos);
+        auto s = Mat3dr{tfield->t(pos)};
+        auto sx = Mat3dr{tfield->tx(pos)};
+        auto sy = Mat3dr{tfield->ty(pos)};
+        auto sz = Mat3dr{tfield->tz(pos)};
         s_data->SetTuple(i, s.data());
         sx_data->SetTuple(i, sx.data());
         sy_data->SetTuple(i, sy.data());
