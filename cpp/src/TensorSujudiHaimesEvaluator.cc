@@ -73,12 +73,12 @@ tensorSujudiHaimesEstCoeffs(const TensorInterp& t, const Triangle& r)
     auto eval_tr = [&](const TPBT<double, 2, 2>::Coords& coords) -> double {
         auto rv = r(coords.tail<3>());
         auto tv = t(coords.head<3>());
-        return (tv * rv).norm();
+        return (tv * rv).squaredNorm();
     };
 
     // ||r||^2
     auto eval_r = [&](const TPBT<double, 0, 2>::Coords& coords) -> double {
-        return r(coords.tail<3>()).norm();
+        return r(coords.tail<3>()).squaredNorm();
     };
 
     return {TPBT<double, 2, 2>{eval_tr}, TPBT<double, 0, 2>{eval_r}};
