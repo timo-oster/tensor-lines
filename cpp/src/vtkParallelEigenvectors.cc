@@ -613,22 +613,25 @@ int vtkParallelEigenvectors::RequestData(vtkInformation* vtkNotUsed(request),
             {
                 unlinked.insert(i);
             }
-            while(dist.sum() < npoints * npoints)
+            if(npoints < 10)
             {
-                auto row = Matrix3X::Index{};
-                auto col = Matrix3X::Index{};
-                dist.minCoeff(&row, &col);
-                auto line = vtkSmartPointer<vtkIdList>::New();
-                line->SetNumberOfIds(2);
-                line->InsertId(0, point_list->GetId(row));
-                line->InsertId(1, point_list->GetId(col));
-                output->InsertNextCell(VTK_LINE, line);
-                dist.col(col).setOnes();
-                dist.col(row).setOnes();
-                dist.row(col).setOnes();
-                dist.row(row).setOnes();
-                unlinked.erase(row);
-                unlinked.erase(col);
+                while(dist.sum() < npoints * npoints)
+                {
+                    auto row = Matrix3X::Index{};
+                    auto col = Matrix3X::Index{};
+                    dist.minCoeff(&row, &col);
+                    auto line = vtkSmartPointer<vtkIdList>::New();
+                    line->SetNumberOfIds(2);
+                    line->InsertId(0, point_list->GetId(row));
+                    line->InsertId(1, point_list->GetId(col));
+                    output->InsertNextCell(VTK_LINE, line);
+                    dist.col(col).setOnes();
+                    dist.col(row).setOnes();
+                    dist.row(col).setOnes();
+                    dist.row(row).setOnes();
+                    unlinked.erase(row);
+                    unlinked.erase(col);
+                }
             }
 
             // Add vertex for last unlinked point if any
