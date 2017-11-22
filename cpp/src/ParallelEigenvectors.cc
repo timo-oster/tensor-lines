@@ -308,7 +308,7 @@ std::vector<Evaluator> rootSearch(const Evaluator& start_ev,
     tstck.push(start_ev);
     auto result = std::vector<Evaluator>{};
 
-    while(!tstck.empty())
+    while(result.size() < 1000 && !tstck.empty())
     {
         auto ev = tstck.top();
         tstck.pop();
