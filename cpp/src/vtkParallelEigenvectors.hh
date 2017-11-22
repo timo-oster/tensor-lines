@@ -14,22 +14,22 @@ public:
     vtkParallelEigenvectors(const vtkParallelEigenvectors&) = delete;
     void operator=(const vtkParallelEigenvectors&) = delete;
 
-    double GetSpatialEpsilon() const
+    double GetTolerance() const
     {
-        return _spatial_epsilon;
+        return _tolerance;
     }
-    void SetSpatialEpsilon(double value)
+    void SetTolerance(double value)
     {
-        _spatial_epsilon = value;
+        _tolerance = value;
     }
 
-    double GetDirectionEpsilon() const
+    double GetMinEigenvalue() const
     {
-        return _direction_epsilon;
+        return _min_ev;
     }
-    void SetDirectionEpsilon(double value)
+    void SetMinEigenvalue(double value)
     {
-        _direction_epsilon = value;
+        _min_ev = value;
     }
 
     double GetClusterEpsilon() const
@@ -39,15 +39,6 @@ public:
     void SetClusterEpsilon(double value)
     {
         _cluster_epsilon = value;
-    }
-
-    double GetParallelityEpsilon() const
-    {
-        return _parallelity_epsilon;
-    }
-    void SetParallelityEpsilon(double value)
-    {
-        _parallelity_epsilon = value;
     }
 
     double GetMinTensorNorm() const
@@ -120,10 +111,9 @@ protected:
                                          vtkInformation* info) override;
 
 private:
-    double _spatial_epsilon = 1e-6;
-    double _direction_epsilon = 1e-6;
+    double _tolerance = 1e-6;
+    double _min_ev = 1e-6;
     double _cluster_epsilon = 1e-4;
-    double _parallelity_epsilon = 1e-6;
     double _min_tensor_norm = 1e-3;
     bool _use_sujudi_haimes = false;
 };

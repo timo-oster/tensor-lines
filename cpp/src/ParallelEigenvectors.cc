@@ -342,8 +342,7 @@ std::vector<ParallelEigenvectorsEvaluator>
 parallelEigenvectorSearch(const TensorInterp& s,
                           const TensorInterp& t,
                           const Triangle& tri,
-                          double spatial_epsilon,
-                          double direction_epsilon,
+                          double tolerance,
                           uint64_t* num_splits = nullptr,
                           uint64_t* max_level = nullptr)
 {
@@ -351,7 +350,7 @@ parallelEigenvectorSearch(const TensorInterp& s,
 
     auto compute_tri = [&](const Triangle& r) {
         auto start_ev = ParallelEigenvectorsEvaluator(
-                {tri, r}, s, t, {spatial_epsilon, direction_epsilon});
+                {tri, r}, s, t, {tolerance});
         boost::insert(result,
                       result.end(),
                       rootSearch(start_ev, num_splits, max_level));
@@ -375,8 +374,8 @@ std::vector<TensorSujudiHaimesEvaluator>
 tensorSujudiHaimesSearch(const TensorInterp& t,
                          const std::array<TensorInterp, 3>& dt,
                          const Triangle& tri,
-                         double spatial_epsilon,
-                         double direction_epsilon,
+                         double tolerance,
+                         double min_ev,
                          uint64_t* num_splits = nullptr,
                          uint64_t* max_level = nullptr)
 {
@@ -384,7 +383,7 @@ tensorSujudiHaimesSearch(const TensorInterp& t,
 
     auto compute_tri = [&](const Triangle& r) {
         auto start_ev = TensorSujudiHaimesEvaluator(
-                {tri, r}, t, dt, {spatial_epsilon, direction_epsilon, 1e-6});
+                {tri, r}, t, dt, {tolerance, min_ev});
         boost::insert(result,
                       result.end(),
                       rootSearch(start_ev, num_splits, max_level));
@@ -432,8 +431,7 @@ PointList findParallelEigenvectors(const std::array<Mat3d, 3>& s,
     auto tris = parallelEigenvectorSearch(st,
                                           tt,
                                           start_tri,
-                                          opts.spatial_epsilon,
-                                          opts.direction_epsilon,
+                                          opts.tolerance,
                                           &num_splits,
                                           &max_level);
 
@@ -477,8 +475,8 @@ PointList findTensorSujudiHaimes(const std::array<Mat3d, 3>& t,
     auto tris = tensorSujudiHaimesSearch(tt,
                                          {tx, ty, tz},
                                          start_tri,
-                                         opts.spatial_epsilon,
-                                         opts.direction_epsilon,
+                                         opts.tolerance,
+                                         opts.min_ev,
                                          &num_splits,
                                          &max_level);
 

@@ -127,30 +127,18 @@ Result TSHE::eval()
     // Discard if maximum possible eigenvalue is too small
     auto max_tr = *boost::max_element(_tr_length.coefficients());
     auto min_dir = *boost::min_element(_dir_length.coefficients());
-    if(max_tr / min_dir < _opts.ev_epsilon)
+    if(max_tr / min_dir < _opts.min_ev)
     {
         return Result::Discard;
     }
 
-    // Compute upper bound for gradient in space
-    auto max_deriv_space = derivatives_max_upper_bound<0>(_target_funcs);
+    // Compute upper bound for target function
+    auto max_error = abs_max_upper_bound(_target_funcs);
 
-    // Compute upper bound for gradient in directions
-    auto max_deriv_dir = derivatives_max_upper_bound<1>(_target_funcs);
-
-    // If maximum subdivision accuracy reached, accept point as solution
-    auto dir_sub_reached = max_deriv_dir < _opts.direction_epsilon;
-    auto pos_sub_reached = max_deriv_space < _opts.spatial_epsilon;
-
-    if(pos_sub_reached && dir_sub_reached)
+    if(max_error < _opts.tolerance)
     {
         return Result::Accept;
     }
-
-    // If maximum accuracy reached in one space, force split function to only
-    // split in the other one.
-    if(pos_sub_reached) _last_split_dir = false;
-    else if(dir_sub_reached) _last_split_dir = true;
 
     return Result::Split;
 }

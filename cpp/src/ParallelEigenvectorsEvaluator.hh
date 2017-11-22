@@ -17,13 +17,11 @@ public:
 
     struct Options
     {
-        double spatial_epsilon = 1e-6;
-        double direction_epsilon = 1e-6;
+        double tolerance = 1e-6;
 
         friend bool operator==(const Options& o1, const Options& o2)
         {
-            return o1.spatial_epsilon == o2.spatial_epsilon
-                   && o1.direction_epsilon == o2.direction_epsilon;
+            return o1.tolerance == o2.tolerance;
         }
 
         friend bool operator!=(const Options& o1, const Options& o2)

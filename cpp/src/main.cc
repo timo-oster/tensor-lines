@@ -62,10 +62,9 @@ int main(int argc, char const* argv[])
     using namespace pev;
 
     auto input_file = std::string{};
-    auto spatial_epsilon = 1e-3;
-    auto direction_epsilon = 1e-9;
+    auto tolerance = 1e-3;
+    auto min_ev = 1e-9;
     auto cluster_epsilon = 5e-3;
-    auto parallelity_epsilon = 1e-3;
     auto min_tensor_norm = 1e-3;
     auto out_name = std::string{"Parallel_Eigenvectors.vtk"};
     auto s_field_name = std::string{"S"};
@@ -80,22 +79,18 @@ int main(int argc, char const* argv[])
         auto desc = po::options_description("Allowed options");
         desc.add_options()
             ("help,h", "produce help message")
-            ("spatial-epsilon,e",
-                po::value<double>(&spatial_epsilon)
-                        ->required()->default_value(spatial_epsilon),
-                "epsilon for spatial subdivision")
-            ("direction-epsilon,d",
-                po::value<double>(&direction_epsilon)
-                        ->required()->default_value(direction_epsilon),
-                "epsilon for directional subdivision")
+            ("tolerance,e",
+                po::value<double>(&tolerance)
+                        ->required()->default_value(tolerance),
+                "maximum deviation of the target functions from zero")
+            ("min-ev,d",
+                po::value<double>(&min_ev)
+                        ->required()->default_value(min_ev),
+                "minimum eigenvalue to be considered valid")
             ("cluster-epsilon,c",
                 po::value<double>(&cluster_epsilon)
                         ->required()->default_value(cluster_epsilon),
                 "epsilon for clustering")
-            ("parallelity-epsilon,p",
-                po::value<double>(&parallelity_epsilon)
-                        ->required()->default_value(parallelity_epsilon),
-                "epsilon for eigenvector parallelity")
             ("min-tensor-norm,m",
                 po::value<double>(&min_tensor_norm)
                         ->required()->default_value(min_tensor_norm),
@@ -111,15 +106,15 @@ int main(int argc, char const* argv[])
                 po::value<std::string>(&t_field_name)
                         ->required()->default_value(t_field_name),
                 "name of the second input tensor field")
-            ("sx-field-name",
+            ("sx",
                 po::value<std::string>(&sx_field_name)
                     ->required()->default_value(sx_field_name),
                 "name of the x derivative of the input tensor field")
-            ("sy-field-name",
+            ("sy",
                 po::value<std::string>(&sy_field_name)
                     ->required()->default_value(sy_field_name),
                 "name of the y derivative of the input tensor field")
-            ("sz-field-name",
+            ("sz",
                 po::value<std::string>(&sz_field_name)
                     ->required()->default_value(sz_field_name),
                 "name of the z derivative of the input tensor field")
@@ -156,12 +151,11 @@ int main(int argc, char const* argv[])
                       << std::endl;
         }
         else if(!use_sujudi_haimes
-                && (!vm["sx-field-name"].defaulted()
-                    || !vm["sy-field-name"].defaulted()
-                    || !vm["sz-field-name"].defaulted()))
+                && (!vm["sx"].defaulted() || !vm["sy"].defaulted()
+                    || !vm["sz"].defaulted()))
         {
-            std::cout << "Warning: You have specified sx-, sy-, or "
-                         "sz-field-name but you are not using --sujudi-haimes. "
+            std::cout << "Warning: You have specified sx, sy, or "
+                         "sz but you are not using --sujudi-haimes. "
                          "These flags will be ignored." << std::endl;
         }
     }
@@ -201,10 +195,9 @@ int main(int argc, char const* argv[])
     progressCallback->SetCallback(ProgressFunction);
 
     auto vtkpev = vtkSmartPointer<vtkParallelEigenvectors>::New();
-    vtkpev->SetSpatialEpsilon(spatial_epsilon);
-    vtkpev->SetDirectionEpsilon(direction_epsilon);
+    vtkpev->SetTolerance(tolerance);
+    vtkpev->SetMinEigenvalue(min_ev);
     vtkpev->SetClusterEpsilon(cluster_epsilon);
-    vtkpev->SetParallelityEpsilon(parallelity_epsilon);
     vtkpev->SetMinTensorNorm(min_tensor_norm);
     vtkpev->SetUseSujudiHaimes(use_sujudi_haimes);
     vtkpev->AddObserver(vtkCommand::ProgressEvent, progressCallback);

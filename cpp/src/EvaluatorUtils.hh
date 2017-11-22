@@ -42,6 +42,30 @@ auto derivatives(
 }
 
 
+template <typename TPBT,
+          typename T,
+          typename C,
+          std::size_t... Degrees>
+double abs_upper_bound(
+        const TensorProductBezierTriangleBase<TPBT, T, C, Degrees...>& poly)
+{
+    return boost::accumulate(poly.coefficients(), 0., MaxAbs{});
+}
+
+
+template <typename TPBTSeq>
+double abs_max_upper_bound(const TPBTSeq& polys)
+{
+    using namespace boost;
+    using namespace boost::adaptors;
+    return accumulate(polys | transformed([](const auto& f) {
+                          return abs_upper_bound(f);
+                      }),
+                      0.,
+                      Max{});
+}
+
+
 template <std::size_t D,
           typename TPBT,
           typename T,

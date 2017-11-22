@@ -17,15 +17,13 @@ public:
 
     struct Options
     {
-        double spatial_epsilon = 1e-6;
-        double direction_epsilon = 1e-6;
-        double ev_epsilon = 1e-6;
+        double tolerance = 1e-6;
+        double min_ev = 1e-6;
 
         friend bool operator==(const Options& o1, const Options& o2)
         {
-            return o1.spatial_epsilon == o2.spatial_epsilon
-                   && o1.direction_epsilon == o2.direction_epsilon
-                   && o1.ev_epsilon == o2.ev_epsilon;
+            return o1.tolerance == o2.tolerance
+                   && o1.min_ev == o2.min_ev;
         }
 
         friend bool operator!=(const Options& o1, const Options& o2)
@@ -84,11 +82,10 @@ public:
     /**
      * @brief Evaluate the current state and check if it should be split.
      * @details Evaluates the target functions and returns Result::Accept if the
-     *          solution is within tolerances of spatial_epsilon,
-     *          direction_epsilon and ev_epsilon; returns Result::Discard if no
-     *          solution can be found by subdividing further, and returns
-     *          Result::Split if further subdivision is necessary to find a
-     *          solution.
+     *          solution is within tolerances of tolerance and min_ev; returns
+     *          Result::Discard if no solution can be found by subdividing
+     *          further, and returns Result::Split if further subdivision is
+     *          necessary to find a solution.
      */
     Result eval();
 

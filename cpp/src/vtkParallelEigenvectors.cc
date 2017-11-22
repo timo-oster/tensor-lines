@@ -509,8 +509,8 @@ int vtkParallelEigenvectors::RequestData(vtkInformation* vtkNotUsed(request),
 
     auto start = high_resolution_clock::now();
 
-    auto opts = pev::PEVOptions{this->GetSpatialEpsilon(),
-                                this->GetDirectionEpsilon(),
+    auto opts = pev::PEVOptions{this->GetTolerance(),
+                                this->GetMinEigenvalue(),
                                 this->GetClusterEpsilon()};
 
     auto fresults = std::vector<pev::PointList>{};
