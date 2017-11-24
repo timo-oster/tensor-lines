@@ -354,10 +354,6 @@ parallelEigenvectorSearch(const TensorInterp& s,
         boost::insert(result,
                       result.end(),
                       rootSearch(start_ev, num_splits, max_level));
-#ifdef DRAW_DEBUG
-        pos_image.fill(0);
-        dir_image.fill(0);
-#endif
     };
 
     // Four triangles covering hemisphere
@@ -387,10 +383,6 @@ tensorSujudiHaimesSearch(const TensorInterp& t,
         boost::insert(result,
                       result.end(),
                       rootSearch(start_ev, num_splits, max_level));
-#ifdef DRAW_DEBUG
-        pos_image.fill(0);
-        dir_image.fill(0);
-#endif
     };
 
     // Four triangles covering hemisphere
@@ -407,12 +399,6 @@ tensorSujudiHaimesSearch(const TensorInterp& t,
 
 namespace pev
 {
-#ifdef DRAW_DEBUG
-CImg pos_image(1024, 1024, 1, 3);
-CImg dir_image(1024, 1024, 1, 3);
-CImgDisplay pos_frame;
-CImgDisplay dir_frame;
-#endif
 
 PointList findParallelEigenvectors(const std::array<Mat3d, 3>& s,
                                    const std::array<Mat3d, 3>& t,
