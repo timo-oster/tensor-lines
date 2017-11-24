@@ -44,6 +44,7 @@ public:
             const std::array<TPBT<double, 1, 3>, 6>& target_funcs,
             const TPBT<double, 0, 2>& dir_length,
             const TPBT<double, 2, 2>& tr_length,
+            const TPBT<double, 2, 0>& trace_sq,
             bool last_split_dir,
             uint64_t split_level,
             const Options& opts)
@@ -51,6 +52,7 @@ public:
               _target_funcs(target_funcs),
               _dir_length(dir_length),
               _tr_length(tr_length),
+              _trace_sq(trace_sq),
               _last_split_dir(last_split_dir),
               _split_level(split_level),
               _opts(opts)
@@ -119,6 +121,8 @@ private:
 
     TPBT<double, 2, 2> _tr_length = TPBT<double, 2, 2>{};
 
+    TPBT<double, 2, 0> _trace_sq = TPBT<double, 2, 0>{};
+
     bool _last_split_dir = false;
     uint64_t _split_level = 0;
 
@@ -141,6 +145,7 @@ private:
                      _target_funcs[5].split<D>(i)},
                     _dir_length.split<D>(i),
                     _tr_length.split<D>(i),
+                    _trace_sq.split<D>(i),
                     D == 1,
                     _split_level + 1,
                     _opts);

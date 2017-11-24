@@ -66,7 +66,7 @@ tensorSujudiHaimesCoeffs(const TensorInterp& t,
 }
 
 
-std::pair<TPBT<double, 2, 2>, TPBT<double, 0, 2>>
+std::tuple<TPBT<double, 2, 2>, TPBT<double, 0, 2>, TPBT<double, 2, 0>>
 tensorSujudiHaimesEstCoeffs(const TensorInterp& t, const Triangle& r)
 {
     // ||T * r||^2
@@ -81,7 +81,15 @@ tensorSujudiHaimesEstCoeffs(const TensorInterp& t, const Triangle& r)
         return r(coords.tail<3>()).squaredNorm();
     };
 
-    return {TPBT<double, 2, 2>{eval_tr}, TPBT<double, 0, 2>{eval_r}};
+    // trace(T*T)
+    auto eval_trace = [&](const TPBT<double, 2, 0>::Coords& coords) -> double {
+        auto tv = t(coords.head<3>());
+        return (tv*tv).trace();
+    };
+
+    return std::make_tuple(TPBT<double, 2, 2>{eval_tr},
+                           TPBT<double, 0, 2>{eval_r},
+                           TPBT<double, 2, 0>{eval_trace});
 }
 
 
@@ -95,7 +103,7 @@ TSHE::TensorSujudiHaimesEvaluator(const DoubleTri& tri,
           _target_funcs(tensorSujudiHaimesCoeffs(t, dt, tri.dir_tri)),
           _opts(opts)
 {
-    std::tie(_tr_length, _dir_length) =
+    std::tie(_tr_length, _dir_length, _trace_sq) =
             tensorSujudiHaimesEstCoeffs(t, tri.dir_tri);
 }
 
@@ -125,9 +133,10 @@ Result TSHE::eval()
     }
 
     // Discard if maximum possible eigenvalue is too small
-    auto max_tr = *boost::max_element(_tr_length.coefficients());
-    auto min_dir = *boost::min_element(_dir_length.coefficients());
-    if(max_tr / min_dir < _opts.min_ev)
+    auto max_tr = sqrt(*boost::max_element(_tr_length.coefficients()));
+    auto min_dir = sqrt(*boost::min_element(_dir_length.coefficients()));
+    auto min_trace = sqrt(*boost::min_element(_trace_sq.coefficients())/3.);
+    if(max_tr / min_dir < min_trace)
     {
         return Result::Discard;
     }
@@ -195,6 +204,7 @@ bool operator==(const TSHE& t1, const TSHE& t2)
 {
     return t1._tri == t2._tri && t1._target_funcs == t2._target_funcs
            && t1._dir_length == t2._dir_length && t1._tr_length == t2._tr_length
+           && t1._trace_sq == t2._trace_sq
            && t1._last_split_dir == t2._last_split_dir
            && t1._split_level == t2._split_level && t1._opts == t2._opts;
 }
