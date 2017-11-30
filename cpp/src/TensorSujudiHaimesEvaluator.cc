@@ -103,8 +103,8 @@ TSHE::TensorSujudiHaimesEvaluator(const DoubleTri& tri,
           _target_funcs(tensorSujudiHaimesCoeffs(t, dt, tri.dir_tri)),
           _opts(opts)
 {
-    std::tie(_tr_length, _dir_length, _trace_sq) =
-            tensorSujudiHaimesEstCoeffs(t, tri.dir_tri);
+    // std::tie(_tr_length, _dir_length, _trace_sq) =
+    //         tensorSujudiHaimesEstCoeffs(t, tri.dir_tri);
 }
 
 
@@ -133,13 +133,13 @@ Result TSHE::eval()
     }
 
     // Discard if maximum possible eigenvalue is too small
-    auto max_tr = sqrt(*boost::max_element(_tr_length.coefficients()));
-    auto min_dir = sqrt(*boost::min_element(_dir_length.coefficients()));
-    auto min_trace = sqrt(*boost::min_element(_trace_sq.coefficients())/3.);
-    if(max_tr / min_dir < min_trace)
-    {
-        return Result::Discard;
-    }
+    // auto max_tr = sqrt(*boost::max_element(_tr_length.coefficients()));
+    // auto min_dir = sqrt(*boost::min_element(_dir_length.coefficients()));
+    // auto min_trace = sqrt(*boost::min_element(_trace_sq.coefficients())/3.);
+    // if(max_tr / min_dir < min_trace)
+    // {
+    //     return Result::Discard;
+    // }
 
     // Compute upper bound for target function
     auto max_error = abs_max_upper_bound(_target_funcs);
@@ -203,8 +203,8 @@ double distance(const TSHE& t1, const TSHE& t2)
 bool operator==(const TSHE& t1, const TSHE& t2)
 {
     return t1._tri == t2._tri && t1._target_funcs == t2._target_funcs
-           && t1._dir_length == t2._dir_length && t1._tr_length == t2._tr_length
-           && t1._trace_sq == t2._trace_sq
+           // && t1._dir_length == t2._dir_length && t1._tr_length == t2._tr_length
+           // && t1._trace_sq == t2._trace_sq
            && t1._last_split_dir == t2._last_split_dir
            && t1._split_level == t2._split_level && t1._opts == t2._opts;
 }
