@@ -11,6 +11,7 @@
 #include <boost/range/algorithm_ext/insert.hpp>
 
 #include <stack>
+#include <queue>
 #include <iterator>
 #include <complex>
 #include <type_traits>
@@ -304,14 +305,14 @@ std::vector<Evaluator> rootSearch(const Evaluator& start_ev,
                                   uint64_t* num_splits = nullptr,
                                   uint64_t* max_level = nullptr)
 {
-    auto tstck = std::stack<Evaluator>{};
-    tstck.push(start_ev);
+    auto work_lst = std::queue<Evaluator>{};
+    work_lst.push(start_ev);
     auto result = std::vector<Evaluator>{};
 
-    while(result.size() < 1000 && !tstck.empty())
+    while(!work_lst.empty() && work_lst.size() < std::pow(16, 3))
     {
-        auto ev = tstck.top();
-        tstck.pop();
+        auto ev = work_lst.front();
+        work_lst.pop();
         if(num_splits) *num_splits += 1;
         if(max_level && *max_level < ev.splitLevel())
         {
@@ -323,7 +324,7 @@ std::vector<Evaluator> rootSearch(const Evaluator& start_ev,
             case Result::Split:
                 for(const auto& p : ev.split())
                 {
-                    tstck.push(p);
+                    work_lst.push(p);
                 }
                 break;
             case Result::Accept:
@@ -385,11 +386,19 @@ tensorSujudiHaimesSearch(const TensorInterp& t,
                       rootSearch(start_ev, num_splits, max_level));
     };
 
-    // Four triangles covering hemisphere
-    compute_tri(Triangle{{Vec3d{1, 0, 0}, Vec3d{0, 1, 0}, Vec3d{0, 0, 1}}});
-    compute_tri(Triangle{{Vec3d{0, 1, 0}, Vec3d{-1, 0, 0}, Vec3d{0, 0, 1}}});
-    compute_tri(Triangle{{Vec3d{-1, 0, 0}, Vec3d{0, -1, 0}, Vec3d{0, 0, 1}}});
-    compute_tri(Triangle{{Vec3d{0, -1, 0}, Vec3d{1, 0, 0}, Vec3d{0, 0, 1}}});
+    auto dir_tris = std::array<Triangle, 4>{
+            Triangle{{Vec3d{1, 0, 0}, Vec3d{0, 1, 0}, Vec3d{0, 0, 1}}},
+            Triangle{{Vec3d{0, 1, 0}, Vec3d{-1, 0, 0}, Vec3d{0, 0, 1}}},
+            Triangle{{Vec3d{-1, 0, 0}, Vec3d{0, -1, 0}, Vec3d{0, 0, 1}}},
+            Triangle{{Vec3d{0, -1, 0}, Vec3d{1, 0, 0}, Vec3d{0, 0, 1}}}};
+
+    for(const auto& tri: dir_tris)
+    {
+        for(const auto& t: tri.split())
+        {
+            compute_tri(t);
+        }
+    }
 
     return result;
 }
