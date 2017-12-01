@@ -55,6 +55,7 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 add_executable(parallel_eigenvectors ${PEV_SOURCES} ${GENERATED_SOURCES} ${TPBT_COLLECTION_HEADER})
 add_executable(generate_tet_dataset generate_tet_dataset.cc)
 add_executable(generate_grid_dataset generate_grid_dataset.cc)
+add_executable(filter_tensor_lines filter_lines.cc)
 
 find_package(Eigen3 REQUIRED)
 if(EIGEN3_FOUND)
@@ -78,6 +79,7 @@ if(Boost_FOUND)
     target_link_libraries(parallel_eigenvectors ${Boost_LIBRARIES})
     target_link_libraries(generate_tet_dataset ${Boost_LIBRARIES})
     target_link_libraries(generate_grid_dataset ${Boost_LIBRARIES})
+    target_link_libraries(filter_tensor_lines ${Boost_LIBRARIES})
     include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
     link_directories(${Boost_LIBRARY_DIRS})
     if(WIN32)
@@ -91,6 +93,7 @@ if(VTK_FOUND)
     target_link_libraries(parallel_eigenvectors ${VTK_LIBRARIES})
     target_link_libraries(generate_tet_dataset ${VTK_LIBRARIES})
     target_link_libraries(generate_grid_dataset ${VTK_LIBRARIES})
+    target_link_libraries(filter_tensor_lines ${VTK_LIBRARIES})
 endif()
 
 option(DRAW_DEBUG "Visualize the recursion algorithm (needs CImg)" OFF)
@@ -112,6 +115,10 @@ install(TARGETS generate_tet_dataset
     RUNTIME DESTINATION "${INSTALL_BIN_DIR}" COMPONENT bin)
 
 install(TARGETS generate_grid_dataset
+    EXPORT ParallelEigenvectorsTargets
+    RUNTIME DESTINATION "${INSTALL_BIN_DIR}" COMPONENT bin)
+
+install(TARGETS filter_tensor_lines
     EXPORT ParallelEigenvectorsTargets
     RUNTIME DESTINATION "${INSTALL_BIN_DIR}" COMPONENT bin)
 
