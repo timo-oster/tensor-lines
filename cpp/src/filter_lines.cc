@@ -8,6 +8,8 @@
 #include <vtkIdList.h>
 #include <vtkPointData.h>
 #include <vtkDataArray.h>
+#include <vtkCleanPolyData.h>
+#include <vtkStripper.h>
 
 #include <boost/program_options.hpp>
 
@@ -91,39 +93,70 @@ int main(int argc, char const *argv[])
     while(lines->GetNextCell(points))
     {
         using Vec3d = Eigen::Vector3d;
-        if(points->GetNumberOfIds() < 4) continue;
+        if(points->GetNumberOfIds() < 3) continue;
         auto p0 = Vec3d{};
         auto p1 = Vec3d{};
+        auto ev = Vec3d{};
         data->GetPoint(points->GetId(0), p0.data());
         data->GetPoint(points->GetId(1), p1.data());
-        auto ev = Vec3d{};
         eivec->GetTuple(points->GetId(0), ev.data());
-        auto total_error = (p1-p0).normalized().cross(ev.normalized()).norm();
+
+        if((p1-p0).normalized().cross(ev.normalized()).norm() < sin(tolerance/180*3.14))
+        {
+            auto newpts = vtkSmartPointer<vtkIdList>::New();
+            newpts->SetNumberOfIds(2);
+            newpts->SetId(0, points->GetId(0));
+            newpts->SetId(1, points->GetId(1));
+            output->InsertNextCell(VTK_LINE, newpts);
+        }
 
         for(auto i: range(1, points->GetNumberOfIds()-1))
         {
             data->GetPoint(points->GetId(i-1), p0.data());
             data->GetPoint(points->GetId(i+1), p1.data());
             eivec->GetTuple(points->GetId(i), ev.data());
-            total_error += (p1-p0).normalized().cross(ev.normalized()).norm();
-        }
-        data->GetPoint(points->GetId(points->GetNumberOfIds()-2), p0.data());
-        data->GetPoint(points->GetId(points->GetNumberOfIds()-1), p1.data());
-        eivec->GetTuple(points->GetId(points->GetNumberOfIds()-1), ev.data());
-        total_error += (p1-p0).normalized().cross(ev.normalized()).norm();
-
-        if(total_error / points->GetNumberOfIds() < sin(tolerance/180*3.14))
-        {
-            // copy line to new dataset
-            output->InsertNextCell(VTK_POLY_LINE, points);
+            if((p1-p0).normalized().cross(ev.normalized()).norm() < sin(tolerance/180*3.14))
+            {
+                auto newpts = vtkSmartPointer<vtkIdList>::New();
+                newpts->SetNumberOfIds(2);
+                newpts->SetId(0, points->GetId(i));
+                newpts->SetId(1, points->GetId(i+1));
+                output->InsertNextCell(VTK_LINE, newpts);
+            }
         }
     }
 
+    auto cleaner = vtkSmartPointer<vtkCleanPolyData>::New();
+    cleaner->PointMergingOff();
+    cleaner->SetInputDataObject(output);
+
+    auto stripper = vtkSmartPointer<vtkStripper>::New();
+    stripper->JoinContiguousSegmentsOn();
+    stripper->SetMaximumLength(10000);
+    stripper->SetInputConnection(cleaner->GetOutputPort());
+    stripper->Update();
+
+    auto stripped = vtkSmartPointer<vtkPolyData>(stripper->GetOutput());
+    auto stripped_lines = vtkSmartPointer<vtkCellArray>(stripped->GetLines());
+
+    stripped->BuildLinks();
+    stripped_lines->InitTraversal();
+    auto id = vtkIdType{0};
+    while(stripped_lines->GetNextCell(points))
+    {
+        if(points->GetNumberOfIds() < 4)
+        {
+            stripped->DeleteCell(id);
+        }
+        ++id;
+    }
+    stripped->RemoveDeletedCells();
+
     auto writer = vtkSmartPointer<vtkPolyDataWriter>::New();
-    writer->SetInputDataObject(output);
+    writer->SetInputDataObject(stripped);
     writer->SetFileName(out_name.c_str());
     writer->SetFileTypeToBinary();
+    writer->Update();
     writer->Write();
-    /* code */
     return 0;
 }
