@@ -59,7 +59,6 @@ int main(int argc, char const* argv[])
     auto symmetric = false;
     auto interactive = false;
     auto gen_derivatives = false;
-    auto force_center_solution = false;
 
     try
     {
@@ -79,10 +78,6 @@ int main(int argc, char const* argv[])
             ("derivatives,d",
                 po::bool_switch(&gen_derivatives),
                 "Also generate derivatives Sx, Sy, and Sz")
-            ("force-center-solution,f",
-                po::bool_switch(&force_center_solution),
-                "Force a solution of tensor Sujudi-Haimes on the z-axis "
-                "(only valid when using --derivatives)")
             ("subdivision-level,l",
                 po::value<int32_t>(&num_subdivisions)
                         ->required()
@@ -113,16 +108,6 @@ int main(int argc, char const* argv[])
         {
             throw po::error(
                     "Conflicting options --symmetric and --interactive");
-        }
-        if(force_center_solution && !gen_derivatives)
-        {
-            throw po::error("Using --force-center-solution requires using "
-                            "--derivatives");
-        }
-        if(interactive && force_center_solution)
-        {
-            throw po::error("Conflicting options --force-center-solution and "
-                            "--interactive");
         }
     }
     catch(std::exception& e)
@@ -185,10 +170,6 @@ int main(int argc, char const* argv[])
     }
     else
     {
-        auto s0_field = vtkSmartPointer<vtkDoubleArray>::New();
-        s0_field->SetName("S0");
-        s0_field->SetNumberOfComponents(9);
-        s0_field->SetNumberOfTuples(points->GetNumberOfPoints());
         auto sx_field = vtkSmartPointer<vtkDoubleArray>::New();
         sx_field->SetName("Sx");
         sx_field->SetNumberOfComponents(9);
@@ -206,53 +187,27 @@ int main(int argc, char const* argv[])
         s_field->SetNumberOfComponents(9);
         s_field->SetNumberOfTuples(points->GetNumberOfPoints());
 
-        auto s0_mat = Mat3d{};
-        auto sx_mat = Mat3d{};
-        auto sy_mat = Mat3d{};
-        auto sz_mat = Mat3d{};
-
-        if(interactive)
-        {
-            s0_mat = inputMatrix("S0");
-            sx_mat = inputMatrix("Sx");
-            sy_mat = inputMatrix("Sy");
-            sz_mat = inputMatrix("Sz");
-        }
-        else
-        {
-            s0_mat = randMatrix(rnd, gen, symmetric);
-            sx_mat = randMatrix(rnd, gen, symmetric);
-            sy_mat = randMatrix(rnd, gen, symmetric);
-            sz_mat = randMatrix(rnd, gen, symmetric);
-            if(force_center_solution)
-            {
-                s0_mat(0, 2) = 0;
-                s0_mat(1, 2) = 0;
-                sz_mat(0, 2) = 0;
-                sz_mat(1, 2) = 0;
-                if(symmetric)
-                {
-                    s0_mat(2, 0) = 0;
-                    s0_mat(2, 1) = 0;
-                    sz_mat(2, 0) = 0;
-                    sz_mat(2, 1) = 0;
-                }
-            }
-        }
-
         for(auto i : range(points->GetNumberOfPoints()))
         {
-            s0_field->SetTuple(i, s0_mat.data());
-            sx_field->SetTuple(i, sx_mat.data());
-            sy_field->SetTuple(i, sy_mat.data());
-            sz_field->SetTuple(i, sz_mat.data());
+            if(interactive)
+            {
+                s_field->SetTuple(
+                        i, inputMatrix(make_string() << "S" << (i + 1)).data());
+                sx_field->SetTuple(
+                        i, inputMatrix(make_string() << "Sx" << (i + 1)).data());
+                sy_field->SetTuple(
+                        i, inputMatrix(make_string() << "Sy" << (i + 1)).data());
+                sz_field->SetTuple(
+                        i, inputMatrix(make_string() << "Sz" << (i + 1)).data());
+            }
+            else
+            {
+                s_field->SetTuple(i, randMatrix(rnd, gen, symmetric).data());
+                sx_field->SetTuple(i, randMatrix(rnd, gen, false).data());
+                sy_field->SetTuple(i, randMatrix(rnd, gen, false).data());
+                sz_field->SetTuple(i, randMatrix(rnd, gen, false).data());
+            }
         }
-        s_field->SetTuple(0, (s0_mat + 1.01979867 * sx_mat + 1.00974785 * sy_mat + 0.96975252 * sz_mat).eval().data());
-        s_field->SetTuple(1, (s0_mat - 1.01979867 * sx_mat + 0.99015215 * sy_mat - 0.98975218 * sz_mat).eval().data());
-        s_field->SetTuple(2, (s0_mat + 0.97980134 * sx_mat - 1.01014782 * sy_mat - 1.00974785 * sz_mat).eval().data());
-        s_field->SetTuple(3, (s0_mat - 0.97980134 * sx_mat - 0.98975218 * sy_mat + 1.02974752 * sz_mat).eval().data());
-
-        grid->GetPointData()->AddArray(s0_field);
         grid->GetPointData()->AddArray(sx_field);
         grid->GetPointData()->AddArray(sy_field);
         grid->GetPointData()->AddArray(sz_field);
