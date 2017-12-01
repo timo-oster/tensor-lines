@@ -53,32 +53,35 @@ struct TriFace
 };
 
 
-struct FaceHash
+struct FaceCompare
 {
     std::size_t offset;
 
-    explicit FaceHash(std::size_t offset) : offset(offset)
+    explicit FaceCompare(std::size_t offset) : offset(offset)
     {
     }
 
-    std::size_t operator()(const TriFace& face) const
+    std::size_t numberfy(const TriFace& face) const
     {
         auto pts = face.points;
         std::sort(std::begin(pts), std::end(pts));
-        return std::hash<std::size_t>{}(
-                std::size_t(pts[0]) + offset * std::size_t(pts[1])
-                + offset * offset * std::size_t(pts[2]));
+        return std::size_t(pts[0]) + offset * std::size_t(pts[1])
+                + offset * offset * std::size_t(pts[2]);
+    }
+
+    std::size_t operator()(const TriFace& face1, const TriFace& face2) const
+    {
+        return numberfy(face1) < numberfy(face2);
     }
 };
 
 
-using FaceMap = std::unordered_map<TriFace, std::vector<vtkIdType>, FaceHash>;
+using FaceMap = std::map<TriFace, std::vector<vtkIdType>, FaceCompare>;
 
 FaceMap buildFaceMap(vtkDataSet* dataset)
 {
     auto face_map =
-            FaceMap(std::size_t(dataset->GetNumberOfCells() * 4),
-                    FaceHash(std::size_t(dataset->GetNumberOfPoints())));
+            FaceMap(FaceCompare(std::size_t(dataset->GetNumberOfPoints())));
 
     auto add_face = [&](vtkIdList* point_ids,
                         vtkIdType cell_id,
@@ -104,7 +107,12 @@ FaceMap buildFaceMap(vtkDataSet* dataset)
     auto it = vtkSmartPointer<vtkCellIterator>(dataset->NewCellIterator());
     for(it->InitTraversal(); !it->IsDoneWithTraversal(); it->GoToNextCell())
     {
-        if(it->GetCellType() != VTK_TETRA) continue;
+        if(it->GetCellType() != VTK_TETRA)
+        {
+            std::cout << "WARNING: Dataset contains non-tet cells, which will "
+                         "be ignored.\n";
+            continue;
+        }
 
         auto* point_ids = it->GetPointIds();
         auto cid = it->GetCellId();
