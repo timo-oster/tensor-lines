@@ -63,10 +63,10 @@ int main(int argc, char const* argv[])
 
     auto input_file = std::string{};
     auto tolerance = 1e-3;
-    auto min_ev = 1e-9;
     auto cluster_epsilon = 5e-3;
-    auto min_tensor_norm = 1e-3;
+    auto max_candidates = std::size_t{100};
     auto out_name = std::string{"Parallel_Eigenvectors.vtk"};
+    auto out2_name = std::string{"Parallel_Eigenvectors_NLTris.vtk"};
     auto s_field_name = std::string{"S"};
     auto t_field_name = std::string{"T"};
     auto sx_field_name = std::string{"Sx"};
@@ -83,18 +83,15 @@ int main(int argc, char const* argv[])
                 po::value<double>(&tolerance)
                         ->required()->default_value(tolerance),
                 "maximum deviation of the target functions from zero")
-            ("min-ev,d",
-                po::value<double>(&min_ev)
-                        ->required()->default_value(min_ev),
-                "minimum eigenvalue to be considered valid")
             ("cluster-epsilon,c",
                 po::value<double>(&cluster_epsilon)
                         ->required()->default_value(cluster_epsilon),
                 "epsilon for clustering")
-            ("min-tensor-norm,m",
-                po::value<double>(&min_tensor_norm)
-                        ->required()->default_value(min_tensor_norm),
-                "minimum norm of tensors necessary for a cell to be considered")
+            ("max-candidates,m",
+                po::value<std::size_t>(&max_candidates)
+                        ->required()->default_value(max_candidates),
+                "Maximum number of candidate triangles on a face before "
+                "breaking off and assuming a non-line structure")
             ("input-file,i",
                 po::value<std::string>(&input_file)->required(),
                 "name of the input file (VTK format)")
@@ -122,6 +119,10 @@ int main(int argc, char const* argv[])
                 po::value<std::string>(&out_name)
                         ->required()->default_value(out_name),
                 "Name of the output file")
+            ("output2",
+                po::value<std::string>(&out2_name),
+                "Name of the second output file containing faces that might "
+                "contain non-line structures")
             ("sujudi-haimes",
                 po::bool_switch(&use_sujudi_haimes),
                 "Compute Sujudi-Haimes for tensor fields "
@@ -157,6 +158,12 @@ int main(int argc, char const* argv[])
             std::cout << "Warning: You have specified sx, sy, or "
                          "sz but you are not using --sujudi-haimes. "
                          "These flags will be ignored." << std::endl;
+        }
+        if(vm.count("output2") == 0)
+        {
+            auto lastindex = out_name.find_last_of(".");
+            auto rawname = out_name.substr(0, lastindex);
+            out2_name = rawname + "_NLTri.vtk";
         }
     }
     catch(std::exception& e)
@@ -196,9 +203,8 @@ int main(int argc, char const* argv[])
 
     auto vtkpev = vtkSmartPointer<vtkParallelEigenvectors>::New();
     vtkpev->SetTolerance(tolerance);
-    vtkpev->SetMinEigenvalue(min_ev);
     vtkpev->SetClusterEpsilon(cluster_epsilon);
-    vtkpev->SetMinTensorNorm(min_tensor_norm);
+    vtkpev->SetMaxCandidates(max_candidates);
     vtkpev->SetUseSujudiHaimes(use_sujudi_haimes);
     vtkpev->AddObserver(vtkCommand::ProgressEvent, progressCallback);
 
@@ -256,22 +262,22 @@ int main(int argc, char const* argv[])
     });
 #endif // __linux__
 
-    // Merge duplicate/close points
-    auto cleaner = vtkSmartPointer<vtkCleanPolyData>::New();
-    cleaner->SetTolerance(cluster_epsilon);
-    cleaner->ConvertLinesToPointsOn();
-    cleaner->PointMergingOn();
-    cleaner->SetInputConnection(0, vtkpev->GetOutputPort(0));
-
     // Merge line segments to longer line strips
     auto stripper = vtkSmartPointer<vtkStripper>::New();
     stripper->JoinContiguousSegmentsOn();
     stripper->SetMaximumLength(10000);
-    stripper->SetInputConnection(0, cleaner->GetOutputPort(0));
+    stripper->SetInputConnection(0, vtkpev->GetOutputPort(0));
 
     auto outwriter = vtkSmartPointer<vtkPolyDataWriter>::New();
     outwriter->SetInputConnection(0, stripper->GetOutputPort(0));
     outwriter->SetFileName(out_name.c_str());
+    outwriter->SetFileTypeToBinary();
+    outwriter->Update();
+    outwriter->Write();
+
+    auto out2writer = vtkSmartPointer<vtkPolyDataWriter>::New();
+    outwriter->SetInputConnection(0, vtkpev->GetOutputPort(1));
+    outwriter->SetFileName(out2_name.c_str());
     outwriter->SetFileTypeToBinary();
     outwriter->Update();
     outwriter->Write();

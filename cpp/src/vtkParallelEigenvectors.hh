@@ -23,15 +23,6 @@ public:
         _tolerance = value;
     }
 
-    double GetMinEigenvalue() const
-    {
-        return _min_ev;
-    }
-    void SetMinEigenvalue(double value)
-    {
-        _min_ev = value;
-    }
-
     double GetClusterEpsilon() const
     {
         return _cluster_epsilon;
@@ -41,13 +32,13 @@ public:
         _cluster_epsilon = value;
     }
 
-    double GetMinTensorNorm() const
+    std::size_t GetMaxCandidates() const
     {
-        return _min_tensor_norm;
+        return _max_candidates;
     }
-    void SetMinTensorNorm(double value)
+    void SetMaxCandidates(std::size_t& value)
     {
-        _min_tensor_norm = value;
+        _max_candidates = value;
     }
 
     bool GetUseSujudiHaimes() const
@@ -112,9 +103,8 @@ protected:
 
 private:
     double _tolerance = 1e-6;
-    double _min_ev = 1e-6;
     double _cluster_epsilon = 1e-4;
-    double _min_tensor_norm = 1e-3;
+    std::size_t _max_candidates = 100;
     bool _use_sujudi_haimes = false;
 };
 

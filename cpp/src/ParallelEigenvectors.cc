@@ -9,6 +9,7 @@
 
 #include <boost/range/algorithm/min_element.hpp>
 #include <boost/range/algorithm_ext/insert.hpp>
+#include <boost/optional.hpp>
 
 #include <stack>
 #include <queue>
@@ -301,16 +302,19 @@ computeContextInfoSH(const std::vector<ClusterRepr<Evaluator>>& representatives,
 
 template <typename Evaluator,
           typename = std::enable_if_t<is_evaluator<Evaluator>::value>>
-std::vector<Evaluator> rootSearch(const Evaluator& start_ev,
-                                  uint64_t* num_splits = nullptr,
-                                  uint64_t* max_level = nullptr)
+boost::optional<std::vector<Evaluator>>
+rootSearch(const Evaluator& start_ev,
+           std::size_t max_candidates,
+           uint64_t* num_splits = nullptr,
+           uint64_t* max_level = nullptr)
 {
     auto work_lst = std::queue<Evaluator>{};
     work_lst.push(start_ev);
     auto result = std::vector<Evaluator>{};
 
-    while(!work_lst.empty() && work_lst.size() < std::pow(16, 3))
+    while(!work_lst.empty())
     {
+        if(work_lst.size() > max_candidates) return boost::none;
         auto ev = work_lst.front();
         work_lst.pop();
         if(num_splits) *num_splits += 1;
@@ -339,51 +343,80 @@ std::vector<Evaluator> rootSearch(const Evaluator& start_ev,
 }
 
 
-std::vector<ParallelEigenvectorsEvaluator>
+std::pair<std::vector<ParallelEigenvectorsEvaluator>, std::vector<Vec3d>>
 parallelEigenvectorSearch(const TensorInterp& s,
                           const TensorInterp& t,
                           const Triangle& tri,
                           double tolerance,
+                          std::size_t max_candidates,
                           uint64_t* num_splits = nullptr,
                           uint64_t* max_level = nullptr)
 {
     auto result = std::vector<ParallelEigenvectorsEvaluator>{};
+    auto failed_dirs = std::vector<Vec3d>{};
 
     auto compute_tri = [&](const Triangle& r) {
         auto start_ev = ParallelEigenvectorsEvaluator(
                 {tri, r}, s, t, {tolerance});
-        boost::insert(result,
-                      result.end(),
-                      rootSearch(start_ev, num_splits, max_level));
+        auto solutions =
+                rootSearch(start_ev, max_candidates, num_splits, max_level);
+        if(solutions)
+        {
+            boost::insert(
+                    result,
+                    result.end(),
+                    solutions.value());
+        }
+        else
+        {
+            failed_dirs.push_back(r({1./3, 1./3, 1./3}));
+        }
     };
 
     // Four triangles covering hemisphere
-    compute_tri(Triangle{{Vec3d{1, 0, 0}, Vec3d{0, 1, 0}, Vec3d{0, 0, 1}}});
-    compute_tri(Triangle{{Vec3d{0, 1, 0}, Vec3d{-1, 0, 0}, Vec3d{0, 0, 1}}});
-    compute_tri(Triangle{{Vec3d{-1, 0, 0}, Vec3d{0, -1, 0}, Vec3d{0, 0, 1}}});
-    compute_tri(Triangle{{Vec3d{0, -1, 0}, Vec3d{1, 0, 0}, Vec3d{0, 0, 1}}});
+    auto dir_tris = std::array<Triangle, 4>{
+            Triangle{{Vec3d{1, 0, 0}, Vec3d{0, 1, 0}, Vec3d{0, 0, 1}}},
+            Triangle{{Vec3d{0, 1, 0}, Vec3d{-1, 0, 0}, Vec3d{0, 0, 1}}},
+            Triangle{{Vec3d{-1, 0, 0}, Vec3d{0, -1, 0}, Vec3d{0, 0, 1}}},
+            Triangle{{Vec3d{0, -1, 0}, Vec3d{1, 0, 0}, Vec3d{0, 0, 1}}}};
 
-    return result;
+    for(const auto& tri : dir_tris)
+    {
+        for(const auto& t : tri.split())
+        {
+            compute_tri(t);
+        }
+    }
+
+    return {result, failed_dirs};
 }
 
 
-std::vector<TensorSujudiHaimesEvaluator>
+std::pair<std::vector<TensorSujudiHaimesEvaluator>, std::vector<Vec3d>>
 tensorSujudiHaimesSearch(const TensorInterp& t,
                          const std::array<TensorInterp, 3>& dt,
                          const Triangle& tri,
                          double tolerance,
-                         double min_ev,
+                         std::size_t max_candidates,
                          uint64_t* num_splits = nullptr,
                          uint64_t* max_level = nullptr)
 {
     auto result = std::vector<TensorSujudiHaimesEvaluator>{};
+    auto failed_dirs = std::vector<Vec3d>{};
 
     auto compute_tri = [&](const Triangle& r) {
         auto start_ev = TensorSujudiHaimesEvaluator(
-                {tri, r}, t, dt, {tolerance, min_ev});
-        boost::insert(result,
-                      result.end(),
-                      rootSearch(start_ev, num_splits, max_level));
+                {tri, r}, t, dt, {tolerance});
+        auto solutions =
+                rootSearch(start_ev, max_candidates, num_splits, max_level);
+        if(solutions)
+        {
+            boost::insert(result, result.end(), solutions.value());
+        }
+        else
+        {
+            failed_dirs.push_back(r({1. / 3, 1. / 3, 1. / 3}));
+        }
     };
 
     auto dir_tris = std::array<Triangle, 4>{
@@ -392,15 +425,15 @@ tensorSujudiHaimesSearch(const TensorInterp& t,
             Triangle{{Vec3d{-1, 0, 0}, Vec3d{0, -1, 0}, Vec3d{0, 0, 1}}},
             Triangle{{Vec3d{0, -1, 0}, Vec3d{1, 0, 0}, Vec3d{0, 0, 1}}}};
 
-    for(const auto& tri: dir_tris)
+    for(const auto& tri : dir_tris)
     {
-        for(const auto& t: tri.split())
+        for(const auto& t : tri.split())
         {
             compute_tri(t);
         }
     }
 
-    return result;
+    return {result, failed_dirs};
 }
 
 } // namespace
@@ -409,7 +442,7 @@ tensorSujudiHaimesSearch(const TensorInterp& t,
 namespace pev
 {
 
-PointList findParallelEigenvectors(const std::array<Mat3d, 3>& s,
+PEVResult findParallelEigenvectors(const std::array<Mat3d, 3>& s,
                                    const std::array<Mat3d, 3>& t,
                                    const std::array<Vec3d, 3>& x,
                                    const PEVOptions& opts)
@@ -427,18 +460,20 @@ PointList findParallelEigenvectors(const std::array<Mat3d, 3>& s,
                                           tt,
                                           start_tri,
                                           opts.tolerance,
+                                          opts.max_candidates,
                                           &num_splits,
                                           &max_level);
 
-    auto clustered_tris = clusterTris(tris, opts.cluster_epsilon);
+    auto clustered_tris = clusterTris(tris.first, opts.cluster_epsilon);
 
     auto representatives = findRepresentatives(clustered_tris);
 
-    return computeContextInfo(representatives, st, tt, xt);
+    return {computeContextInfo(representatives, st, tt, xt),
+            tris.second};
 }
 
 
-PointList findParallelEigenvectors(const std::array<Mat3d, 3>& s,
+PEVResult findParallelEigenvectors(const std::array<Mat3d, 3>& s,
                                    const std::array<Mat3d, 3>& t,
                                    const PEVOptions& opts)
 {
@@ -450,7 +485,7 @@ PointList findParallelEigenvectors(const std::array<Mat3d, 3>& s,
 }
 
 
-PointList findTensorSujudiHaimes(const std::array<Mat3d, 3>& t,
+PEVResult findTensorSujudiHaimes(const std::array<Mat3d, 3>& t,
                                  const std::array<std::array<Mat3d, 3>, 3>& dt,
                                  const std::array<Vec3d, 3>& x,
                                  const PEVOptions& opts)
@@ -471,19 +506,20 @@ PointList findTensorSujudiHaimes(const std::array<Mat3d, 3>& t,
                                          {tx, ty, tz},
                                          start_tri,
                                          opts.tolerance,
-                                         opts.min_ev,
+                                         opts.max_candidates,
                                          &num_splits,
                                          &max_level);
 
-    auto clustered_tris = clusterTris(tris, opts.cluster_epsilon);
+    auto clustered_tris = clusterTris(tris.first, opts.cluster_epsilon);
 
     auto representatives = findRepresentatives(clustered_tris);
 
-    return computeContextInfoSH(representatives, tt, tx, ty, tz, xt);
+    return {computeContextInfoSH(representatives, tt, tx, ty, tz, xt),
+            tris.second};
 }
 
 
-PointList findTensorSujudiHaimes(const std::array<Mat3d, 3>& t,
+PEVResult findTensorSujudiHaimes(const std::array<Mat3d, 3>& t,
                                  const std::array<std::array<Mat3d, 3>, 3>& dt,
                                  const PEVOptions& opts)
 {

@@ -18,12 +18,10 @@ public:
     struct Options
     {
         double tolerance = 1e-6;
-        double min_ev = 1e-6;
 
         friend bool operator==(const Options& o1, const Options& o2)
         {
-            return o1.tolerance == o2.tolerance
-                   && o1.min_ev == o2.min_ev;
+            return o1.tolerance == o2.tolerance;
         }
 
         friend bool operator!=(const Options& o1, const Options& o2)
@@ -84,7 +82,7 @@ public:
     /**
      * @brief Evaluate the current state and check if it should be split.
      * @details Evaluates the target functions and returns Result::Accept if the
-     *          solution is within tolerances of tolerance and min_ev; returns
+     *          solution is within tolerances of tolerance; returns
      *          Result::Discard if no solution can be found by subdividing
      *          further, and returns Result::Split if further subdivision is
      *          necessary to find a solution.
