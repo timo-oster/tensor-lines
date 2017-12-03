@@ -500,12 +500,25 @@ PEVResult findTensorSujudiHaimes(const std::array<Mat3d, 3>& t,
     auto tz = TensorInterp{{dt[2][0], dt[2][1], dt[2][2]}};
     auto xt = Triangle{{x[0], x[1], x[2]}};
 
+    auto tolerance_scale = std::max({tt[0].operatorNorm(),
+                                     tt[1].operatorNorm(),
+                                     tt[2].operatorNorm(),
+                                     tx[0].operatorNorm(),
+                                     tx[1].operatorNorm(),
+                                     tx[2].operatorNorm(),
+                                     ty[0].operatorNorm(),
+                                     ty[1].operatorNorm(),
+                                     ty[2].operatorNorm(),
+                                     tz[0].operatorNorm(),
+                                     tz[1].operatorNorm(),
+                                     tz[2].operatorNorm()});
+
     auto num_splits = uint64_t{0};
     auto max_level = uint64_t{0};
     auto tris = tensorSujudiHaimesSearch(tt,
                                          {tx, ty, tz},
                                          start_tri,
-                                         opts.tolerance,
+                                         opts.tolerance*tolerance_scale,
                                          opts.max_candidates,
                                          &num_splits,
                                          &max_level);
