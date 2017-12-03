@@ -6,6 +6,7 @@
 #include <vtkCell.h>
 #include <vtkCleanPolyData.h>
 #include <vtkCommand.h>
+#include <vtkCountVertices.h>
 #include <vtkDoubleArray.h>
 #include <vtkIdList.h>
 #include <vtkPointData.h>
@@ -19,6 +20,8 @@
 #include <vtkUnstructuredGridWriter.h>
 
 #include <boost/program_options.hpp>
+
+#include <Eigen/Geometry>
 
 #include <iostream>
 #include <string>
@@ -272,16 +275,75 @@ int main(int argc, char const* argv[])
     stripper->JoinContiguousSegmentsOn();
     stripper->SetMaximumLength(10000);
     stripper->SetInputConnection(0, vtkpev->GetOutputPort(0));
+    stripper->Update();
+
+    auto data = vtkSmartPointer<vtkPolyData>(stripper->GetOutput());
+    auto lines = vtkSmartPointer<vtkCellArray>(data->GetLines());
+
+    auto ev_angle = vtkSmartPointer<vtkDoubleArray>::New();
+    ev_angle->SetName("Eigenvector Tangent Angle");
+    ev_angle->SetNumberOfTuples(data->GetNumberOfPoints());
+    ev_angle->FillComponent(0, 90.0);
+    data->GetPointData()->AddArray(ev_angle);
+
+    auto eivec = vtkSmartPointer<vtkDataArray>(
+            data->GetPointData()->GetArray("Eigenvector"));
+
+    lines->InitTraversal();
+    auto points = vtkSmartPointer<vtkIdList>::New();
+
+    while(lines->GetNextCell(points))
+    {
+        using Vec3d = Eigen::Vector3d;
+        if(points->GetNumberOfIds() < 3) continue;
+        auto p0 = Vec3d{};
+        auto p1 = Vec3d{};
+        auto ev = Vec3d{};
+        data->GetPoint(points->GetId(0), p0.data());
+        data->GetPoint(points->GetId(1), p1.data());
+        eivec->GetTuple(points->GetId(0), ev.data());
+        ev_angle->SetValue(
+                points->GetId(0),
+                std::asin((p1 - p0).normalized().cross(ev.normalized()).norm())
+                        / 3.1416
+                        * 180.);
+
+        for(auto i: range(1, points->GetNumberOfIds()-1))
+        {
+            data->GetPoint(points->GetId(i-1), p0.data());
+            data->GetPoint(points->GetId(i+1), p1.data());
+            eivec->GetTuple(points->GetId(i), ev.data());
+            ev_angle->SetValue(points->GetId(i),
+                               std::asin((p1 - p0)
+                                                 .normalized()
+                                                 .cross(ev.normalized())
+                                                 .norm())
+                                       / 3.1416
+                                       * 180.);
+        }
+        data->GetPoint(points->GetId(points->GetNumberOfIds()-2), p0.data());
+        data->GetPoint(points->GetId(points->GetNumberOfIds()-1), p1.data());
+        eivec->GetTuple(points->GetId(points->GetNumberOfIds()-1), ev.data());
+        ev_angle->SetValue(
+                points->GetId(points->GetNumberOfIds() - 1),
+                std::asin((p1 - p0).normalized().cross(ev.normalized()).norm())
+                        / 3.1416
+                        * 180.);
+    }
+
+    auto counter = vtkSmartPointer<vtkCountVertices>::New();
+    counter->SetOutputArrayName("Vertex Count");
+    counter->SetInputData(data);
 
     auto outwriter = vtkSmartPointer<vtkPolyDataWriter>::New();
-    outwriter->SetInputConnection(0, stripper->GetOutputPort(0));
+    outwriter->SetInputConnection(counter->GetOutputPort());
     outwriter->SetFileName(out_name.c_str());
     outwriter->SetFileTypeToBinary();
     outwriter->Update();
     outwriter->Write();
 
     auto out2writer = vtkSmartPointer<vtkPolyDataWriter>::New();
-    outwriter->SetInputConnection(0, vtkpev->GetOutputPort(1));
+    outwriter->SetInputConnection(vtkpev->GetOutputPort());
     outwriter->SetFileName(out2_name.c_str());
     outwriter->SetFileTypeToBinary();
     outwriter->Update();
