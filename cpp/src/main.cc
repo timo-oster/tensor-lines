@@ -65,8 +65,8 @@ int main(int argc, char const* argv[])
     auto tolerance = 1e-3;
     auto cluster_epsilon = 5e-3;
     auto max_candidates = std::size_t{100};
-    auto out_name = std::string{"Parallel_Eigenvectors.vtk"};
-    auto out2_name = std::string{"Parallel_Eigenvectors_NLTris.vtk"};
+    auto out_name = std::string{"Parallel_Eigenvectors_Lines.vtk"};
+    auto out2_name = std::string{"Parallel_Eigenvectors_Lines_NLTris.vtk"};
     auto s_field_name = std::string{"S"};
     auto t_field_name = std::string{"T"};
     auto sx_field_name = std::string{"Sx"};
@@ -116,8 +116,7 @@ int main(int argc, char const* argv[])
                     ->required()->default_value(sz_field_name),
                 "name of the z derivative of the input tensor field")
             ("output,o",
-                po::value<std::string>(&out_name)
-                        ->required()->default_value(out_name),
+                po::value<std::string>(&out_name),
                 "Name of the output file")
             ("output2",
                 po::value<std::string>(&out2_name),
@@ -158,6 +157,12 @@ int main(int argc, char const* argv[])
             std::cout << "Warning: You have specified sx, sy, or "
                          "sz but you are not using --sujudi-haimes. "
                          "These flags will be ignored." << std::endl;
+        }
+        if(vm.count("output") == 0)
+        {
+            auto lastindex = input_file.find_last_of(".");
+            auto rawname = input_file.substr(0, lastindex);
+            out_name = rawname + "_Lines.vtk";
         }
         if(vm.count("output2") == 0)
         {
