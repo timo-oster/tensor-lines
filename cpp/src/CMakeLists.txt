@@ -3,6 +3,7 @@ set(PEV_SOURCES
         ParallelEigenvectors.cc
         ParallelEigenvectorsEvaluator.cc
         TensorSujudiHaimesEvaluator.cc
+        TensorTopologyEvaluator.cc
         vtkParallelEigenvectors.cc)
 
 set(PEV_HEADERS
@@ -24,7 +25,7 @@ set(HEADER_GEN ${PYTHON_EXECUTABLE} ${HEADER_SCRIPT} -o ${TPBT_COLLECTION_HEADER
 
 set(TPBT_GEN_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/generate_tpbt.py)
 set(GENERATOR1 ${PYTHON_EXECUTABLE} ${TPBT_GEN_SCRIPT} 3)
-set(GENERATOR2 ${PYTHON_EXECUTABLE} ${TPBT_GEN_SCRIPT} 2 3)
+set(GENERATOR2 ${PYTHON_EXECUTABLE} ${TPBT_GEN_SCRIPT} 3 3)
 
 execute_process(COMMAND ${GENERATOR1} -p
   OUTPUT_VARIABLE GENERATED_SOURCES1)
@@ -56,6 +57,7 @@ add_executable(parallel_eigenvectors ${PEV_SOURCES} ${GENERATED_SOURCES} ${TPBT_
 add_executable(generate_tet_dataset generate_tet_dataset.cc)
 add_executable(generate_grid_dataset generate_grid_dataset.cc)
 add_executable(filter_tensor_lines filter_lines.cc)
+add_executable(ansys2vtk ansysexp_to_vtk.cc)
 
 find_package(Eigen3 REQUIRED)
 if(EIGEN3_FOUND)
@@ -80,6 +82,7 @@ if(Boost_FOUND)
     target_link_libraries(generate_tet_dataset ${Boost_LIBRARIES})
     target_link_libraries(generate_grid_dataset ${Boost_LIBRARIES})
     target_link_libraries(filter_tensor_lines ${Boost_LIBRARIES})
+    target_link_libraries(ansys2vtk ${Boost_LIBRARIES})
     include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
     link_directories(${Boost_LIBRARY_DIRS})
     if(WIN32)
@@ -87,13 +90,14 @@ if(Boost_FOUND)
     endif()
 endif()
 
-find_package(VTK COMPONENTS vtkFiltersModeling vtkIOLegacy)
+find_package(VTK COMPONENTS vtkFiltersModeling vtkIOLegacy vtkIOInfovis)
 if(VTK_FOUND)
     include(${VTK_USE_FILE})
     target_link_libraries(parallel_eigenvectors ${VTK_LIBRARIES})
     target_link_libraries(generate_tet_dataset ${VTK_LIBRARIES})
     target_link_libraries(generate_grid_dataset ${VTK_LIBRARIES})
     target_link_libraries(filter_tensor_lines ${VTK_LIBRARIES})
+    target_link_libraries(ansys2vtk ${VTK_LIBRARIES})
 endif()
 
 option(DRAW_DEBUG "Visualize the recursion algorithm (needs CImg)" OFF)
@@ -119,6 +123,10 @@ install(TARGETS generate_grid_dataset
     RUNTIME DESTINATION "${INSTALL_BIN_DIR}" COMPONENT bin)
 
 install(TARGETS filter_tensor_lines
+    EXPORT ParallelEigenvectorsTargets
+    RUNTIME DESTINATION "${INSTALL_BIN_DIR}" COMPONENT bin)
+
+install(TARGETS ansys2vtk
     EXPORT ParallelEigenvectorsTargets
     RUNTIME DESTINATION "${INSTALL_BIN_DIR}" COMPONENT bin)
 

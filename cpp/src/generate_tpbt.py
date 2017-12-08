@@ -19,7 +19,7 @@ def indices(rank, ndims=3):
 def domain_points(rank, ndims=3):
     '''Generate coordinates for control points in n-dimensional barycentric coordinates'''
     if rank == 0:
-        return [[0, 0, 0]]
+        return [[1./3., 1./3., 1./3.]]
     return [[i / rank for i in n] for n in indices(rank, ndims)]
 
 

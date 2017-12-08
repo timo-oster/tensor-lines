@@ -10,6 +10,7 @@
 #include <vtkDoubleArray.h>
 #include <vtkIdList.h>
 #include <vtkPointData.h>
+#include <vtkCellData.h>
 #include <vtkPoints.h>
 #include <vtkPolyData.h>
 #include <vtkPolyDataWriter.h>
@@ -19,6 +20,7 @@
 #include <vtkUnstructuredGridReader.h>
 #include <vtkUnstructuredGridWriter.h>
 
+#include <boost/algorithm/string.hpp>
 #include <boost/program_options.hpp>
 
 #include <Eigen/Geometry>
@@ -49,6 +51,54 @@ void terminate(int /*signum*/)
 
 namespace po = boost::program_options;
 
+std::istream& operator>>(std::istream& in, vtkParallelEigenvectors::LineType& ltype)
+{
+    auto token = std::string{};
+    in >> token;
+
+    boost::to_upper(token);
+
+    if(token == "PEV")
+    {
+        ltype = vtkParallelEigenvectors::LineType::ParallelEigenvectors;
+    }
+    else if(token == "TSH")
+    {
+        ltype = vtkParallelEigenvectors::LineType::TensorSujudiHaimes;
+    }
+    else if(token == "TOPO")
+    {
+        ltype = vtkParallelEigenvectors::LineType::TensorTopology;
+    }
+    else
+    {
+        throw po::validation_error(po::validation_error::invalid_option_value, "ltype", token);
+    }
+
+    return in;
+}
+
+
+std::ostream& operator<<(std::ostream& out, const vtkParallelEigenvectors::LineType& ftype)
+{
+    switch(ftype)
+    {
+        case vtkParallelEigenvectors::LineType::ParallelEigenvectors:
+            out << "pev";
+            break;
+        case vtkParallelEigenvectors::LineType::TensorSujudiHaimes:
+            out << "tsh";
+            break;
+        case vtkParallelEigenvectors::LineType::TensorTopology:
+            out << "topo";
+            break;
+        default:
+            assert(false);
+    }
+    return out;
+}
+
+
 void ProgressFunction(vtkObject* caller,
                       long unsigned int vtkNotUsed(eventId),
                       void* vtkNotUsed(clientData),
@@ -65,17 +115,14 @@ int main(int argc, char const* argv[])
     using namespace pev;
 
     auto input_file = std::string{};
-    auto tolerance = 1e-3;
-    auto cluster_epsilon = 5e-3;
-    auto max_candidates = std::size_t{100};
+    auto tolerance = 1e-6;
+    auto cluster_epsilon = 1e-3;
+    auto max_candidates = std::size_t{1000};
     auto out_name = std::string{"Parallel_Eigenvectors_Lines.vtk"};
     auto out2_name = std::string{"Parallel_Eigenvectors_Lines_NLTris.vtk"};
     auto s_field_name = std::string{"S"};
     auto t_field_name = std::string{"T"};
-    auto sx_field_name = std::string{"Sx"};
-    auto sy_field_name = std::string{"Sy"};
-    auto sz_field_name = std::string{"Sz"};
-    auto use_sujudi_haimes = false;
+    auto line_type = vtkParallelEigenvectors::ParallelEigenvectors;
 
     try
     {
@@ -106,18 +153,6 @@ int main(int argc, char const* argv[])
                 po::value<std::string>(&t_field_name)
                         ->required()->default_value(t_field_name),
                 "name of the second input tensor field")
-            ("sx",
-                po::value<std::string>(&sx_field_name)
-                    ->required()->default_value(sx_field_name),
-                "name of the x derivative of the input tensor field")
-            ("sy",
-                po::value<std::string>(&sy_field_name)
-                    ->required()->default_value(sy_field_name),
-                "name of the y derivative of the input tensor field")
-            ("sz",
-                po::value<std::string>(&sz_field_name)
-                    ->required()->default_value(sz_field_name),
-                "name of the z derivative of the input tensor field")
             ("output,o",
                 po::value<std::string>(&out_name),
                 "Name of the output file")
@@ -125,10 +160,10 @@ int main(int argc, char const* argv[])
                 po::value<std::string>(&out2_name),
                 "Name of the second output file containing faces that might "
                 "contain non-line structures")
-            ("sujudi-haimes",
-                po::bool_switch(&use_sujudi_haimes),
-                "Compute Sujudi-Haimes for tensor fields "
-                "(requires tensor derivatives Sx, Sy, Sz)");
+            ("line-type,l",
+                po::value<vtkParallelEigenvectors::LineType>(&line_type),
+                "Select the type of line to compute (Parallel Eigenvectors: pev, "
+                "Tensor Sujudi Haimes: tsh, Tensor Topology: topo)");
 
         auto podesc = po::positional_options_description{};
         podesc.add("input-file", 1);
@@ -147,25 +182,28 @@ int main(int argc, char const* argv[])
         }
         po::notify(vm);
 
-        if(use_sujudi_haimes && !vm["t-field-name"].defaulted())
+        if(line_type != vtkParallelEigenvectors::ParallelEigenvectors && !vm["t-field-name"].defaulted())
         {
-            std::cout << "Warning: You are using --sujudi-haimes. "
+            std::cout << "Warning: You are not using --line-type=pev. "
                          "--t-field-name will be ignored."
                       << std::endl;
-        }
-        else if(!use_sujudi_haimes
-                && (!vm["sx"].defaulted() || !vm["sy"].defaulted()
-                    || !vm["sz"].defaulted()))
-        {
-            std::cout << "Warning: You have specified sx, sy, or "
-                         "sz but you are not using --sujudi-haimes. "
-                         "These flags will be ignored." << std::endl;
         }
         if(vm.count("output") == 0)
         {
             auto lastindex = input_file.find_last_of(".");
             auto rawname = input_file.substr(0, lastindex);
-            out_name = rawname + "_Lines.vtk";
+            switch(line_type)
+            {
+                case vtkParallelEigenvectors::ParallelEigenvectors:
+                    out_name = rawname + "_PEV";
+                    break;
+                case vtkParallelEigenvectors::TensorSujudiHaimes:
+                    out_name = rawname + "_TSH";
+                    break;
+                case vtkParallelEigenvectors::TensorTopology:
+                    out_name = rawname + "_Topo";
+            }
+            out_name = out_name + "Lines.vtk";
         }
         if(vm.count("output2") == 0)
         {
@@ -213,11 +251,11 @@ int main(int argc, char const* argv[])
     vtkpev->SetTolerance(tolerance);
     vtkpev->SetClusterEpsilon(cluster_epsilon);
     vtkpev->SetMaxCandidates(max_candidates);
-    vtkpev->SetUseSujudiHaimes(use_sujudi_haimes);
+    vtkpev->SetLineType(line_type);
     vtkpev->AddObserver(vtkCommand::ProgressEvent, progressCallback);
 
     vtkpev->SetInputConnection(0, reader->GetOutputPort(0));
-    if(!use_sujudi_haimes)
+    if(line_type == vtkParallelEigenvectors::ParallelEigenvectors)
     {
         vtkpev->SetInputArrayToProcess(0,
                                        0,
@@ -237,21 +275,6 @@ int main(int argc, char const* argv[])
                                        0,
                                        vtkDataObject::FIELD_ASSOCIATION_POINTS,
                                        s_field_name.c_str());
-        vtkpev->SetInputArrayToProcess(1,
-                                       0,
-                                       0,
-                                       vtkDataObject::FIELD_ASSOCIATION_POINTS,
-                                       sx_field_name.c_str());
-        vtkpev->SetInputArrayToProcess(2,
-                                       0,
-                                       0,
-                                       vtkDataObject::FIELD_ASSOCIATION_POINTS,
-                                       sy_field_name.c_str());
-        vtkpev->SetInputArrayToProcess(3,
-                                       0,
-                                       0,
-                                       vtkDataObject::FIELD_ASSOCIATION_POINTS,
-                                       sz_field_name.c_str());
     }
 
 #ifdef __linux__
@@ -271,79 +294,25 @@ int main(int argc, char const* argv[])
 #endif // __linux__
 
     // Merge line segments to longer line strips
-    auto stripper = vtkSmartPointer<vtkStripper>::New();
-    stripper->JoinContiguousSegmentsOn();
-    stripper->SetMaximumLength(10000);
-    stripper->SetInputConnection(0, vtkpev->GetOutputPort(0));
-    stripper->Update();
+    // auto stripper = vtkSmartPointer<vtkStripper>::New();
+    // stripper->JoinContiguousSegmentsOn();
+    // stripper->SetMaximumLength(10000);
+    // stripper->SetInputConnection(0, vtkpev->GetOutputPort(0));
+    // stripper->Update();
 
-    auto data = vtkSmartPointer<vtkPolyData>(stripper->GetOutput());
-    auto lines = vtkSmartPointer<vtkCellArray>(data->GetLines());
-
-    auto ev_angle = vtkSmartPointer<vtkDoubleArray>::New();
-    ev_angle->SetName("Eigenvector Tangent Angle");
-    ev_angle->SetNumberOfTuples(data->GetNumberOfPoints());
-    ev_angle->FillComponent(0, 90.0);
-    data->GetPointData()->AddArray(ev_angle);
-
-    auto eivec = vtkSmartPointer<vtkDataArray>(
-            data->GetPointData()->GetArray("Eigenvector"));
-
-    lines->InitTraversal();
-    auto points = vtkSmartPointer<vtkIdList>::New();
-
-    while(lines->GetNextCell(points))
-    {
-        using Vec3d = Eigen::Vector3d;
-        if(points->GetNumberOfIds() < 3) continue;
-        auto p0 = Vec3d{};
-        auto p1 = Vec3d{};
-        auto ev = Vec3d{};
-        data->GetPoint(points->GetId(0), p0.data());
-        data->GetPoint(points->GetId(1), p1.data());
-        eivec->GetTuple(points->GetId(0), ev.data());
-        ev_angle->SetValue(
-                points->GetId(0),
-                std::asin((p1 - p0).normalized().cross(ev.normalized()).norm())
-                        / 3.1416
-                        * 180.);
-
-        for(auto i: range(1, points->GetNumberOfIds()-1))
-        {
-            data->GetPoint(points->GetId(i-1), p0.data());
-            data->GetPoint(points->GetId(i+1), p1.data());
-            eivec->GetTuple(points->GetId(i), ev.data());
-            ev_angle->SetValue(points->GetId(i),
-                               std::asin((p1 - p0)
-                                                 .normalized()
-                                                 .cross(ev.normalized())
-                                                 .norm())
-                                       / 3.1416
-                                       * 180.);
-        }
-        data->GetPoint(points->GetId(points->GetNumberOfIds()-2), p0.data());
-        data->GetPoint(points->GetId(points->GetNumberOfIds()-1), p1.data());
-        eivec->GetTuple(points->GetId(points->GetNumberOfIds()-1), ev.data());
-        ev_angle->SetValue(
-                points->GetId(points->GetNumberOfIds() - 1),
-                std::asin((p1 - p0).normalized().cross(ev.normalized()).norm())
-                        / 3.1416
-                        * 180.);
-    }
-
-    auto counter = vtkSmartPointer<vtkCountVertices>::New();
-    counter->SetOutputArrayName("Vertex Count");
-    counter->SetInputData(data);
+    // auto counter = vtkSmartPointer<vtkCountVertices>::New();
+    // counter->SetOutputArrayName("Vertex Count");
+    // counter->SetInputData(data);
 
     auto outwriter = vtkSmartPointer<vtkPolyDataWriter>::New();
-    outwriter->SetInputConnection(counter->GetOutputPort());
+    outwriter->SetInputConnection(vtkpev->GetOutputPort(0));
     outwriter->SetFileName(out_name.c_str());
     outwriter->SetFileTypeToBinary();
     outwriter->Update();
     outwriter->Write();
 
     auto out2writer = vtkSmartPointer<vtkPolyDataWriter>::New();
-    outwriter->SetInputConnection(vtkpev->GetOutputPort());
+    outwriter->SetInputConnection(vtkpev->GetOutputPort(1));
     outwriter->SetFileName(out2_name.c_str());
     outwriter->SetFileTypeToBinary();
     outwriter->Update();

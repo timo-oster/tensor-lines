@@ -8,6 +8,13 @@ class vtkPolyData;
 class VTK_EXPORT vtkParallelEigenvectors : public vtkAlgorithm
 {
 public:
+    enum LineType
+    {
+        ParallelEigenvectors,
+        TensorSujudiHaimes,
+        TensorTopology
+    };
+
     static vtkParallelEigenvectors* New();
     vtkTypeMacro(vtkParallelEigenvectors, vtkAlgorithm);
 
@@ -41,21 +48,13 @@ public:
         _max_candidates = value;
     }
 
-    bool GetUseSujudiHaimes() const
+    LineType GetLineType() const
     {
-        return _use_sujudi_haimes;
+        return _line_type;
     }
-    void SetUseSujudiHaimes(bool value)
+    void SetLineType(LineType lt)
     {
-        _use_sujudi_haimes = value;
-    }
-    void UseSujudiHaimesOn()
-    {
-        _use_sujudi_haimes = true;
-    }
-    void UseSujudiHaimesOff()
-    {
-        _use_sujudi_haimes = false;
+        _line_type = lt;
     }
 
     // Get the output data object for a port on this algorithm.
@@ -105,7 +104,7 @@ private:
     double _tolerance = 1e-6;
     double _cluster_epsilon = 1e-4;
     std::size_t _max_candidates = 100;
-    bool _use_sujudi_haimes = false;
+    LineType _line_type = LineType::ParallelEigenvectors;
 };
 
 #endif

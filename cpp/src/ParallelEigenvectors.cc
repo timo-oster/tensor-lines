@@ -2,6 +2,7 @@
 
 #include "TensorProductBezierTriangles.hh"
 #include "TensorSujudiHaimesEvaluator.hh"
+#include "TensorTopologyEvaluator.hh"
 #include "ParallelEigenvectorsEvaluator.hh"
 
 #include <Eigen/Eigenvalues>
@@ -202,7 +203,7 @@ computeContextInfo(const std::vector<ClusterRepr<Evaluator>>& representatives,
                          r.cluster_size,
                          (pos_tri[1] - pos_tri[0]).norm(),
                          (dir_tri[1] - dir_tri[0]).norm(),
-                         r.eval.condition()});
+                         0.});
     }
     return points;
 }
@@ -282,6 +283,25 @@ computeContextInfoSH(const std::vector<ClusterRepr<Evaluator>>& representatives,
                         })
                         .sum();
 
+        // det( (NablaT*R1)*R  ,  (NablaT*R2)*R ,  R )
+        auto r2 = Vec3d::Random().normalized().eval();
+        while(result_dir.cross(r2).norm() < 0.1)
+        {
+            r2 = Vec3d::Random().normalized().eval();
+        }
+        auto r1 = result_dir.cross(r2).normalized().eval();
+        r2 = r1.cross(result_dir).normalized().eval();
+        auto scale = t.operatorNorm();
+        // (tx.norm()+ty.norm()+tz.norm())/3;
+        auto stability = std::log(std::abs(
+                (Mat3d{} << ((tx * r1[0] + ty * r1[1] + tz * r1[2])
+                             * result_dir)
+                                    / scale,
+                 ((tx * r2[0] + ty * r2[1] + tz * r2[2]) * result_dir) / scale,
+                 result_dir)
+                        .finished()
+                        .determinant()));
+
         points.push_back(
                 PEVPoint{tri(result_center),
                          ERank(t_order),
@@ -294,7 +314,41 @@ computeContextInfoSH(const std::vector<ClusterRepr<Evaluator>>& representatives,
                          r.cluster_size,
                          (pos_tri[1] - pos_tri[0]).norm(),
                          (dir_tri[1] - dir_tri[0]).norm(),
-                         r.eval.condition()});
+                         stability});
+    }
+    return points;
+}
+
+template <typename Evaluator>
+PointList
+computeContextInfoTopo(const std::vector<ClusterRepr<Evaluator>>& representatives,
+                     const TensorInterp& t_interp,
+                     const Triangle& tri)
+{
+    auto points = PointList{};
+    points.reserve(representatives.size());
+
+    for(const auto& r : representatives)
+    {
+        const auto& pos_tri = r.eval.tris().pos_tri;
+
+        auto result_center = pos_tri({1. / 3., 1. / 3., 1. / 3.});
+
+        auto t = t_interp(result_center);
+
+        points.push_back(
+                PEVPoint{tri(result_center),
+                         ERank::First,
+                         ERank::First,
+                         Vec3d::Zero(),
+                         0,
+                         0,
+                         false,
+                         false,
+                         r.cluster_size,
+                         (pos_tri[1] - pos_tri[0]).norm(),
+                         0,
+                         0});
     }
     return points;
 }
@@ -436,6 +490,32 @@ tensorSujudiHaimesSearch(const TensorInterp& t,
     return {result, failed_dirs};
 }
 
+std::pair<std::vector<TensorTopologyEvaluator>, std::vector<Vec3d>>
+tensorTopologySearch(const TensorInterp& t,
+                     const Triangle& tri,
+                     double tolerance,
+                     std::size_t max_candidates,
+                     uint64_t* num_splits = nullptr,
+                     uint64_t* max_level = nullptr)
+{
+    auto start_ev = TensorTopologyEvaluator(
+            {tri, Triangle{{Vec3d::Zero(), Vec3d::Zero(), Vec3d::Zero()}}},
+            t,
+            {tolerance});
+    auto solutions =
+            rootSearch(start_ev, max_candidates, num_splits, max_level);
+
+    if(solutions)
+    {
+        return {solutions.value(), std::vector<Vec3d>{}};
+    }
+    else
+    {
+        return {std::vector<TensorTopologyEvaluator>{},
+                std::vector<Vec3d>{1, Vec3d::Zero()}};
+    }
+}
+
 } // namespace
 
 
@@ -486,32 +566,22 @@ PEVResult findParallelEigenvectors(const std::array<Mat3d, 3>& s,
 
 
 PEVResult findTensorSujudiHaimes(const std::array<Mat3d, 3>& t,
-                                 const std::array<std::array<Mat3d, 3>, 3>& dt,
+                                 const std::array<Mat3d, 3>& dt,
                                  const std::array<Vec3d, 3>& x,
                                  const PEVOptions& opts)
 {
     auto start_tri =
             Triangle{{Vec3d{1., 0., 0.}, Vec3d{0., 1., 0.}, Vec3d{0., 0., 1.}}};
 
-
     auto tt = TensorInterp{{t[0], t[1], t[2]}};
-    auto tx = TensorInterp{{dt[0][0], dt[0][1], dt[0][2]}};
-    auto ty = TensorInterp{{dt[1][0], dt[1][1], dt[1][2]}};
-    auto tz = TensorInterp{{dt[2][0], dt[2][1], dt[2][2]}};
+    auto tx = TensorInterp{{dt[0], dt[0], dt[0]}};
+    auto ty = TensorInterp{{dt[1], dt[1], dt[1]}};
+    auto tz = TensorInterp{{dt[2], dt[2], dt[2]}};
     auto xt = Triangle{{x[0], x[1], x[2]}};
 
     auto tolerance_scale = std::max({tt[0].operatorNorm(),
                                      tt[1].operatorNorm(),
-                                     tt[2].operatorNorm(),
-                                     tx[0].operatorNorm(),
-                                     tx[1].operatorNorm(),
-                                     tx[2].operatorNorm(),
-                                     ty[0].operatorNorm(),
-                                     ty[1].operatorNorm(),
-                                     ty[2].operatorNorm(),
-                                     tz[0].operatorNorm(),
-                                     tz[1].operatorNorm(),
-                                     tz[2].operatorNorm()});
+                                     tt[2].operatorNorm()});
 
     auto num_splits = uint64_t{0};
     auto max_level = uint64_t{0};
@@ -533,12 +603,53 @@ PEVResult findTensorSujudiHaimes(const std::array<Mat3d, 3>& t,
 
 
 PEVResult findTensorSujudiHaimes(const std::array<Mat3d, 3>& t,
-                                 const std::array<std::array<Mat3d, 3>, 3>& dt,
+                                 const std::array<Mat3d, 3>& dt,
                                  const PEVOptions& opts)
 {
     return findTensorSujudiHaimes(
             t,
             dt,
+            {Vec3d{1., 0., 0.}, Vec3d{0., 1., 0.}, Vec3d{0., 0., 1.}},
+            opts);
+}
+
+PEVResult findTensorTopology(const std::array<Mat3d, 3>& t,
+                             const std::array<Vec3d, 3>& x,
+                             const PEVOptions& opts)
+{
+    auto start_tri =
+            Triangle{{Vec3d{1., 0., 0.}, Vec3d{0., 1., 0.}, Vec3d{0., 0., 1.}}};
+
+    auto tt = TensorInterp{{t[0], t[1], t[2]}};
+    auto xt = Triangle{{x[0], x[1], x[2]}};
+
+    auto tolerance_scale = std::max({tt[0].operatorNorm(),
+                                     tt[1].operatorNorm(),
+                                     tt[2].operatorNorm()});
+
+    auto num_splits = uint64_t{0};
+    auto max_level = uint64_t{0};
+    auto tris = tensorTopologySearch(tt,
+                                     start_tri,
+                                     opts.tolerance * tolerance_scale,
+                                     opts.max_candidates,
+                                     &num_splits,
+                                     &max_level);
+
+    auto clustered_tris = clusterTris(tris.first, opts.cluster_epsilon);
+
+    auto representatives = findRepresentatives(clustered_tris);
+
+    return {computeContextInfoTopo(representatives, tt, xt),
+            tris.second};
+}
+
+
+PEVResult findTensorTopology(const std::array<Mat3d, 3>& t,
+                             const PEVOptions& opts)
+{
+    return findTensorTopology(
+            t,
             {Vec3d{1., 0., 0.}, Vec3d{0., 1., 0.}, Vec3d{0., 0., 1.}},
             opts);
 }

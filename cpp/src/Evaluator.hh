@@ -83,11 +83,6 @@ constexpr bool is_evaluatable =
         std::is_convertible<decltype(std::declval<E>().eval()), Result>::value;
 
 template <typename E>
-constexpr bool has_condition =
-        std::is_convertible<decltype(std::declval<E>().condition()),
-                            double>::value;
-
-template <typename E>
 constexpr bool has_distance =
         std::is_convertible<decltype(distance(std::declval<E>(),
                                               std::declval<E>())),
@@ -102,7 +97,6 @@ struct is_evaluator<E,
                                      && is_splittable<E>
                                      && has_splitlevel<E>
                                      && is_evaluatable<E>
-                                     && has_condition<E>
                                      && has_distance<E>
                                      && is_equality_comparable<E>>>
         : std::true_type

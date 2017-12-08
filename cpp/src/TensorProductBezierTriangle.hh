@@ -229,6 +229,13 @@ public:
         return {split<D>(0), split<D>(1), split<D>(2), split<D>(3)};
     }
 
+    /**
+     * Equivalent to `split<D>()[part]`
+     *
+     * @param part index of the sub-triangle of the split (0-3)
+     * @tparam std::D=0 Space in which to split
+     * @return One new polynomial representing one of the four sub-triangles
+     */
     template <std::size_t D=0>
     Derived split(std::size_t part) const
     {

@@ -46,13 +46,20 @@ PEVResult findParallelEigenvectors(const std::array<Mat3d, 3>& s,
 
 
 PEVResult findTensorSujudiHaimes(const std::array<Mat3d, 3>& t,
-                                 const std::array<std::array<Mat3d, 3>, 3>& dt,
+                                 const std::array<Mat3d, 3>& dt,
                                  const std::array<Vec3d, 3>& x,
                                  const PEVOptions& opts = PEVOptions{});
 
 PEVResult findTensorSujudiHaimes(const std::array<Mat3d, 3>& t,
-                                 const std::array<std::array<Mat3d, 3>, 3>& dt,
+                                 const std::array<Mat3d, 3>& dt,
                                  const PEVOptions& opts = PEVOptions{});
+
+PEVResult findTensorTopology(const std::array<Mat3d, 3>& t,
+                             const std::array<Vec3d, 3>& x,
+                             const PEVOptions& opts = PEVOptions{});
+
+PEVResult findTensorTopology(const std::array<Mat3d, 3>& t,
+                             const PEVOptions& opts = PEVOptions{});
 
 } // namespace pev
 

@@ -39,8 +39,7 @@ struct PEVPoint
                             /// position space
     double dir_uncertainty; ///< Size of the last subdivision cell in
                             /// direction space
-    double deriv_angle; ///< Largest angle between two gradients of the local
-                        /// target functions
+    double line_stability; ///< Measure of numeric stability of the solution
 };
 
 } // namespace pev
