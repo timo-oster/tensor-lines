@@ -18,6 +18,8 @@
 #include <string>
 #include <stdexcept>
 
+using namespace cpp_utils;
+
 namespace po = boost::program_options;
 
 using Mat3d = Eigen::Matrix<double, 3, 3, Eigen::RowMajor>;
@@ -50,8 +52,8 @@ Mat3d randMatrix(R& rnd, G& gen, bool symmetric = false)
 
 int main(int argc, char const* argv[])
 {
-    using pev::range;
-    using pev::make_string;
+    using cpp_utils::range;
+    using cpp_utils::make_string;
 
     auto random_seed = uint32_t{42};
     auto num_subdivisions = int32_t{8};

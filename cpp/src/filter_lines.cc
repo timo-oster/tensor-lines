@@ -19,6 +19,8 @@
 #include <iostream>
 #include <string>
 
+using namespace cpp_utils;
+
 namespace po = boost::program_options;
 
 int main(int argc, char const *argv[])

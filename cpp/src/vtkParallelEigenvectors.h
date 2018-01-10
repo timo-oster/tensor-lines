@@ -8,6 +8,7 @@ class vtkPolyData;
 class VTK_EXPORT vtkParallelEigenvectors : public vtkAlgorithm
 {
 public:
+    vtkTypeMacro(vtkParallelEigenvectors,vtkAlgorithm);
     enum LineType
     {
         ParallelEigenvectors,
@@ -16,7 +17,6 @@ public:
     };
 
     static vtkParallelEigenvectors* New();
-    vtkTypeMacro(vtkParallelEigenvectors, vtkAlgorithm);
 
     vtkParallelEigenvectors(const vtkParallelEigenvectors&) = delete;
     void operator=(const vtkParallelEigenvectors&) = delete;
@@ -68,7 +68,7 @@ public:
 
 protected:
     vtkParallelEigenvectors();
-    ~vtkParallelEigenvectors();
+    ~vtkParallelEigenvectors() VTK_OVERRIDE {}
 
     // This is called by the superclass.
     // This is the method you should override.
@@ -96,15 +96,17 @@ protected:
                                     vtkInformationVector*);
 
     virtual int FillOutputPortInformation(int port,
-                                          vtkInformation* info) override;
+                                          vtkInformation* info) VTK_OVERRIDE;
     virtual int FillInputPortInformation(int port,
-                                         vtkInformation* info) override;
+                                         vtkInformation* info) VTK_OVERRIDE;
 
 private:
+    //BTX
     double _tolerance = 1e-6;
     double _cluster_epsilon = 1e-4;
     std::size_t _max_candidates = 100;
     LineType _line_type = LineType::ParallelEigenvectors;
+    //ETX
 };
 
 #endif

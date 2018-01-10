@@ -1,4 +1,4 @@
-#include "vtkParallelEigenvectors.hh"
+#include "vtkParallelEigenvectors.h"
 
 #include "ParallelEigenvectors.hh"
 #include "utils.hh"
@@ -35,6 +35,8 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+
+using namespace cpp_utils;
 
 namespace
 {
@@ -124,7 +126,7 @@ computeCellDerivatives(vtkDataSet* dataset,
         // copy point data to work array
         auto pt_data =
                 std::vector<double>(npts * ncomps);
-        for(auto i: pev::range(npts))
+        for(auto i: range(npts))
         {
             point_data->GetTuple(point_ids->GetId(i), &pt_data[i*ncomps]);
         }
@@ -146,7 +148,7 @@ computeCellDerivatives(vtkDataSet* dataset,
     auto dx = vtkSmartPointer<vtkDoubleArray>::New();
     dx->SetNumberOfComponents(ncomps);
     dx->SetNumberOfTuples(dataset->GetNumberOfCells());
-    for(auto i: pev::range(ncomps))
+    for(auto i: range(ncomps))
     {
         dx->CopyComponent(i, derivs, i*3);
     }
@@ -154,7 +156,7 @@ computeCellDerivatives(vtkDataSet* dataset,
     auto dy = vtkSmartPointer<vtkDoubleArray>::New();
     dy->SetNumberOfComponents(ncomps);
     dy->SetNumberOfTuples(dataset->GetNumberOfCells());
-    for(auto i: pev::range(ncomps))
+    for(auto i: range(ncomps))
     {
         dy->CopyComponent(i, derivs, i*3+1);
     }
@@ -162,7 +164,7 @@ computeCellDerivatives(vtkDataSet* dataset,
     auto dz = vtkSmartPointer<vtkDoubleArray>::New();
     dz->SetNumberOfComponents(ncomps);
     dz->SetNumberOfTuples(dataset->GetNumberOfCells());
-    for(auto i: pev::range(ncomps))
+    for(auto i: range(ncomps))
     {
         dz->CopyComponent(i, derivs, i*3+2);
     }
@@ -365,11 +367,6 @@ vtkParallelEigenvectors::vtkParallelEigenvectors()
 }
 
 
-vtkParallelEigenvectors::~vtkParallelEigenvectors()
-{
-}
-
-
 vtkPolyData* vtkParallelEigenvectors::GetOutput()
 {
     return this->GetOutput(0);
@@ -507,7 +504,6 @@ int vtkParallelEigenvectors::RequestData(vtkInformation* vtkNotUsed(request),
                                          vtkInformationVector** inputVector,
                                          vtkInformationVector* outputVector)
 {
-    using pev::range;
     using namespace std::chrono;
     using minutes = duration<double, std::chrono::minutes::period>;
     using seconds = duration<double, std::chrono::seconds::period>;

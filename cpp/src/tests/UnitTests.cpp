@@ -5,6 +5,8 @@
 #include "ParallelEigenvectorDefinitions.hh"
 #include "utils.hh"
 
+using namespace cpp_utils;
+
 using doctest::Approx;
 
 using TPBT1_2 = pev::TensorProductBezierTriangle<double, double, 1, 2>;
@@ -44,7 +46,7 @@ TEST_CASE("Testing polynomial reproduction for Degree 3")
 
             THEN("It must correctly reproduce the value at 15 random locations")
             {
-                for(auto i : pev::range(15))
+                for(auto i : range(15))
                 {
                     auto randpos =
                             ((Coords3::Random() + Coords3::Ones()) / 2).eval();
@@ -65,9 +67,9 @@ TEST_CASE("Testing polynomial reproduction for Degree 3")
                 THEN("Each triangle must reproduce the original function in "
                      "its split-off part")
                 {
-                    for(auto i : pev::range(4))
+                    for(auto i : range(4))
                     {
-                        for(auto _ : pev::range(15))
+                        for(auto _ : range(15))
                         {
                             auto randpos =
                                     ((Coords3::Random() + Coords3::Ones())
@@ -116,7 +118,7 @@ TEST_CASE("Testing polynomial reproduction for degrees 1, 2")
 
             THEN("It must correctly reproduce the value at 15 random locations")
             {
-                for(auto i : pev::range(15))
+                for(auto i : range(15))
                 {
                     auto randpos = ((Coords1_2::Random() + Coords1_2::Ones())
                                     / 2).eval();
@@ -138,9 +140,9 @@ TEST_CASE("Testing polynomial reproduction for degrees 1, 2")
                 THEN("Each triangle must reproduce the original function in "
                      "its split-off part")
                 {
-                    for(auto i : pev::range(4))
+                    for(auto i : range(4))
                     {
-                        for(auto _ : pev::range(15))
+                        for(auto _ : range(15))
                         {
                             auto randpos =
                                     ((Coords1_2::Random() + Coords1_2::Ones())
@@ -165,9 +167,9 @@ TEST_CASE("Testing polynomial reproduction for degrees 1, 2")
                 THEN("Each triangle must reproduce the original function in "
                      "its split-off part")
                 {
-                    for(auto i : pev::range(4))
+                    for(auto i : range(4))
                     {
-                        for(auto _ : pev::range(15))
+                        for(auto _ : range(15))
                         {
                             auto randpos =
                                     ((Coords1_2::Random() + Coords1_2::Ones())
@@ -192,7 +194,7 @@ TEST_CASE("Testing polynomial reproduction for degrees 1, 2")
 
             THEN("It must correctly reproduce the value at 15 random locations")
             {
-                for(auto i : pev::range(15))
+                for(auto i : range(15))
                 {
                     auto randpos = ((Coords1_3::Random() + Coords1_3::Ones())
                                     / 2).eval();
@@ -249,7 +251,7 @@ TEST_CASE("Testing polynomial reproduction for degrees 1, 3")
 
             THEN("It must correctly reproduce the value at 15 random locations")
             {
-                for(auto i : pev::range(15))
+                for(auto i : range(15))
                 {
                     auto randpos = ((Coords1_3::Random() + Coords1_3::Ones())
                                     / 2).eval();
@@ -271,9 +273,9 @@ TEST_CASE("Testing polynomial reproduction for degrees 1, 3")
                 THEN("Each triangle must reproduce the original function in "
                      "its split-off part")
                 {
-                    for(auto i : pev::range(4))
+                    for(auto i : range(4))
                     {
-                        for(auto _ : pev::range(15))
+                        for(auto _ : range(15))
                         {
                             auto randpos =
                                     ((Coords1_3::Random() + Coords1_3::Ones())
@@ -298,9 +300,9 @@ TEST_CASE("Testing polynomial reproduction for degrees 1, 3")
                 THEN("Each triangle must reproduce the original function in "
                      "its split-off part")
                 {
-                    for(auto i : pev::range(4))
+                    for(auto i : range(4))
                     {
-                        for(auto _ : pev::range(15))
+                        for(auto _ : range(15))
                         {
                             auto randpos =
                                     ((Coords1_3::Random() + Coords1_3::Ones())
@@ -339,7 +341,7 @@ TEST_CASE("Testing polynomial reproduction for degrees 1, 3")
                     THEN("It must match the correct solution at 15 random "
                          "positions")
                     {
-                        for(auto _ : pev::range(15))
+                        for(auto _ : range(15))
                         {
                             auto randpos =
                                     ((Coords1_3::Random() + Coords1_3::Ones())
@@ -375,7 +377,7 @@ TEST_CASE("Testing polynomial reproduction for degrees 1, 3")
                     THEN("It must match the correct solution at 15 random "
                          "positions")
                     {
-                        for(auto _ : pev::range(15))
+                        for(auto _ : range(15))
                         {
                             auto randpos =
                                     ((Coords1_3::Random() + Coords1_3::Ones())
@@ -411,7 +413,7 @@ TEST_CASE("Testing polynomial reproduction for degrees 1, 3")
                     THEN("It must match the correct solution at 15 random "
                          "positions")
                     {
-                        for(auto _ : pev::range(15))
+                        for(auto _ : range(15))
                         {
                             auto randpos =
                                     ((Coords1_3::Random() + Coords1_3::Ones())
@@ -455,7 +457,7 @@ TEST_CASE("Testing polynomial reproduction for degrees 1, 3")
                     THEN("It must match the correct solution at 15 random "
                          "positions")
                     {
-                        for(auto _ : pev::range(15))
+                        for(auto _ : range(15))
                         {
                             auto randpos =
                                     ((Coords1_3::Random() + Coords1_3::Ones())
@@ -499,7 +501,7 @@ TEST_CASE("Testing polynomial reproduction for degrees 1, 3")
                     THEN("It must match the correct solution at 15 random "
                          "positions")
                     {
-                        for(auto _ : pev::range(15))
+                        for(auto _ : range(15))
                         {
                             auto randpos =
                                     ((Coords1_3::Random() + Coords1_3::Ones())
@@ -543,7 +545,7 @@ TEST_CASE("Testing polynomial reproduction for degrees 1, 3")
                     THEN("It must match the correct solution at 15 random "
                          "positions")
                     {
-                        for(auto _ : pev::range(15))
+                        for(auto _ : range(15))
                         {
                             auto randpos =
                                     ((Coords1_3::Random() + Coords1_3::Ones())

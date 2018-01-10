@@ -18,6 +18,8 @@
 #include <complex>
 #include <type_traits>
 
+using namespace cpp_utils;
+
 namespace
 {
 using namespace pev;
@@ -292,7 +294,6 @@ computeContextInfoSH(const std::vector<ClusterRepr<Evaluator>>& representatives,
         auto r1 = result_dir.cross(r2).normalized().eval();
         r2 = r1.cross(result_dir).normalized().eval();
         auto scale = t.operatorNorm();
-        // (tx.norm()+ty.norm()+tz.norm())/3;
         auto stability = std::log(std::abs(
                 (Mat3d{} << ((tx * r1[0] + ty * r1[1] + tz * r1[2])
                              * result_dir)

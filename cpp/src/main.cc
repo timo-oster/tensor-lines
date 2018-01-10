@@ -1,6 +1,6 @@
 #include "ParallelEigenvectors.hh"
 #include "utils.hh"
-#include "vtkParallelEigenvectors.hh"
+#include "vtkParallelEigenvectors.h"
 
 #include <vtkCallbackCommand.h>
 #include <vtkCell.h>

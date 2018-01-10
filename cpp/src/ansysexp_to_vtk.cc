@@ -17,6 +17,7 @@
 #include <string>
 #include <iostream>
 
+using namespace cpp_utils;
 
 namespace po = boost::program_options;
 

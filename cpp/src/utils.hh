@@ -1,8 +1,9 @@
-#ifndef CPP_UTILS_HH
-#define CPP_UTILS_HH
+#ifndef PEV_UTILS_HH
+#define PEV_UTILS_HH
+
+#include <cpp_utils/cpp_utils.h>
 
 #include <Eigen/Core>
-#include <boost/range/irange.hpp>
 
 #include <array>
 #include <cstddef>
@@ -70,13 +71,6 @@ struct Min
 };
 
 
-template <typename T, typename = std::enable_if_t<std::is_signed<T>::value>>
-int sgn(T val)
-{
-    return (T{0} < val) - (val < T{0});
-}
-
-
 struct SameSign
 {
     template <typename T1,
@@ -85,6 +79,7 @@ struct SameSign
                                           && std::is_signed<T2>::value>>
     int operator()(const T1& x, const T2& y) const
     {
+        using cpp_utils::sgn;
         return x * y > 0 ? sgn(x) : 0;
     }
 };
@@ -98,6 +93,7 @@ struct SameSign
 template <typename Sequence>
 int sameSign(const Sequence& numbers)
 {
+    using cpp_utils::sgn;
     auto nelem = std::distance(std::begin(numbers), std::end(numbers));
     if(nelem == 0) return 0;
     auto first = *std::begin(numbers);
@@ -106,105 +102,6 @@ int sameSign(const Sequence& numbers)
                            std::end(numbers),
                            sgn(first),
                            SameSign{});
-}
-
-
-template<typename... Ts> struct make_void { typedef void type;};
-template<typename... Ts> using void_t = typename make_void<Ts...>::type;
-
-
-/**
- * @brief An adaptor class to negate a unary predicate functor
- * @details We could use std::not1 instead, but it requires the Predicate to
- *          have a member typedef @c argument_type. This is unnecessarily
- *          restrictive as it prevents the predicate from overloading its
- *          operator() for multiple types.
- *
- * @tparam Predicate A predicate functor returning a type with boolean semantics
- */
-template <class Predicate>
-struct negator
-{
-    Predicate pred;
-
-    template <typename... Args>
-    decltype(auto) operator()(Args&&... args) const
-    {
-        return !pred(std::forward<Args>(args)...);
-    }
-};
-
-
-template <class Predicate>
-negator<Predicate> negate(Predicate predicate)
-{
-    return negator<Predicate>{predicate};
-}
-
-
-template <class T>
-inline std::make_signed_t<T> as_signed(T t)
-{
-    return std::make_signed_t<T>(t);
-}
-
-
-template <class T>
-inline std::make_unsigned_t<T> as_unsigned(T t)
-{
-    return std::make_unsigned_t<T>(t);
-}
-
-
-template <typename T>
-constexpr bool is_equality_comparable =
-        std::is_convertible<decltype(std::declval<T>() == std::declval<T>()),
-                            bool>::value &&
-                std::is_convertible<decltype(std::declval<T>()
-                                             != std::declval<T>()),
-                                    bool>::value;
-
-
-template <typename T>
-constexpr bool is_comparable =
-        std::is_convertible<decltype(std::declval<T>() < std::declval<T>()),
-                            bool>::value &&
-                std::is_convertible<decltype(std::declval<T>()
-                                             > std::declval<T>()),
-                                    bool>::value;
-
-
-template <typename T, typename U, typename V = int>
-inline auto range(T start, U end, V step = 1)
-{
-    using D = std::decay_t<decltype(true ? start : end)>;
-    return boost::irange<D>(start, end, step);
-}
-
-
-template <typename T>
-inline auto range(T end)
-{
-    return boost::irange(T{0}, end);
-}
-
-
-/// erase_if for (unordered) containers
-template <typename Container,
-          typename Predicate>
-void erase_if(Container& container, Predicate pred)
-{
-    for(auto it = std::begin(container); it != std::end(container);)
-    {
-        if(pred(*it))
-        {
-            it = container.erase(it);
-        }
-        else
-        {
-            ++it;
-        }
-    }
 }
 
 
@@ -218,21 +115,6 @@ std::string print(const T& in)
     return out.str();
 }
 
-
-struct make_string
-{
-    std::stringstream ss;
-    template <typename T>
-    make_string& operator<<(const T& data)
-    {
-        ss << data;
-        return *this;
-    }
-    operator std::string()
-    {
-        return ss.str();
-    }
-};
 } // namespace pev
 
-#endif // CPP_UTILS_HH
+#endif // PEV_UTILS_HH

@@ -10,6 +10,8 @@
 #include <utility>
 #include <vector>
 
+using namespace cpp_utils;
+
 namespace pev
 {
 template <typename T, std::size_t... Degrees>

@@ -59,6 +59,13 @@ add_executable(generate_grid_dataset generate_grid_dataset.cc)
 add_executable(filter_tensor_lines filter_lines.cc)
 add_executable(ansys2vtk ansysexp_to_vtk.cc)
 
+find_package(cpp_utils REQUIRED)
+target_link_libraries(parallel_eigenvectors cpp_utils)
+target_link_libraries(generate_tet_dataset cpp_utils)
+target_link_libraries(generate_grid_dataset cpp_utils)
+target_link_libraries(filter_tensor_lines cpp_utils)
+target_link_libraries(ansys2vtk cpp_utils)
+
 find_package(Eigen3 REQUIRED)
 if(EIGEN3_FOUND)
     include_directories(SYSTEM ${EIGEN3_INCLUDE_DIR})

@@ -151,7 +151,7 @@ public:
     {
         auto rhs = Coeffs{};
         const auto& dp = Derived::domainPoints();
-        for(auto i: range(Traits::NCoeffs))
+        for(auto i: cpp_utils::range(Traits::NCoeffs))
         {
             rhs[i] = func(dp.row(i));
         }
@@ -165,7 +165,7 @@ public:
     {
         auto base = Derived::makeBasis(pos);
         auto result = T{base[0] * _coeffs[0]};
-        for(auto i: range(1, Traits::NCoeffs))
+        for(auto i: cpp_utils::range(1, Traits::NCoeffs))
         {
             result += base[i] * _coeffs[i];
         }
@@ -267,7 +267,7 @@ public:
 
     void operator+=(const Derived& other)
     {
-        for(auto i: range(_coeffs.size()))
+        for(auto i: cpp_utils::range(_coeffs.size()))
         {
             _coeffs[i] += other[i];
         }
@@ -275,7 +275,7 @@ public:
 
     void operator-=(const Derived& other)
     {
-        for(auto i: range(_coeffs.size()))
+        for(auto i: cpp_utils::range(_coeffs.size()))
         {
             _coeffs[i] -= other[i];
         }
@@ -302,7 +302,7 @@ public:
     Derived operator-() const
     {
         auto r_coeffs = Coeffs{};
-        for(auto i: range(r_coeffs.size()))
+        for(auto i: cpp_utils::range(r_coeffs.size()))
         {
             r_coeffs[i] = -this->coefficients()[i];
         }

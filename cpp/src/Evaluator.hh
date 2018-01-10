@@ -98,7 +98,7 @@ struct is_evaluator<E,
                                      && has_splitlevel<E>
                                      && is_evaluatable<E>
                                      && has_distance<E>
-                                     && is_equality_comparable<E>>>
+                                     && cpp_utils::is_equality_comparable<E>>>
         : std::true_type
 {
 };
