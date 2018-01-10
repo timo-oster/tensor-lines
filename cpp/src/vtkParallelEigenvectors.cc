@@ -13,6 +13,7 @@
 #include <vtkGenericCell.h>
 #include <vtkIdList.h>
 #include <vtkIntArray.h>
+#include <vtkUnsignedLongLongArray.h>
 #include <vtkPointData.h>
 #include <vtkCellData.h>
 #include <vtkPoints.h>
@@ -125,17 +126,17 @@ computeCellDerivatives(vtkDataSet* dataset,
 
         // copy point data to work array
         auto pt_data =
-                std::vector<double>(npts * ncomps);
+                std::vector<double>(as_unsigned(npts * ncomps));
         for(auto i: range(npts))
         {
-            point_data->GetTuple(point_ids->GetId(i), &pt_data[i*ncomps]);
+            point_data->GetTuple(point_ids->GetId(i), &pt_data[as_unsigned(i*ncomps)]);
         }
 
         auto cell = vtkSmartPointer<vtkGenericCell>::New();
         it->GetCell(cell);
         auto cell_center = std::array<double, 3>{};
         cell->GetParametricCenter(cell_center.data());
-        auto deriv_data = std::vector<double>(ncomps*3);
+        auto deriv_data = std::vector<double>(as_unsigned(ncomps*3));
         cell->Derivatives(0,
                           cell_center.data(),
                           pt_data.data(),
@@ -582,7 +583,7 @@ int vtkParallelEigenvectors::RequestData(vtkInformation* vtkNotUsed(request),
     auto imag2 = vtkSmartPointer<vtkDoubleArray>::New();
     imag2->SetName("Imaginary 2");
     output->GetPointData()->AddArray(imag2);
-    auto csize = vtkSmartPointer<vtkIntArray>::New();
+    auto csize = vtkSmartPointer<vtkUnsignedLongLongArray>::New();
     csize->SetName("Cluster Size");
     output->GetPointData()->AddArray(csize);
     auto pos_unc = vtkSmartPointer<vtkDoubleArray>::New();
@@ -682,7 +683,7 @@ int vtkParallelEigenvectors::RequestData(vtkInformation* vtkNotUsed(request),
         // with a line
         if(npoints == 2)
         {
-            auto cid = output->InsertNextCell(VTK_LINE, point_list);
+            output->InsertNextCell(VTK_LINE, point_list);
         }
         else
         {
@@ -726,7 +727,7 @@ int vtkParallelEigenvectors::RequestData(vtkInformation* vtkNotUsed(request),
                     line->SetNumberOfIds(2);
                     line->InsertId(0, point_list->GetId(row));
                     line->InsertId(1, point_list->GetId(col));
-                    auto cid = output->InsertNextCell(VTK_LINE, line);
+                    output->InsertNextCell(VTK_LINE, line);
                     dist.col(col).setOnes();
                     dist.col(row).setOnes();
                     dist.row(col).setOnes();
@@ -739,7 +740,7 @@ int vtkParallelEigenvectors::RequestData(vtkInformation* vtkNotUsed(request),
             // Add vertex for last unlinked point if any
             for(auto i : unlinked)
             {
-                auto cid = output->InsertNextCell(
+                output->InsertNextCell(
                         VTK_VERTEX, 1, point_list->GetPointer(i));
             }
         }

@@ -8,7 +8,7 @@ class vtkPolyData;
 class VTK_EXPORT vtkParallelEigenvectors : public vtkAlgorithm
 {
 public:
-    vtkTypeMacro(vtkParallelEigenvectors,vtkAlgorithm);
+    vtkTypeMacro(vtkParallelEigenvectors,vtkAlgorithm)
     enum LineType
     {
         ParallelEigenvectors,

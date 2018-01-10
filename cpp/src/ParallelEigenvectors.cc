@@ -321,10 +321,9 @@ computeContextInfoSH(const std::vector<ClusterRepr<Evaluator>>& representatives,
 }
 
 template <typename Evaluator>
-PointList
-computeContextInfoTopo(const std::vector<ClusterRepr<Evaluator>>& representatives,
-                     const TensorInterp& t_interp,
-                     const Triangle& tri)
+PointList computeContextInfoTopo(
+        const std::vector<ClusterRepr<Evaluator>>& representatives,
+        const Triangle& tri)
 {
     auto points = PointList{};
     points.reserve(representatives.size());
@@ -334,8 +333,6 @@ computeContextInfoTopo(const std::vector<ClusterRepr<Evaluator>>& representative
         const auto& pos_tri = r.eval.tris().pos_tri;
 
         auto result_center = pos_tri({1. / 3., 1. / 3., 1. / 3.});
-
-        auto t = t_interp(result_center);
 
         points.push_back(
                 PEVPoint{tri(result_center),
@@ -641,7 +638,7 @@ PEVResult findTensorTopology(const std::array<Mat3d, 3>& t,
 
     auto representatives = findRepresentatives(clustered_tris);
 
-    return {computeContextInfoTopo(representatives, tt, xt),
+    return {computeContextInfoTopo(representatives, xt),
             tris.second};
 }
 

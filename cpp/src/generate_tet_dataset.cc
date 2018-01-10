@@ -220,6 +220,8 @@ int main(int argc, char const* argv[])
 
     for(auto _ : range(num_subdivisions))
     {
+        std::ignore = _; // suppress warning about unused loop variable
+
         sub_filter->SetInputData(grid);
         auto new_grid = vtkSmartPointer<vtkUnstructuredGrid>(
                 vtkUnstructuredGrid::SafeDownCast(
