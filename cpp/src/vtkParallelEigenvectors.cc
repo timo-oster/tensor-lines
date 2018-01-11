@@ -51,11 +51,6 @@ struct TriFace
 {
     std::array<vtkIdType, 3> points;
     vtkIdType cellId;
-
-    friend bool operator==(const TriFace& t1, const TriFace& t2)
-    {
-        return t1.points == t2.points && t1.cellId == t2.cellId;
-    }
 };
 
 
