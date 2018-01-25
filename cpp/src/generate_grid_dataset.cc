@@ -18,6 +18,8 @@
 #include <memory>
 #include <stdexcept>
 
+using namespace cpp_utils;
+
 namespace po = boost::program_options;
 
 using namespace pev;
@@ -28,9 +30,11 @@ enum class FieldType
 {
     TEST,
     TEST2,
+    TESTIMAG,
     VORTEX_SIMPLE,
     IDENTITY,
-    CONSTANT
+    CONSTANT,
+    TOPO1
 };
 
 
@@ -42,6 +46,8 @@ std::unique_ptr<TensorField> makeTensorField(FieldType ftype)
             return std::unique_ptr<TestField>{new TestField{}};
         case FieldType::TEST2:
             return std::unique_ptr<TestField2>{new TestField2{}};
+        case FieldType::TESTIMAG:
+            return std::unique_ptr<TestFieldImag>{new TestFieldImag{}};
         case FieldType::VORTEX_SIMPLE:
             return std::unique_ptr<TensorVortexSimple>{new TensorVortexSimple{}};
         case FieldType::IDENTITY:
@@ -49,6 +55,9 @@ std::unique_ptr<TensorField> makeTensorField(FieldType ftype)
         case FieldType::CONSTANT:
             return std::unique_ptr<ConstantNonSymmetric>{
                     new ConstantNonSymmetric{}};
+        case FieldType::TOPO1:
+            return std::unique_ptr<SingleTopoLine>{
+                    new SingleTopoLine{}};
         default:
             return nullptr;
     }
@@ -70,6 +79,10 @@ std::istream& operator>>(std::istream& in, FieldType& ftype)
     {
         ftype = FieldType::TEST2;
     }
+    else if(token == "TESTIMAG")
+    {
+        ftype = FieldType::TESTIMAG;
+    }
     else if(token == "VORTEX_SIMPLE")
     {
         ftype = FieldType::VORTEX_SIMPLE;
@@ -81,6 +94,10 @@ std::istream& operator>>(std::istream& in, FieldType& ftype)
     else if(token == "CONSTANT")
     {
         ftype = FieldType::CONSTANT;
+    }
+    else if(token == "TOPO1")
+    {
+        ftype = FieldType::TOPO1;
     }
     else
     {
@@ -101,6 +118,9 @@ std::ostream& operator<<(std::ostream& out, const FieldType& ftype)
         case FieldType::TEST2:
             out << "test2";
             break;
+        case FieldType::TESTIMAG:
+            out << "testimag";
+            break;
         case FieldType::VORTEX_SIMPLE:
             out << "vortex_simple";
             break;
@@ -109,6 +129,9 @@ std::ostream& operator<<(std::ostream& out, const FieldType& ftype)
             break;
         case FieldType::CONSTANT:
             out << "constant";
+            break;
+        case FieldType::TOPO1:
+            out << "topo1";
             break;
         default:
             assert(false);

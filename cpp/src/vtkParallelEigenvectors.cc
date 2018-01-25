@@ -713,7 +713,7 @@ int vtkParallelEigenvectors::RequestData(vtkInformation* vtkNotUsed(request),
             }
             if(npoints < 10)
             {
-                while(dist.sum() < npoints * npoints)
+                while(dist.sum() < double(npoints * npoints))
                 {
                     auto row = Matrix3X::Index{};
                     auto col = Matrix3X::Index{};

@@ -311,7 +311,7 @@ public:
 
     Derived operator+(const Derived& other) const
     {
-        auto result = Derived{*this};
+        auto result = Derived{static_cast<Derived const &>(*this)};
         result += other;
         return result;
     }
@@ -324,7 +324,7 @@ public:
     template <typename Scalar>
     Derived operator*(const Scalar& scalar) const
     {
-        auto result = Derived{*this};
+        auto result = Derived{static_cast<Derived const &>(*this)};
         result *= scalar;
         return result;
     }
@@ -332,7 +332,7 @@ public:
     template <typename Scalar>
     Derived operator/(const Scalar& scalar) const
     {
-        auto result = Derived{*this};
+        auto result = Derived{static_cast<Derived const &>(*this)};
         result /= scalar;
         return result;
     }

@@ -12,6 +12,7 @@
 #include <iterator>
 #include <type_traits>
 #include <utility>
+#include <numeric>
 
 #define BOOST_RESULT_OF_USE_DECLTYPE
 
@@ -98,8 +99,10 @@ int sameSign(const Sequence& numbers)
     if(nelem == 0) return 0;
     auto first = *std::begin(numbers);
     if(nelem == 1) return sgn(first);
-    return std::accumulate(std::next(std::begin(numbers)),
-                           std::end(numbers),
+    using std::begin;
+    using std::end;
+    return std::accumulate(std::next(begin(numbers)),
+                           end(numbers),
                            sgn(first),
                            SameSign{});
 }
