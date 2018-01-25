@@ -82,8 +82,8 @@ struct TensorProductTraits;
  *      private:
  *          using Self = TensorProductBezierTriangle<T, C, 1>;
  *          using Traits = TensorProductTraits<Self>;
- *          using Basis = Eigen::Matrix<C, Traits::NCoeffs, 1>;
- *          using DomainPoints = Eigen::Matrix<C, Traits::NCoeffs, Traits::NCoords>;
+ *          using Basis = Eigen::Matrix<C, NCoeffs, 1>;
+ *          using DomainPoints = Eigen::Matrix<C, NCoeffs, NCoords>;
  *
  *          // Coordinates of the control points
  *          static const DomainPoints& domainPoints();
@@ -114,11 +114,10 @@ template <typename Derived, typename T, typename C, std::size_t... Degrees>
 class TensorProductBezierTriangleBase
 {
 public:
-    using Traits = TensorProductTraits<Derived>;
-    using Coords = Eigen::Matrix<C, Traits::NCoords, 1>;
-    using Coeffs = std::array<T, Traits::NCoeffs>;
-    // constexpr static std::size_t NCoords = sizeof...(Degrees) * 3;
-    // constexpr static std::size_t NCoeffs = (((Degrees+1)*(Degrees+2))/2) * ...;
+    constexpr static int NCoords = sizeof...(Degrees) * 3;
+    constexpr static std::size_t NCoeffs = ((((Degrees+1)*(Degrees+2))/2) * ...);
+    using Coords = Eigen::Matrix<C, NCoords, 1>;
+    using Coeffs = std::array<T, NCoeffs>;
 
     TensorProductBezierTriangleBase() = default;
 
@@ -151,7 +150,7 @@ public:
     {
         auto rhs = Coeffs{};
         const auto& dp = Derived::domainPoints();
-        for(auto i: cpp_utils::range(Traits::NCoeffs))
+        for(auto i: cpp_utils::range(NCoeffs))
         {
             rhs[i] = func(dp.row(i));
         }
@@ -165,7 +164,7 @@ public:
     {
         auto base = Derived::makeBasis(pos);
         auto result = T{base[0] * _coeffs[0]};
-        for(auto i: cpp_utils::range(1, Traits::NCoeffs))
+        for(auto i: cpp_utils::range(1, NCoeffs))
         {
             result += base[i] * _coeffs[i];
         }

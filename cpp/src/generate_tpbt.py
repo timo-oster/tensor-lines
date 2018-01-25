@@ -225,20 +225,11 @@ header_template = """#ifndef CPP_TENSOR_PRODUCT_BEZIER_TRIANGLE_{deg_str}_HH
 
 namespace pev
 {{
-{Traits}
-
 {Class}
 
 {Derivatives}
 }} // namespace pev
 #endif"""
-
-traits_template = """template <typename T, typename C>
-struct TensorProductTraits<TensorProductBezierTriangle<T, C, {deg}>>
-{{
-    static constexpr std::size_t NCoords = {NCoords};
-    static constexpr std::size_t NCoeffs = {NCoeffs};
-}};"""
 
 class_template = """template <typename T, typename C>
 class TensorProductBezierTriangle<T, C, {deg}>
@@ -249,7 +240,6 @@ public:
     using Self = TensorProductBezierTriangle<T, C, {deg}>;
     using Base = TensorProductBezierTriangleBase<
                     TensorProductBezierTriangle<T, C, {deg}>, T, C, {deg}>;
-    using Traits = TensorProductTraits<Self>;
     using Coords = typename Base::Coords;
     using Coeffs = typename Base::Coeffs;
 
@@ -262,8 +252,8 @@ public:
     using Base::Base;
 
 private:
-    using Basis = Eigen::Matrix<C, Traits::NCoeffs, 1>;
-    using DomainPoints = Eigen::Matrix<C, Traits::NCoeffs, Traits::NCoords>;
+    using Basis = Eigen::Matrix<C, Base::NCoeffs, 1>;
+    using DomainPoints = Eigen::Matrix<C, Base::NCoeffs, Base::NCoords>;
     template <std::size_t D>
     using DerivCoeffs =
             typename TensorProductDerivativeType<D, T, C, {deg}>::Coeffs;
@@ -381,17 +371,11 @@ def generate_tpbt_file(degrees):
 
     tp = tensor_product_bezier_triangle(degrees, [3 for i in degrees])
 
-    ncoords = 3 * len(tp.degrees)
-    ncoeffs = len(tp.multi_indices())
-
     cindices = indent(codegen_indices(tp), 2)
     domainpoints = indent("\n".join(format_matrix(tp.domain_points())), 3)
     basis = indent("\n".join(generate_basis(tp)), 3)
     splitcoeffs = indent(codegen_splitcoeffs(tp), 3)
     computecoeffs = indent("\n".join(generate_trans_func(tp.system_inv())), 3)
-
-    traits_code = traits_template.format(deg=deg_args, NCoeffs=ncoeffs,
-                                         NCoords=ncoords)
 
     class_code = class_template.format(deg=deg_args, NDegrees=len(tp.degrees),
                                        Indices=cindices,
@@ -401,7 +385,7 @@ def generate_tpbt_file(degrees):
 
     derivatives_code = codegen_derivatives(tp)
 
-    return header_template.format(deg_str=deg_str, Traits=traits_code,
+    return header_template.format(deg_str=deg_str,
                                   Class=class_code,
                                   Derivatives=derivatives_code)
 
