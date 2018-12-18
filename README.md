@@ -1,7 +1,15 @@
-# Find Parallel Eigenvector Lines in Tetrahedral Datasets
+# Find Tensor Feature Lines in Piecewise Linear Tensor Fields
 
-Implements an algorithm for finding lines of parallel eigenvectors in two
-different piecewise linear tensor fields.
+Implements algorithm for finding different feature lines in piecewise linear tensor fields. Includes degenerate lines, tensor core lines, and parallel eigenvector lines.
+Based on the work from two of my papers:
+
+* T. Oster, C. Rössl and H. Theisel,
+  _Core Lines in 3D Second-Order Tensor Fields_,
+  Computer Graphics Forum (Proc. EuroVis), 2018, https://doi.org/10.1111/cgf.13423
+
+* T. Oster, C. Rössl and H. Theisel,
+  _The Parallel Eigenvectors Operator_,
+  Proc. of Vision, Modeling, and Visualization (VMV), 2018, https://doi.org/10.2312/vmv.20181251
 
 ## Dependencies
 
@@ -10,11 +18,11 @@ different piecewise linear tensor fields.
 * [VTK](http://www.vtk.org/)
 * [Python 3](https://www.python.org/)
 * [cpp_utils](https://github.com/timo-oster/cpp-utils)
-* OpenMP(optional)
+* OpenMP (optional)
 
 ## Build process
 ~~~
-cd parallel_eigenvectors/src
+cd tensor-lines/cpp
 mkdir build
 cd build
 cmake -DCMAKE_BUILD_TYPE=Release ..
@@ -24,16 +32,15 @@ make install
 
 ## Components
 
-### parallel_eigenvectors
-Main program. Computes parallel eigenvectors on a VTK Unstructured grid file.
-Execute `parallel_eigenvectors -h` for valid command line options. Input file
-needs to be in VTK legacy format with two different PointData tensors (arrays
+### tensor_lines
+Main program. Computes feature lines on a VTK Unstructured grid file.
+Execute `tensor_lines -h` for valid command line options. Input file
+needs to be in VTK legacy format with tensors as point data (arrays
 with 9 components containing 3x3 tensor in row-major order).
 
-The main algorithm is implemented in `src/ParallelEigenvectors.cc` and does
-not depend on VTK. A VTK filter using the algorithm to find PEV points on
-tetrahedral cell faces and connecting them to lines is implemented in
-`src/vtkParallelEigenvectors.cc`.
+The main algorithm is implemented in `src/TensorLines.cc` and does
+not depend on VTK. A VTK filter using the algorithm to find intersections of feature lines with tetrahedral cell faces and connecting them to lines is implemented in
+`src/vtkTensorLines.cc`.
 
 ### generate_tet_dataset
 Small tool to generate example datasets of a linear tensor field. Execute
