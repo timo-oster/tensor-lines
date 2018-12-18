@@ -66,7 +66,7 @@ public:
     vtkPolyData* GetOutput(int);
 
     // see vtkAlgorithm for details
-    virtual int ProcessRequest(vtkInformation*,
+    int ProcessRequest(vtkInformation*,
                                vtkInformationVector**,
                                vtkInformationVector*) override;
 
@@ -76,33 +76,31 @@ protected:
 
     // This is called by the superclass.
     // This is the method you should override.
-    virtual int RequestDataObject(vtkInformation* request,
-                                  vtkInformationVector** inputVector,
-                                  vtkInformationVector* outputVector);
+    int RequestDataObject(vtkInformation* request,
+                          vtkInformationVector** inputVector,
+                          vtkInformationVector* outputVector);
 
     // convenience method
-    virtual int RequestInformation(vtkInformation* request,
-                                   vtkInformationVector** inputVector,
-                                   vtkInformationVector* outputVector);
+    int RequestInformation(vtkInformation* request,
+                           vtkInformationVector** inputVector,
+                           vtkInformationVector* outputVector);
 
-    // Description:
     // This is called by the superclass.
     // This is the method you should override.
-    virtual int RequestData(vtkInformation* request,
-                            vtkInformationVector** inputVector,
-                            vtkInformationVector* outputVector);
+    int RequestData(vtkInformation* request,
+                    vtkInformationVector** inputVector,
+                    vtkInformationVector* outputVector);
 
-    // Description:
     // This is called by the superclass.
     // This is the method you should override.
-    virtual int RequestUpdateExtent(vtkInformation*,
-                                    vtkInformationVector**,
-                                    vtkInformationVector*);
+    int RequestUpdateExtent(vtkInformation*,
+                            vtkInformationVector**,
+                            vtkInformationVector*);
 
-    virtual int FillOutputPortInformation(int port,
-                                          vtkInformation* info) VTK_OVERRIDE;
-    virtual int FillInputPortInformation(int port,
-                                         vtkInformation* info) VTK_OVERRIDE;
+    int FillOutputPortInformation(int port,
+                                  vtkInformation* info) override;
+    int FillInputPortInformation(int port,
+                                 vtkInformation* info) override;
 
 private:
     //BTX

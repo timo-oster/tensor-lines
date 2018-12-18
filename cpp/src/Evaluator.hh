@@ -14,25 +14,29 @@ namespace tl
 using Triangle = TensorProductBezierTriangle<Vec3d, double, 1>;
 
 
-inline double distance(const Triangle& t1, const Triangle& t2)
-{
-    return (t1({1./3, 1./3, 1./3}) - t2({1./3, 1./3, 1./3}))
-            .norm();
-}
-
-
+/// Pair of triangles in position and direction space
 struct DoubleTri
 {
     Triangle pos_tri = Triangle{};
     Triangle dir_tri = Triangle{};
 
+    /**
+     * @brief Split one of the triangles into a smaller one.
+     * @details Depending on @a D, either the triangle in position (0) or
+     *      direction (1) space is split. The result is a new DoubleTri with
+     *      the selected @a part (0-3) of the split triangle.
+     *
+     * @param part The part of the split triangle to return (0-3)
+     * @tparam D Which triangle to split? 0: position, 1: direction
+     * @return New DoubleTri with the part of the split triangle
+     */
     template <std::size_t D>
     DoubleTri split(std::size_t part) const
     {
         static_assert(D < 2, "D must be smaller than 2");
-        if(D == 0)
+        if constexpr(D == 0)
             return {pos_tri.split(part), dir_tri};
-        else if(D == 1)
+        else if constexpr(D == 1)
             return {pos_tri, dir_tri.split(part)};
     }
 
@@ -48,6 +52,17 @@ struct DoubleTri
 };
 
 
+/// Compute the distance between the centers of two triangles for clustering
+/// purposes.
+inline double distance(const Triangle& t1, const Triangle& t2)
+{
+    return (t1({1./3, 1./3, 1./3}) - t2({1./3, 1./3, 1./3}))
+            .norm();
+}
+
+
+/// Compute the distance between two triangle pairs as the maximum of the
+/// distances in position and direction space.
 inline double distance(const DoubleTri& t1, const DoubleTri& t2)
 {
     return std::max(distance(t1.pos_tri, t2.pos_tri),
@@ -55,6 +70,7 @@ inline double distance(const DoubleTri& t1, const DoubleTri& t2)
 }
 
 
+/// Result of evaluating an evaluator by calling the @c eval() function.
 enum class Result
 {
     Accept,
@@ -63,25 +79,33 @@ enum class Result
 };
 
 
+/// Concept check for the @c tris() function of an evaluator
 template <typename E>
 constexpr bool has_tris =
         std::is_convertible<decltype(std::declval<E>().tris()),
                             DoubleTri>::value;
 
+/// Concept check for the @c split() function of an evaluator
 template <typename E>
 constexpr bool is_splittable =
         std::is_convertible<decltype(*std::begin(std::declval<E>().split())),
                             E>::value;
 
+
+/// Concept check for the @c splitLevel() function of an evaluator
 template <typename E>
 constexpr bool has_splitlevel =
         std::is_convertible<decltype(std::declval<E>().splitLevel()),
                             std::size_t>::value;
 
+
+/// Concept check for the @c eval() function of an evaluator
 template <typename E>
 constexpr bool is_evaluatable =
         std::is_convertible<decltype(std::declval<E>().eval()), Result>::value;
 
+
+/// Concept check for the @c distance() function between evaluators
 template <typename E>
 constexpr bool has_distance =
         std::is_convertible<decltype(distance(std::declval<E>(),
@@ -103,6 +127,7 @@ struct is_evaluator<E,
 {
 };
 
+/// Concept check for an evaluator
 template<typename E>
 inline constexpr bool is_evaluator_v = is_evaluator<E>::value;
 

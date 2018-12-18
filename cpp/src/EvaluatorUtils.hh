@@ -19,6 +19,13 @@ namespace tl
  */
 using TensorInterp = TensorProductBezierTriangle<Mat3d, double, 1>;
 
+/**
+ * Compute the derivatives of a TensorProductBezierTriangle along two
+ * orthogonal directions on the triangle in the space indicated by @a D.
+ *
+ * @param poly The polynomial.
+ * @tparam D The space (0-sizeof...(Degrees)) in which to perform the derivative
+ */
 template <std::size_t D,
           typename TPBT,
           typename T,
@@ -30,6 +37,7 @@ auto derivatives(
                 typename TensorProductDerivativeType<D, T, C, Degrees...>::type,
                 2>
 {
+    static_assert(D < sizeof...(Degrees), "Invalid index");
     auto d0 = poly.template derivative<D>(0);
     auto d1 = poly.template derivative<D>(1);
     auto d2 = poly.template derivative<D>(2);
@@ -42,6 +50,13 @@ auto derivatives(
 }
 
 
+/**
+ * @brief Compute an upper bound for the magnitude of the function value.
+ * @details Finds the coefficient with the maximum absolute value.
+ *
+ * @param poly The polynomial
+ * @return An upper bound for std::abs(poly(x)) on the triangles
+ */
 template <typename TPBT,
           typename T,
           typename C,
@@ -53,6 +68,15 @@ double abs_upper_bound(
 }
 
 
+/**
+ * @brief Compute an upper bound for the magnitude of a number of polynomials.
+ * @details Finds the coefficient with the maximum absolute value of all
+ *     polynomials.
+ *
+ * @param polys A sequence of polynomials
+ * @return An upper bound for std::abs(poly(x)) over all polynomials in the
+ *     sequence
+ */
 template <typename TPBTSeq>
 double abs_max_upper_bound(const TPBTSeq& polys)
 {
@@ -66,6 +90,15 @@ double abs_max_upper_bound(const TPBTSeq& polys)
 }
 
 
+/**
+ * @brief Compute an upper bound for the gradient magnitude of the polynomial in
+ *      the space indicated by @a D.
+ *
+ * @param poly The polynomial
+ * @tparam D The space (0-sizeof...(Degrees)) in which to perform the derivative
+ * @return an estimate for the upper bound of the gradient magnitude of poly(x)
+ *      on the triangles
+ */
 template <std::size_t D,
           typename TPBT,
           typename T,
@@ -74,8 +107,9 @@ template <std::size_t D,
 double derivatives_upper_bound(
         const TensorProductBezierTriangleBase<TPBT, T, C, Degrees...>& poly)
 {
+    static_assert(D < sizeof...(Degrees), "Invalid index");
     auto upper_bound = typename TPBT::Coeffs{};
-    // estimate upper bound of gradient magnitude by L1 norm of control points
+    // Estimate upper bound of gradient magnitude by L1 norm of control points
     // todo: Can we do better? (Represent gradient magnitude as polynomial)
     auto abssum = [](double v1, double v2) {
         return std::abs(v1) + std::abs(v2);
@@ -88,7 +122,14 @@ double derivatives_upper_bound(
     return *boost::max_element(upper_bound);
 }
 
-
+/**
+ * @brief Compute an upper bound for the gradient magnitude of a sequence of
+ *      polynomials in the space indicated by @a D.
+ *
+ * @param polys A sequence (range) of polynomials
+ * @tparam D The space in which to perform the derivatives
+ * @return Upper bound for the gradient magnitude on the triangles
+ */
 template <std::size_t D, typename TPBTSeq>
 double derivatives_max_upper_bound(const TPBTSeq& polys)
 {
@@ -102,6 +143,16 @@ double derivatives_max_upper_bound(const TPBTSeq& polys)
 }
 
 
+/**
+ * @brief Compute an upper bound for the norm of a vector of values from
+ *     multiple polynomials.
+ * @details Finds an upper bound for sqrt(poly_1(x)^2 + poly_2(x)^2 + ...)
+ *      where poly_i are the elements of the sequence @a polys.
+ *
+ * @param polys A sequence (range) of polynomials
+ * @return Upper bound for the norm of the vector od polynomials on the
+ *     triangles
+ */
 template <typename TPBTSeq>
 double upper_bound_norm(const TPBTSeq& polys)
 {

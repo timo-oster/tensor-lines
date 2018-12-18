@@ -20,8 +20,8 @@ using TPBT = TensorProductBezierTriangle<T, double, Degrees...>;
 
 std::pair<std::array<TPBT<double, 1, 2>, 3>, std::array<TPBT<double, 0, 3>, 3>>
 tensorCoreLinesCoeffs(const TensorInterp& t,
-                         const std::array<TensorInterp, 3>& dt,
-                         const Triangle& r)
+                      const std::array<TensorInterp, 3>& dt,
+                      const Triangle& r)
 {
     using Coords1 = TPBT<double, 1, 2>::Coords;
     using Coords2 = TPBT<double, 0, 3>::Coords;

@@ -93,6 +93,16 @@ clusterTris(const CandList& cands, double epsilon)
 }
 
 
+/**
+ * @brief Select representative solutions for each cluster.
+ * @details For each cluster, the solution candidate with the smallest error
+ *      estimate is chosen as a representative. Also returns the number of
+ *      elements in the cluster.
+ *
+ * @param clusters Vector of vectors of Evaluators representing solution
+ *     clusters as produced by clusterTris().
+ * @return A cluster representative for each input cluster.
+ */
 template <typename Evaluator>
 std::vector<ClusterRepr<Evaluator>>
 findRepresentatives(const std::vector<std::vector<Evaluator>>& clusters)
@@ -126,15 +136,14 @@ findRepresentatives(const std::vector<std::vector<Evaluator>>& clusters)
  * @param tri Spatial triangle
  * @return List of TLPoints with context info
  */
-template <typename Evaluator>
 PointList
-computeContextInfo(const std::vector<ClusterRepr<Evaluator>>& representatives,
-                   const TensorInterp& s_interp,
-                   const TensorInterp& t_interp,
-                   const Triangle& tri)
+computeContextInfoPEV(
+        const std::vector<
+            ClusterRepr<ParallelEigenvectorsEvaluator>>& representatives,
+        const TensorInterp& s_interp,
+        const TensorInterp& t_interp,
+        const Triangle& tri)
 {
-    static_assert(is_evaluator_v<Evaluator>,
-                  "computeContextInfo requires a valid Evaluator!");
     auto points = PointList{};
     points.reserve(representatives.size());
 
@@ -213,17 +222,15 @@ computeContextInfo(const std::vector<ClusterRepr<Evaluator>>& representatives,
 }
 
 
-template <typename Evaluator>
 PointList
-computeContextInfoTCL(const std::vector<ClusterRepr<Evaluator>>& representatives,
-                     const TensorInterp& t_interp,
-                     const TensorInterp& tx_interp,
-                     const TensorInterp& ty_interp,
-                     const TensorInterp& tz_interp,
-                     const Triangle& tri)
+computeContextInfoTCL(
+        const std::vector<ClusterRepr<TensorCoreLinesEvaluator>>& representatives,
+        const TensorInterp& t_interp,
+        const TensorInterp& tx_interp,
+        const TensorInterp& ty_interp,
+        const TensorInterp& tz_interp,
+        const Triangle& tri)
 {
-    static_assert(is_evaluator_v<Evaluator>,
-                  "computeContextInfoTCL requires a valid Evaluator!");
     auto points = PointList{};
     points.reserve(representatives.size());
 
@@ -324,13 +331,11 @@ computeContextInfoTCL(const std::vector<ClusterRepr<Evaluator>>& representatives
     return points;
 }
 
-template <typename Evaluator>
+
 PointList computeContextInfoTopo(
-        const std::vector<ClusterRepr<Evaluator>>& representatives,
+        const std::vector<ClusterRepr<TensorTopologyEvaluator>>& representatives,
         const Triangle& tri)
 {
-    static_assert(is_evaluator_v<Evaluator>,
-                  "computeContextInfoTopo requires a valid Evaluator!");
     auto points = PointList{};
     points.reserve(representatives.size());
 
@@ -358,14 +363,33 @@ PointList computeContextInfoTopo(
 }
 
 
-template <typename Evaluator,
-          typename = std::enable_if_t<is_evaluator_v<Evaluator>>>
+/**
+ * @brief Perform the recursive root search using an evaluator.
+ * @details Performs a breadth-first recursive search for solutions of the
+ *      starting evaluator. Terminates when all solutions have been found or
+ *      when more than @a max_candidates are in the queue. In the latter case,
+ *      @c boost::none is returned.
+ *
+ * @param start_ev Starting evaluator
+ * @param max_candidates Maximum number of triangles produced during subdivision
+ *     before early termination
+ * @param num_splits Optional output parameter for storing the number of split
+ *     operations performed
+ * @param max_level Optional output parameter for storing the maximum
+ *     subdivision level reached
+ * @return A vector of solution candidates represented by Evaluators at the lowest
+ *      subdivision level, or boost::none if the search was terminated early.
+ */
+template <typename Evaluator>
 boost::optional<std::vector<Evaluator>>
 rootSearch(const Evaluator& start_ev,
            std::size_t max_candidates,
            uint64_t* num_splits = nullptr,
            uint64_t* max_level = nullptr)
 {
+    static_assert(is_evaluator_v<Evaluator>,
+                  "rootSearch requires a valid Evaluator!");
+
     auto work_lst = std::queue<Evaluator>{};
     work_lst.push(start_ev);
     auto result = std::vector<Evaluator>{};
@@ -401,6 +425,22 @@ rootSearch(const Evaluator& start_ev,
 }
 
 
+/**
+ * Search for parallel eigenvector intersections with a triangle.
+ *
+ * @param s First tensor field (linear on a triangle)
+ * @param t Second tensor field (linear on a triangle)
+ * @param tri Physical location of the triangle
+ * @param tolerance Error tolerance for subdivision
+ * @param max_candidates Maximum number of triangles produced during subdivision
+ *     before early termination
+ * @param num_splits Optional output parameter for storing the number of split
+ *     operations performed
+ * @param max_level Optional output parameter for storing the maximum
+ *     subdivision level reached
+ * @return A vector of all found solution candidates and a vector of the
+ *     rough eigenvector directions that resulted in early termination
+ */
 std::pair<std::vector<ParallelEigenvectorsEvaluator>, std::vector<Vec3d>>
 parallelEigenvectorSearch(const TensorInterp& s,
                           const TensorInterp& t,
@@ -452,6 +492,23 @@ parallelEigenvectorSearch(const TensorInterp& s,
 }
 
 
+
+/**
+ * Search for tensor core line intersections with a triangle.
+ *
+ * @param t Tensor field (linear on a triangle)
+ * @param dt derivatives of the tensor field (constant on a triangle)
+ * @param tri Physical location of the triangle
+ * @param tolerance Error tolerance for subdivision
+ * @param max_candidates Maximum number of triangles produced during subdivision
+ *     before early termination
+ * @param num_splits Optional output parameter for storing the number of split
+ *     operations performed
+ * @param max_level Optional output parameter for storing the maximum
+ *     subdivision level reached
+ * @return A vector of all found solution candidates and a vector of the
+ *     rough eigenvector directions that resulted in early termination
+ */
 std::pair<std::vector<TensorCoreLinesEvaluator>, std::vector<Vec3d>>
 tensorCoreLinesSearch(const TensorInterp& t,
                          const std::array<TensorInterp, 3>& dt,
@@ -498,6 +555,22 @@ tensorCoreLinesSearch(const TensorInterp& t,
     return {result, failed_dirs};
 }
 
+
+/**
+ * Search for degenerate line intersections with a triangle.
+ *
+ * @param t Tensor field (linear on a triangle)
+ * @param tri Physical location of the triangle
+ * @param tolerance Error tolerance for subdivision
+ * @param max_candidates Maximum number of triangles produced during subdivision
+ *     before early termination
+ * @param num_splits Optional output parameter for storing the number of split
+ *     operations performed
+ * @param max_level Optional output parameter for storing the maximum
+ *     subdivision level reached
+ * @return A vector of all found solution candidates and a vector of the
+ *     rough eigenvector directions that resulted in early termination
+ */
 std::pair<std::vector<TensorTopologyEvaluator>, std::vector<Vec3d>>
 tensorTopologySearch(const TensorInterp& t,
                      const Triangle& tri,
@@ -556,7 +629,7 @@ TLResult findParallelEigenvectors(const std::array<Mat3d, 3>& s,
 
     auto representatives = findRepresentatives(clustered_tris);
 
-    return {computeContextInfo(representatives, st, tt, xt),
+    return {computeContextInfoPEV(representatives, st, tt, xt),
             tris.second};
 }
 

@@ -7,6 +7,8 @@ import re
 
 
 def generate_include_header(file, includes):
+    """Generate the text of a C++ header file including multiple other
+    headers"""
     guard = re.sub(r"\W", "_", os.path.basename(file)).upper()
     frame = ("#ifndef {guard}\n" +
              "#define {guard}\n" +
@@ -17,8 +19,10 @@ def generate_include_header(file, includes):
         incs += '#include "{}"\n'.format(f)
     return frame.format(guard=guard, includes=incs)
 
+
 def main():
-    parser = argparse.ArgumentParser(description="Generate a header file including multiple files.")
+    parser = argparse.ArgumentParser(description="Generate a header file " +
+            "including multiple files.")
     parser.add_argument("-o", "--output", help="Output File")
     parser.add_argument("includes", metavar="F",
                         help="List of files to include",
@@ -29,6 +33,7 @@ def main():
 
     with open(args.output, mode='w') as f:
         f.write(code)
+
 
 if __name__ == "__main__":
     main()

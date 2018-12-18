@@ -6,17 +6,43 @@
 
 namespace tl
 {
+
+/// Base class representing a 3D second-order tensor field.
 class TensorField
 {
 public:
-    virtual ~TensorField() {}
+    virtual ~TensorField() = default;
 
+    /**
+     * @brief Evaluate the tensor field
+     *
+     * @param x Position to evaluate
+     * @return The tensor at position @a x
+     */
     virtual Mat3d t(const Vec3d& x) const = 0;
 
+    /**
+     * @brief Evaluate the derivative of the tensor field in x direction
+     *
+     * @param x Position to evaluate
+     * @return The derivative at position @a x
+     */
     virtual Mat3d tx(const Vec3d& x) const = 0;
 
+    /**
+     * @brief Evaluate the derivative of the tensor field in y direction
+     *
+     * @param x Position to evaluate
+     * @return The derivative at position @a x
+     */
     virtual Mat3d ty(const Vec3d& x) const = 0;
 
+    /**
+     * @brief Evaluate the derivative of the tensor field in z direction
+     *
+     * @param x Position to evaluate
+     * @return The derivative at position @a x
+     */
     virtual Mat3d tz(const Vec3d& x) const = 0;
 };
 
