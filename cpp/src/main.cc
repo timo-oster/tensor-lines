@@ -87,7 +87,7 @@ std::ostream& operator<<(std::ostream& out, const vtkTensorLines::LineType& ftyp
             out << "pev";
             break;
         case vtkTensorLines::LineType::TensorCoreLines:
-            out << "tsh";
+            out << "tcl";
             break;
         case vtkTensorLines::LineType::TensorTopology:
             out << "topo";
