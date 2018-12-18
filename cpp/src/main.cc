@@ -130,39 +130,40 @@ int main(int argc, char const* argv[])
         desc.add_options()
             ("help,h", "produce help message")
             ("tolerance,e",
-                po::value<double>(&tolerance)
-                        ->required()->default_value(tolerance),
-                "maximum deviation of the target functions from zero")
+             po::value<double>(&tolerance)
+                     ->required()->default_value(tolerance),
+             "maximum deviation of the target functions from zero")
             ("cluster-epsilon,c",
-                po::value<double>(&cluster_epsilon)
-                        ->required()->default_value(cluster_epsilon),
-                "epsilon for clustering")
+             po::value<double>(&cluster_epsilon)
+                     ->required()->default_value(cluster_epsilon),
+             "epsilon for clustering")
             ("max-candidates,m",
-                po::value<std::size_t>(&max_candidates)
-                        ->required()->default_value(max_candidates),
-                "Maximum number of candidate triangles on a face before "
-                "breaking off and assuming a non-line structure")
+             po::value<std::size_t>(&max_candidates)
+                     ->required()->default_value(max_candidates),
+             "Maximum number of candidate triangles on a face before "
+             "breaking off and assuming a non-line structure")
             ("input-file,i",
-                po::value<std::string>(&input_file)->required(),
-                "name of the input file (VTK format)")
+             po::value<std::string>(&input_file)->required(),
+             "name of the input file (VTK format)")
             ("s-field-name,s",
-                po::value<std::string>(&s_field_name)
-                    ->required()->default_value(s_field_name),
-                "name of the first input tensor field")
+             po::value<std::string>(&s_field_name)
+                 ->required()->default_value(s_field_name),
+             "name of the first input tensor field")
             ("t-field-name,t",
-                po::value<std::string>(&t_field_name)
-                        ->required()->default_value(t_field_name),
-                "name of the second input tensor field")
+             po::value<std::string>(&t_field_name)
+                     ->required()->default_value(t_field_name),
+             "name of the second input tensor field")
             ("output,o",
-                po::value<std::string>(&out_name),
+             po::value<std::string>(&out_name),
+             "Name of the output file")
             // ("output2",
             //  po::value<std::string>(&out2_name),
             //  "Name of the second output file containing faces that might "
             //  "contain non-line structures")
             ("line-type,l",
-                po::value<vtkTensorLines::LineType>(&line_type),
+             po::value<vtkTensorLines::LineType>(&line_type),
+             "Select the type of line to compute (Parallel Eigenvectors: pev, "
              "Tensor Sujudi Haimes: tcl, Tensor Topology: topo)");
-                "Select the type of line to compute (Parallel Eigenvectors: pev, "
 
         auto podesc = po::positional_options_description{};
         podesc.add("input-file", 1);
@@ -176,6 +177,8 @@ int main(int argc, char const* argv[])
 
         if(vm.empty() || vm.count("help"))
         {
+            std::cout << "Compute various kinds of feature lines in piecewise "
+                          "linear tensor fields.\n\n";
             std::cout << desc << "\n";
             return 0;
         }

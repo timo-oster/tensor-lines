@@ -68,33 +68,35 @@ int main(int argc, char const* argv[])
         desc.add_options()
             ("help,h", "produce help message")
             ("random,r",
-                po::value<uint32_t>(&random_seed),
-                "Random seed for tensor generation")
+             po::value<uint32_t>(&random_seed),
+             "Random seed for tensor generation")
             ("symmetric,s",
-                po::bool_switch(&symmetric),
-                "Generate symmetric tensor. Only works in conjunction with "
-                "--random")
+             po::bool_switch(&symmetric),
+             "Generate symmetric tensor. Only works in conjunction with "
+             "--random")
             ("interactive,i",
-                po::bool_switch(&interactive),
-                "Interactive mode (read matrices from stdin)")
+             po::bool_switch(&interactive),
+             "Interactive mode (read matrices from stdin)")
             ("derivatives,d",
-                po::bool_switch(&gen_derivatives),
-                "Also generate derivatives Sx, Sy, and Sz")
+             po::bool_switch(&gen_derivatives),
+             "Also generate derivatives Sx, Sy, and Sz")
             ("subdivision-level,l",
-                po::value<int32_t>(&num_subdivisions)
-                        ->required()
-                        ->default_value(num_subdivisions),
-                "Number of times the tetrahedron is subdivided")
+             po::value<int32_t>(&num_subdivisions)
+                     ->required()
+                     ->default_value(num_subdivisions),
+             "Number of times the tetrahedron is subdivided")
             ("output,o",
-                po::value<std::string>(&out_name)
-                        ->required()->default_value(out_name),
-                "Name of the output file");
+             po::value<std::string>(&out_name)
+                     ->required()->default_value(out_name),
+             "Name of the output file");
 
         auto vm = po::variables_map{};
         po::store(po::parse_command_line(argc, argv, desc), vm);
 
         if(vm.empty() || vm.count("help"))
         {
+            std::cout << "Generate a linear tensor field on a tetrahedral grid "
+                         "with variable subdivision level.\n\n";
             std::cout << desc << "\n";
             return 0;
         }

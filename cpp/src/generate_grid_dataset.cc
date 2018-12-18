@@ -157,38 +157,43 @@ int main(int argc, char const* argv[])
     try
     {
         po::options_description desc("Allowed options");
-        desc.add_options()("help,h", "produce help message")(
-                "num-points,n",
-                po::value(&np)->required(),
-                "Number of grid points in the largest extent of the box")(
-                "min-x",
-                po::value(&minx)->required(),
-                "Lower bound in x direction")("max-x",
-                                              po::value(&maxx)->required(),
-                                              "Upper bound in x direction")(
+        desc.add_options()("help,h", "produce help message")
+                ("num-points,n",
+                 po::value(&np)->required(),
+                 "Number of grid points in the largest extent of the box")
+                ("min-x",
+                 po::value(&minx)->required(),
+                 "Lower bound in x direction")
+                ("max-x",
+                 po::value(&maxx)->required(),
+                 "Upper bound in x direction")(
                 "min-y",
                 po::value(&miny)->required(),
-                "Lower bound in y direction")("max-y",
-                                              po::value(&maxy)->required(),
-                                              "Upper bound in y direction")(
-                "min-z",
-                po::value(&minz)->required(),
-                "Lower bound in z direction")("max-z",
-                                              po::value(&maxz)->required(),
-                                              "Upper bound in z direction")(
-                "ftype,f",
-                po::value(&ftype)->required()->default_value(ftype),
-                "Type of tensor field to generate")(
-                "output,o",
-                po::value<std::string>(&out_name)->required()->default_value(
+                "Lower bound in y direction")
+                ("max-y",
+                 po::value(&maxy)->required(),
+                 "Upper bound in y direction")
+                ("min-z",
+                 po::value(&minz)->required(),
+                 "Lower bound in z direction")
+                ("max-z",
+                 po::value(&maxz)->required(),
+                 "Upper bound in z direction")
+                ("ftype,f",
+                 po::value(&ftype)->required()->default_value(ftype),
+                 "Type of tensor field to generate")
+                ("output,o",
+                 po::value<std::string>(&out_name)->required()->default_value(
                         out_name),
-                "Name of the output file");
+                 "Name of the output file");
 
         auto vm = po::variables_map{};
         po::store(po::parse_command_line(argc, argv, desc), vm);
 
         if(vm.empty() || vm.count("help"))
         {
+            std::cout << "Generates a VTK file with a tensor field on a regular "
+                          "tetrahedralized grid.\n\n";
             std::cout << desc << "\n";
             return 0;
         }
