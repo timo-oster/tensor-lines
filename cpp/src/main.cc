@@ -155,15 +155,14 @@ int main(int argc, char const* argv[])
                 "name of the second input tensor field")
             ("output,o",
                 po::value<std::string>(&out_name),
-                "Name of the output file")
-            ("output2",
-                po::value<std::string>(&out2_name),
-                "Name of the second output file containing faces that might "
-                "contain non-line structures")
+            // ("output2",
+            //  po::value<std::string>(&out2_name),
+            //  "Name of the second output file containing faces that might "
+            //  "contain non-line structures")
             ("line-type,l",
                 po::value<vtkTensorLines::LineType>(&line_type),
+             "Tensor Sujudi Haimes: tcl, Tensor Topology: topo)");
                 "Select the type of line to compute (Parallel Eigenvectors: pev, "
-                "Tensor Sujudi Haimes: tsh, Tensor Topology: topo)");
 
         auto podesc = po::positional_options_description{};
         podesc.add("input-file", 1);
@@ -205,12 +204,12 @@ int main(int argc, char const* argv[])
             }
             out_name = out_name + "Lines.vtk";
         }
-        if(vm.count("output2") == 0)
-        {
-            auto lastindex = out_name.find_last_of(".");
-            auto rawname = out_name.substr(0, lastindex);
-            out2_name = rawname + "_NLTri.vtk";
-        }
+        // if(vm.count("output2") == 0)
+        // {
+        //     auto lastindex = out_name.find_last_of(".");
+        //     auto rawname = out_name.substr(0, lastindex);
+        //     out2_name = rawname + "_NLTri.vtk";
+        // }
     }
     catch(std::exception& e)
     {
@@ -311,12 +310,12 @@ int main(int argc, char const* argv[])
     outwriter->Update();
     outwriter->Write();
 
-    auto out2writer = vtkSmartPointer<vtkPolyDataWriter>::New();
-    outwriter->SetInputConnection(vtkpev->GetOutputPort(1));
-    outwriter->SetFileName(out2_name.c_str());
-    outwriter->SetFileTypeToBinary();
-    outwriter->Update();
-    outwriter->Write();
+    // auto out2writer = vtkSmartPointer<vtkPolyDataWriter>::New();
+    // outwriter->SetInputConnection(vtkpev->GetOutputPort(1));
+    // outwriter->SetFileName(out2_name.c_str());
+    // outwriter->SetFileTypeToBinary();
+    // outwriter->Update();
+    // outwriter->Write();
 
 #ifdef __linux__
     check_terminate.join();
