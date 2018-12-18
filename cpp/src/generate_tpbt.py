@@ -223,12 +223,12 @@ header_template = """#ifndef CPP_TENSOR_PRODUCT_BEZIER_TRIANGLE_{deg_str}_HH
 #define CPP_TENSOR_PRODUCT_BEZIER_TRIANGLE_{deg_str}_HH
 #include "TensorProductBezierTriangle.hh"
 
-namespace pev
+namespace tl
 {{
 {Class}
 
 {Derivatives}
-}} // namespace pev
+}} // namespace tl
 #endif"""
 
 class_template = """template <typename T, typename C>

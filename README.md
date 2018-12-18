@@ -8,6 +8,8 @@ different piecewise linear tensor fields.
 * [Eigen 3](http://eigen.tuxfamily.org)
 * [Boost](http://www.boost.org/)
 * [VTK](http://www.vtk.org/)
+* [Python 3](https://www.python.org/)
+* [cpp_utils](https://github.com/timo-oster/cpp-utils)
 * OpenMP(optional)
 
 ## Build process
@@ -34,7 +36,14 @@ tetrahedral cell faces and connecting them to lines is implemented in
 `src/vtkParallelEigenvectors.cc`.
 
 ### generate_tet_dataset
-Small tool to generate example datasets. Execute `generate_tet_dataset -h` for
-valid command line options. Generates a mesh in tetrahedral form with variable
-number of subdivision levels. Tensors at the four corners can be specified
-manually or randomly. Subdivision interpolates linearly between the corners.
+Small tool to generate example datasets of a linear tensor field. Execute
+`generate_tet_dataset -h` for usage information. Generates a mesh in
+tetrahedral form with variable number of subdivision levels. Tensors at the
+four corners can be specified manually or randomly. Subdivision interpolates
+linearly between the corners.
+
+### generate_grid_dataset
+Small tool to generate example datasets of several analytic tensor fields with
+variable sampling density. Execute `generate_grid_dataset -h` for usage
+information. Samples the analytic tensor field on a regular grid and
+subdivides the cells into tetrahedra.

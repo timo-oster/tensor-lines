@@ -1,6 +1,6 @@
-#include "vtkParallelEigenvectors.h"
+#include "vtkTensorLines.h"
 
-#include "ParallelEigenvectors.hh"
+#include "TensorLines.hh"
 #include "utils.hh"
 
 #include <Eigen/Geometry>
@@ -44,7 +44,7 @@ namespace
 // vtk Tensors are stored in row major order by convention
 using Mat3d = Eigen::Matrix<double, 3, 3, Eigen::RowMajor, 3, 3>;
 using Mat3dm = Eigen::Map<Mat3d>;
-using Vec3d = pev::Vec3d;
+using Vec3d = tl::Vec3d;
 using Vec3dm = Eigen::Map<Vec3d>;
 
 struct TriFace
@@ -168,16 +168,16 @@ computeCellDerivatives(vtkDataSet* dataset,
 }
 
 
-std::vector<pev::PEVResult> computePEVPoints(const std::vector<TriFace>& faces,
+std::vector<tl::TLResult> computePEVPoints(const std::vector<TriFace>& faces,
                                              vtkPoints* points,
                                              vtkDataArray* array1,
                                              vtkDataArray* array2,
                                              vtkAlgorithm* progress_alg,
-                                             const pev::PEVOptions& opts)
+                                             const tl::TLOptions& opts)
 {
     const auto step = 1. / double(faces.size());
     progress_alg->UpdateProgress(0);
-    auto results = std::vector<pev::PEVResult>(faces.size());
+    auto results = std::vector<tl::TLResult>(faces.size());
     auto terminate = false;
 #pragma omp parallel for schedule(guided, 1)
     for(auto i = std::size_t{0}; i < faces.size(); ++i)
@@ -208,7 +208,7 @@ std::vector<pev::PEVResult> computePEVPoints(const std::vector<TriFace>& faces,
         auto t3 = Mat3d{};
         array2->GetTuple(face.points[2], t3.data());
 
-        auto points = pev::findParallelEigenvectors(
+        auto points = tl::findParallelEigenvectors(
                 {s1, s2, s3},
                 {t1, t2, t3},
                 {p1, p2, p3},
@@ -228,18 +228,18 @@ std::vector<pev::PEVResult> computePEVPoints(const std::vector<TriFace>& faces,
 }
 
 
-std::vector<pev::PEVResult> computeSHPoints(const std::vector<TriFace>& faces,
+std::vector<tl::TLResult> computeTCLPoints(const std::vector<TriFace>& faces,
                                              vtkPoints* points,
                                              vtkDataArray* tensors,
                                              vtkDataArray* tx,
                                              vtkDataArray* ty,
                                              vtkDataArray* tz,
                                              vtkAlgorithm* progress_alg,
-                                             const pev::PEVOptions& opts)
+                                             const tl::TLOptions& opts)
 {
     const auto step = 1. / double(faces.size());
     progress_alg->UpdateProgress(0);
-    auto results = std::vector<pev::PEVResult>(faces.size());
+    auto results = std::vector<tl::TLResult>(faces.size());
     auto terminate = false;
 #pragma omp parallel for
     for(auto i = std::size_t{0}; i < faces.size(); ++i)
@@ -272,7 +272,7 @@ std::vector<pev::PEVResult> computeSHPoints(const std::vector<TriFace>& faces,
         auto sz = Mat3d{};
         tz->GetTuple(face.cellId, sz.data());
 
-        auto points = pev::findTensorSujudiHaimes(
+        auto points = tl::findTensorCoreLines(
                 {s1, s2, s3},
                 {sx, sy, sz},
                 {p1, p2, p3},
@@ -291,15 +291,15 @@ std::vector<pev::PEVResult> computeSHPoints(const std::vector<TriFace>& faces,
     return results;
 }
 
-std::vector<pev::PEVResult> computeTopoPoints(const std::vector<TriFace>& faces,
-                                             vtkPoints* points,
-                                             vtkDataArray* tensors,
-                                             vtkAlgorithm* progress_alg,
-                                             const pev::PEVOptions& opts)
+std::vector<tl::TLResult> computeTopoPoints(const std::vector<TriFace>& faces,
+                                            vtkPoints* points,
+                                            vtkDataArray* tensors,
+                                            vtkAlgorithm* progress_alg,
+                                            const tl::TLOptions& opts)
 {
     const auto step = 1. / double(faces.size());
     progress_alg->UpdateProgress(0);
-    auto results = std::vector<pev::PEVResult>(faces.size());
+    auto results = std::vector<tl::TLResult>(faces.size());
     auto terminate = false;
 #pragma omp parallel for
     for(auto i = std::size_t{0}; i < faces.size(); ++i)
@@ -323,7 +323,7 @@ std::vector<pev::PEVResult> computeTopoPoints(const std::vector<TriFace>& faces,
         auto s3 = Mat3d{};
         tensors->GetTuple(face.points[2], s3.data());
 
-        auto points = pev::findTensorTopology(
+        auto points = tl::findTensorTopology(
                 {s1, s2, s3},
                 {p1, p2, p3},
                 opts);
@@ -343,13 +343,13 @@ std::vector<pev::PEVResult> computeTopoPoints(const std::vector<TriFace>& faces,
 }
 
 
-vtkStandardNewMacro(vtkParallelEigenvectors)
+vtkStandardNewMacro(vtkTensorLines)
 
 
-vtkParallelEigenvectors::vtkParallelEigenvectors()
+vtkTensorLines::vtkTensorLines()
 {
     this->SetNumberOfInputPorts(1);
-    this->SetNumberOfOutputPorts(2);
+    this->SetNumberOfOutputPorts(1);
     this->SetInputArrayToProcess(0,
                                  0,
                                  0,
@@ -363,21 +363,21 @@ vtkParallelEigenvectors::vtkParallelEigenvectors()
 }
 
 
-vtkPolyData* vtkParallelEigenvectors::GetOutput()
+vtkPolyData* vtkTensorLines::GetOutput()
 {
     return this->GetOutput(0);
 }
 
 
-vtkPolyData* vtkParallelEigenvectors::GetOutput(int port)
+vtkPolyData* vtkTensorLines::GetOutput(int port)
 {
     return vtkPolyData::SafeDownCast(this->GetOutputDataObject(port));
 }
 
 
-int vtkParallelEigenvectors::ProcessRequest(vtkInformation* request,
-                                            vtkInformationVector** inputVector,
-                                            vtkInformationVector* outputVector)
+int vtkTensorLines::ProcessRequest(vtkInformation* request,
+                                   vtkInformationVector** inputVector,
+                                   vtkInformationVector* outputVector)
 {
     // Create an output object of the correct type.
     if(request->Has(vtkDemandDrivenPipeline::REQUEST_DATA_OBJECT()))
@@ -405,31 +405,31 @@ int vtkParallelEigenvectors::ProcessRequest(vtkInformation* request,
 }
 
 
-int vtkParallelEigenvectors::FillOutputPortInformation(int port,
-                                                       vtkInformation* info)
+int vtkTensorLines::FillOutputPortInformation(int port,
+                                              vtkInformation* info)
 {
     // now add our info
     if(port == 0)
     {
         info->Set(vtkDataObject::DATA_TYPE_NAME(), "vtkPolyData");
     }
-    else if(port == 1)
-    {
-        info->Set(vtkDataObject::DATA_TYPE_NAME(), "vtkPolyData");
-    }
+    // else if(port == 1)
+    // {
+    //     info->Set(vtkDataObject::DATA_TYPE_NAME(), "vtkPolyData");
+    // }
     return 1;
 }
 
 
-int vtkParallelEigenvectors::FillInputPortInformation(int vtkNotUsed(port),
-                                                      vtkInformation* info)
+int vtkTensorLines::FillInputPortInformation(int vtkNotUsed(port),
+                                             vtkInformation* info)
 {
     info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkUnstructuredGrid");
     return 1;
 }
 
 
-int vtkParallelEigenvectors::RequestDataObject(
+int vtkTensorLines::RequestDataObject(
         vtkInformation* vtkNotUsed(request),
         vtkInformationVector** vtkNotUsed(inputVector),
         vtkInformationVector* outputVector)
@@ -440,9 +440,9 @@ int vtkParallelEigenvectors::RequestDataObject(
     auto* outInfo = outputVector->GetInformationObject(0);
     auto* output = vtkPolyData::SafeDownCast(
             outInfo->Get(vtkDataObject::DATA_OBJECT()));
-    auto* outInfo2 = outputVector->GetInformationObject(1);
-    auto* output2 = vtkPolyData::SafeDownCast(
-            outInfo2->Get(vtkDataObject::DATA_OBJECT()));
+    // auto* outInfo2 = outputVector->GetInformationObject(1);
+    // auto* output2 = vtkPolyData::SafeDownCast(
+    //         outInfo2->Get(vtkDataObject::DATA_OBJECT()));
 
     if(!output)
     {
@@ -453,22 +453,22 @@ int vtkParallelEigenvectors::RequestDataObject(
         this->GetOutputPortInformation(0)->Set(
                 vtkDataObject::DATA_EXTENT_TYPE(), output->GetExtentType());
     }
-    if(!output2)
-    {
-        output2 = vtkPolyData::New();
-        outInfo2->Set(vtkDataObject::DATA_OBJECT(), output2);
-        output2->FastDelete();
+    // if(!output2)
+    // {
+    //     output2 = vtkPolyData::New();
+    //     outInfo2->Set(vtkDataObject::DATA_OBJECT(), output2);
+    //     output2->FastDelete();
 
-        this->GetOutputPortInformation(1)->Set(
-                vtkDataObject::DATA_EXTENT_TYPE(), output2->GetExtentType());
-    }
+    //     this->GetOutputPortInformation(1)->Set(
+    //             vtkDataObject::DATA_EXTENT_TYPE(), output2->GetExtentType());
+    // }
 
 
     return 1;
 }
 
 
-int vtkParallelEigenvectors::RequestInformation(
+int vtkTensorLines::RequestInformation(
         vtkInformation* vtkNotUsed(request),
         vtkInformationVector** vtkNotUsed(inputVector),
         vtkInformationVector* vtkNotUsed(outputVector))
@@ -477,7 +477,7 @@ int vtkParallelEigenvectors::RequestInformation(
 }
 
 
-int vtkParallelEigenvectors::RequestUpdateExtent(
+int vtkTensorLines::RequestUpdateExtent(
         vtkInformation* vtkNotUsed(request),
         vtkInformationVector** inputVector,
         vtkInformationVector* vtkNotUsed(outputVector))
@@ -496,7 +496,7 @@ int vtkParallelEigenvectors::RequestUpdateExtent(
 }
 
 
-int vtkParallelEigenvectors::RequestData(vtkInformation* vtkNotUsed(request),
+int vtkTensorLines::RequestData(vtkInformation* vtkNotUsed(request),
                                          vtkInformationVector** inputVector,
                                          vtkInformationVector* outputVector)
 {
@@ -509,9 +509,9 @@ int vtkParallelEigenvectors::RequestData(vtkInformation* vtkNotUsed(request),
     auto* output = vtkPolyData::SafeDownCast(
             outInfo->Get(vtkDataObject::DATA_OBJECT()));
 
-    auto* outInfo2 = outputVector->GetInformationObject(1);
-    auto* output2 = vtkPolyData::SafeDownCast(
-            outInfo2->Get(vtkDataObject::DATA_OBJECT()));
+    // auto* outInfo2 = outputVector->GetInformationObject(1);
+    // auto* output2 = vtkPolyData::SafeDownCast(
+    //         outInfo2->Get(vtkDataObject::DATA_OBJECT()));
 
     auto* inInfo = inputVector[0]->GetInformationObject(0);
     auto* input = vtkUnstructuredGrid::SafeDownCast(
@@ -524,7 +524,7 @@ int vtkParallelEigenvectors::RequestData(vtkInformation* vtkNotUsed(request),
     if(!array1 ||
        (_line_type == LineType::ParallelEigenvectors && !array2))
     {
-        vtkErrorMacro(<< "not all input arrays could be found (Maybe you "
+        vtkErrorMacro(<< "Not all input arrays could be found (Maybe you "
                          "specified the wrong name?).");
         return 0;
     }
@@ -534,7 +534,7 @@ int vtkParallelEigenvectors::RequestData(vtkInformation* vtkNotUsed(request),
        || (_line_type == LineType::ParallelEigenvectors
            && array2->GetNumberOfComponents() != 9))
     {
-        vtkErrorMacro(<< "all input arrays must be tensors with 9 components.");
+        vtkErrorMacro(<< "All input arrays must be tensors with 9 components.");
         return 0;
     }
 
@@ -546,7 +546,7 @@ int vtkParallelEigenvectors::RequestData(vtkInformation* vtkNotUsed(request),
                       vtkDataObject::FIELD_ASSOCIATION())
                       != vtkDataObject::FIELD_ASSOCIATION_POINTS))
     {
-        vtkErrorMacro(<< "all input arrays must be point data.");
+        vtkErrorMacro(<< "All input arrays must be point data.");
         return 0;
     }
 
@@ -591,30 +591,30 @@ int vtkParallelEigenvectors::RequestData(vtkInformation* vtkNotUsed(request),
     stability->SetName("Line Stability");
     output->GetPointData()->AddArray(stability);
 
-    // List of faces that might have non-line structures in separate output
-    output2->SetPoints(vtkPoints::New());
-    output2->GetPoints()->DeepCopy(input->GetPoints());
-    output2->Allocate();
+    // // List of faces that might have non-line structures in separate output
+    // output2->SetPoints(vtkPoints::New());
+    // output2->GetPoints()->DeepCopy(input->GetPoints());
+    // output2->Allocate();
 
-    auto direction = vtkSmartPointer<vtkDoubleArray>::New();
-    direction->SetNumberOfComponents(3);
-    direction->SetName("Direction");
-    output2->GetCellData()->AddArray(direction);
+    // auto direction = vtkSmartPointer<vtkDoubleArray>::New();
+    // direction->SetNumberOfComponents(3);
+    // direction->SetName("Direction");
+    // output2->GetCellData()->AddArray(direction);
 
     // Copy faces to array for parallel looping
     auto faces = buildFaceList(input);
     auto start = high_resolution_clock::now();
 
-    auto opts = pev::PEVOptions{this->GetTolerance(),
+    auto opts = tl::TLOptions{this->GetTolerance(),
                                 this->GetClusterEpsilon(),
                                 this->GetMaxCandidates()};
 
-    auto fresults = std::vector<pev::PEVResult>{};
+    auto fresults = std::vector<tl::TLResult>{};
 
-    if(_line_type == LineType::TensorSujudiHaimes)
+    if(_line_type == LineType::TensorCoreLines)
     {
         auto derivs = computeCellDerivatives(input, array1->GetName());
-        fresults = computeSHPoints(faces,
+        fresults = computeTCLPoints(faces,
                                    input->GetPoints(),
                                    array1,
                                    derivs[0],
@@ -741,20 +741,20 @@ int vtkParallelEigenvectors::RequestData(vtkInformation* vtkNotUsed(request),
         }
     }
 
-    for(auto i : range(faces.size()))
-    {
-        auto failed_dirs = fresults[i].non_line_dirs;
-        auto cellpts = vtkSmartPointer<vtkIdList>::New();
-        cellpts->SetNumberOfIds(3);
-        cellpts->InsertId(0, faces[i].points[0]);
-        cellpts->InsertId(1, faces[i].points[1]);
-        cellpts->InsertId(2, faces[i].points[2]);
-        for(const auto& f: failed_dirs)
-        {
-            auto cid = output2->InsertNextCell(VTK_TRIANGLE, cellpts);
-            direction->InsertTuple(cid, f.data());
-        }
-    }
+    // for(auto i : range(faces.size()))
+    // {
+    //     auto failed_dirs = fresults[i].non_line_dirs;
+    //     auto cellpts = vtkSmartPointer<vtkIdList>::New();
+    //     cellpts->SetNumberOfIds(3);
+    //     cellpts->InsertId(0, faces[i].points[0]);
+    //     cellpts->InsertId(1, faces[i].points[1]);
+    //     cellpts->InsertId(2, faces[i].points[2]);
+    //     for(const auto& f: failed_dirs)
+    //     {
+    //         auto cid = output2->InsertNextCell(VTK_TRIANGLE, cellpts);
+    //         direction->InsertTuple(cid, f.data());
+    //     }
+    // }
 
     auto end_all = high_resolution_clock::now();
     auto duration_all = seconds(end_all - start);

@@ -11,7 +11,7 @@
 #include <boost/range/algorithm/transform.hpp>
 #include <boost/range/numeric.hpp>
 
-namespace pev
+namespace tl
 {
 
 /**
@@ -114,6 +114,6 @@ double upper_bound_norm(const TPBTSeq& polys)
                                 0.));
 }
 
-} // namespace pev
+} // namespace tl
 
 #endif

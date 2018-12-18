@@ -1,21 +1,21 @@
-set(PEV_SOURCES
+set(TL_SOURCES
         main.cc
-        ParallelEigenvectors.cc
+        TensorLines.cc
         ParallelEigenvectorsEvaluator.cc
-        TensorSujudiHaimesEvaluator.cc
+        TensorCoreLinesEvaluator.cc
         TensorTopologyEvaluator.cc
-        vtkParallelEigenvectors.cc)
+        vtkTensorLines.cc)
 
-set(PEV_HEADERS
+set(TL_HEADERS
     utils.hh
-    ParallelEigenvectors.hh
+    TensorLines.hh
     ParallelEigenvectorsEvaluator.hh
-    TensorSujudiHaimesEvaluator.hh
-    vtkParallelEigenvectors.hh
+    TensorCoreLinesEvaluator.hh
+    vtkTensorLines.h
     TensorProductBezierTriangle.hh)
 
-source_group("Header Files" FILES ${PEV_HEADERS})
-source_group("Source Files" FILES ${PEV_SOURCES})
+source_group("Header Files" FILES ${TL_HEADERS})
+source_group("Source Files" FILES ${TL_SOURCES})
 
 find_package(PythonInterp 3 REQUIRED)
 
@@ -53,23 +53,17 @@ add_custom_command(OUTPUT ${GENERATED_SOURCES2}
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
-add_executable(parallel_eigenvectors ${PEV_SOURCES} ${GENERATED_SOURCES} ${TPBT_COLLECTION_HEADER})
+add_executable(tensor_lines ${TL_SOURCES} ${GENERATED_SOURCES} ${TPBT_COLLECTION_HEADER})
 add_executable(generate_tet_dataset generate_tet_dataset.cc)
 add_executable(generate_grid_dataset generate_grid_dataset.cc)
-add_executable(filter_tensor_lines filter_lines.cc)
-add_executable(ansys2vtk ansysexp_to_vtk.cc)
 
 find_package(cpp_utils REQUIRED)
-target_link_libraries(parallel_eigenvectors cpp_utils::cpp_utils)
+target_link_libraries(tensor_lines cpp_utils::cpp_utils)
 target_link_libraries(generate_tet_dataset cpp_utils::cpp_utils)
 target_link_libraries(generate_grid_dataset cpp_utils::cpp_utils)
-target_link_libraries(filter_tensor_lines cpp_utils::cpp_utils)
-target_link_libraries(ansys2vtk cpp_utils::cpp_utils)
 
 find_package(Eigen3 REQUIRED)
-if(EIGEN3_FOUND)
-    include_directories(SYSTEM ${EIGEN3_INCLUDE_DIR})
-endif()
+include_directories(SYSTEM ${EIGEN3_INCLUDE_DIR})
 
 if(WIN32)
     set(Boost_USE_STATIC_LIBS OFF)
@@ -84,57 +78,55 @@ if(OPENMP_FOUND)
 endif()
 
 find_package(Boost REQUIRED COMPONENTS program_options)
-if(Boost_FOUND)
-    target_link_libraries(parallel_eigenvectors ${Boost_LIBRARIES})
-    target_link_libraries(generate_tet_dataset ${Boost_LIBRARIES})
-    target_link_libraries(generate_grid_dataset ${Boost_LIBRARIES})
-    target_link_libraries(filter_tensor_lines ${Boost_LIBRARIES})
-    target_link_libraries(ansys2vtk ${Boost_LIBRARIES})
-    include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
-    link_directories(${Boost_LIBRARY_DIRS})
-    if(WIN32)
-        add_definitions(-DBOOST_ALL_DYN_LINK)
-    endif()
+target_link_libraries(tensor_lines ${Boost_LIBRARIES})
+target_link_libraries(generate_tet_dataset ${Boost_LIBRARIES})
+target_link_libraries(generate_grid_dataset ${Boost_LIBRARIES})
+include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
+link_directories(${Boost_LIBRARY_DIRS})
+if(WIN32)
+    add_definitions(-DBOOST_ALL_DYN_LINK)
 endif()
 
-find_package(VTK COMPONENTS vtkFiltersModeling vtkIOLegacy vtkIOInfovis)
-if(VTK_FOUND)
-    include(${VTK_USE_FILE})
-    target_link_libraries(parallel_eigenvectors ${VTK_LIBRARIES})
+option(BUILD_PARAVIEW_PLUGIN "Build a ParaView Plugin" OFF)
+
+if(BUILD_PARAVIEW_PLUGIN)
+
+    find_package(ParaView REQUIRED COMPONENTS vtkFiltersModeling vtkIOLegacy vtkIOInfovis)
+    INCLUDE(${PARAVIEW_USE_FILE})
+    target_link_libraries(tensor_lines ${VTK_LIBRARIES})
     target_link_libraries(generate_tet_dataset ${VTK_LIBRARIES})
     target_link_libraries(generate_grid_dataset ${VTK_LIBRARIES})
-    target_link_libraries(filter_tensor_lines ${VTK_LIBRARIES})
-    target_link_libraries(ansys2vtk ${VTK_LIBRARIES})
-endif()
 
-option(DRAW_DEBUG "Visualize the recursion algorithm (needs CImg)" OFF)
-if(DRAW_DEBUG)
-    find_package(CImg REQUIRED)
-    if(CIMG_FOUND)
-        include_directories(SYSTEM ${CIMG_INCLUDE_DIRS})
-        target_link_libraries(parallel_eigenvectors ${CIMG_LIBRARIES})
-        target_compile_definitions(parallel_eigenvectors PRIVATE "-DDRAW_DEBUG")
-    endif()
-endif()
+    ADD_PARAVIEW_PLUGIN(TensorLines "1.0"
+        SERVER_MANAGER_XML TensorLines.xml
+        SERVER_MANAGER_SOURCES vtkTensorLines.cc
+        SOURCES TensorLines.cc
+                ParallelEigenvectorsEvaluator.cc
+                TensorCoreLinesEvaluator.cc
+                TensorTopologyEvaluator.cc
+                ${GENERATED_SOURCES})
 
-install(TARGETS parallel_eigenvectors
-    EXPORT ParallelEigenvectorsTargets
+    target_link_libraries(TensorLines LINK_PRIVATE cpp_utils::cpp_utils ${BOOST_LIBRARIES})
+
+else()
+
+    find_package(VTK REQUIRED COMPONENTS vtkFiltersModeling vtkIOLegacy vtkIOInfovis)
+    include(${VTK_USE_FILE})
+    target_link_libraries(tensor_lines ${VTK_LIBRARIES})
+    target_link_libraries(generate_tet_dataset ${VTK_LIBRARIES})
+    target_link_libraries(generate_grid_dataset ${VTK_LIBRARIES})
+
+endif()
+install(TARGETS tensor_lines
+    EXPORT TensorLinesTargets
     RUNTIME DESTINATION "${INSTALL_BIN_DIR}" COMPONENT bin)
 
 install(TARGETS generate_tet_dataset
-    EXPORT ParallelEigenvectorsTargets
+    EXPORT TensorLinesTargets
     RUNTIME DESTINATION "${INSTALL_BIN_DIR}" COMPONENT bin)
 
 install(TARGETS generate_grid_dataset
-    EXPORT ParallelEigenvectorsTargets
-    RUNTIME DESTINATION "${INSTALL_BIN_DIR}" COMPONENT bin)
-
-install(TARGETS filter_tensor_lines
-    EXPORT ParallelEigenvectorsTargets
-    RUNTIME DESTINATION "${INSTALL_BIN_DIR}" COMPONENT bin)
-
-install(TARGETS ansys2vtk
-    EXPORT ParallelEigenvectorsTargets
+    EXPORT TensorLinesTargets
     RUNTIME DESTINATION "${INSTALL_BIN_DIR}" COMPONENT bin)
 
 add_subdirectory(tests)

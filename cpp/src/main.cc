@@ -1,6 +1,6 @@
-#include "ParallelEigenvectors.hh"
+#include "TensorLines.hh"
 #include "utils.hh"
-#include "vtkParallelEigenvectors.h"
+#include "vtkTensorLines.h"
 
 #include <vtkCallbackCommand.h>
 #include <vtkCell.h>
@@ -51,7 +51,7 @@ void terminate(int /*signum*/)
 
 namespace po = boost::program_options;
 
-std::istream& operator>>(std::istream& in, vtkParallelEigenvectors::LineType& ltype)
+std::istream& operator>>(std::istream& in, vtkTensorLines::LineType& ltype)
 {
     auto token = std::string{};
     in >> token;
@@ -60,15 +60,15 @@ std::istream& operator>>(std::istream& in, vtkParallelEigenvectors::LineType& lt
 
     if(token == "PEV")
     {
-        ltype = vtkParallelEigenvectors::LineType::ParallelEigenvectors;
+        ltype = vtkTensorLines::LineType::ParallelEigenvectors;
     }
-    else if(token == "TSH")
+    else if(token == "TCL")
     {
-        ltype = vtkParallelEigenvectors::LineType::TensorSujudiHaimes;
+        ltype = vtkTensorLines::LineType::TensorCoreLines;
     }
     else if(token == "TOPO")
     {
-        ltype = vtkParallelEigenvectors::LineType::TensorTopology;
+        ltype = vtkTensorLines::LineType::TensorTopology;
     }
     else
     {
@@ -79,17 +79,17 @@ std::istream& operator>>(std::istream& in, vtkParallelEigenvectors::LineType& lt
 }
 
 
-std::ostream& operator<<(std::ostream& out, const vtkParallelEigenvectors::LineType& ftype)
+std::ostream& operator<<(std::ostream& out, const vtkTensorLines::LineType& ftype)
 {
     switch(ftype)
     {
-        case vtkParallelEigenvectors::LineType::ParallelEigenvectors:
+        case vtkTensorLines::LineType::ParallelEigenvectors:
             out << "pev";
             break;
-        case vtkParallelEigenvectors::LineType::TensorSujudiHaimes:
+        case vtkTensorLines::LineType::TensorCoreLines:
             out << "tsh";
             break;
-        case vtkParallelEigenvectors::LineType::TensorTopology:
+        case vtkTensorLines::LineType::TensorTopology:
             out << "topo";
             break;
         default:
@@ -104,7 +104,7 @@ void ProgressFunction(vtkObject* caller,
                       void* vtkNotUsed(clientData),
                       void* vtkNotUsed(callData))
 {
-    auto* filter = static_cast<vtkParallelEigenvectors*>(caller);
+    auto* filter = static_cast<vtkTensorLines*>(caller);
     std::cout << "Progress: " << std::fixed << std::setprecision(4)
               << (filter->GetProgress() * 100) << "%    \r";
 }
@@ -112,7 +112,7 @@ void ProgressFunction(vtkObject* caller,
 
 int main(int argc, char const* argv[])
 {
-    using namespace pev;
+    using namespace tl;
 
     auto input_file = std::string{};
     auto tolerance = 1e-6;
@@ -122,7 +122,7 @@ int main(int argc, char const* argv[])
     auto out2_name = std::string{"Parallel_Eigenvectors_Lines_NLTris.vtk"};
     auto s_field_name = std::string{"S"};
     auto t_field_name = std::string{"T"};
-    auto line_type = vtkParallelEigenvectors::ParallelEigenvectors;
+    auto line_type = vtkTensorLines::ParallelEigenvectors;
 
     try
     {
@@ -161,7 +161,7 @@ int main(int argc, char const* argv[])
                 "Name of the second output file containing faces that might "
                 "contain non-line structures")
             ("line-type,l",
-                po::value<vtkParallelEigenvectors::LineType>(&line_type),
+                po::value<vtkTensorLines::LineType>(&line_type),
                 "Select the type of line to compute (Parallel Eigenvectors: pev, "
                 "Tensor Sujudi Haimes: tsh, Tensor Topology: topo)");
 
@@ -182,7 +182,7 @@ int main(int argc, char const* argv[])
         }
         po::notify(vm);
 
-        if(line_type != vtkParallelEigenvectors::ParallelEigenvectors && !vm["t-field-name"].defaulted())
+        if(line_type != vtkTensorLines::ParallelEigenvectors && !vm["t-field-name"].defaulted())
         {
             std::cout << "Warning: You are not using --line-type=pev. "
                          "--t-field-name will be ignored."
@@ -194,13 +194,13 @@ int main(int argc, char const* argv[])
             auto rawname = input_file.substr(0, lastindex);
             switch(line_type)
             {
-                case vtkParallelEigenvectors::ParallelEigenvectors:
+                case vtkTensorLines::ParallelEigenvectors:
                     out_name = rawname + "_PEV";
                     break;
-                case vtkParallelEigenvectors::TensorSujudiHaimes:
-                    out_name = rawname + "_TSH";
+                case vtkTensorLines::TensorCoreLines:
+                    out_name = rawname + "_TCL";
                     break;
-                case vtkParallelEigenvectors::TensorTopology:
+                case vtkTensorLines::TensorTopology:
                     out_name = rawname + "_Topo";
             }
             out_name = out_name + "Lines.vtk";
@@ -247,7 +247,7 @@ int main(int argc, char const* argv[])
     auto progressCallback = vtkSmartPointer<vtkCallbackCommand>::New();
     progressCallback->SetCallback(ProgressFunction);
 
-    auto vtkpev = vtkSmartPointer<vtkParallelEigenvectors>::New();
+    auto vtkpev = vtkSmartPointer<vtkTensorLines>::New();
     vtkpev->SetTolerance(tolerance);
     vtkpev->SetClusterEpsilon(cluster_epsilon);
     vtkpev->SetMaxCandidates(max_candidates);
@@ -255,7 +255,7 @@ int main(int argc, char const* argv[])
     vtkpev->AddObserver(vtkCommand::ProgressEvent, progressCallback);
 
     vtkpev->SetInputConnection(0, reader->GetOutputPort(0));
-    if(line_type == vtkParallelEigenvectors::ParallelEigenvectors)
+    if(line_type == vtkTensorLines::ParallelEigenvectors)
     {
         vtkpev->SetInputArrayToProcess(0,
                                        0,

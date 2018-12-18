@@ -2,17 +2,17 @@
 #include <doctest.h>
 
 #include "TensorProductBezierTriangles.hh"
-#include "ParallelEigenvectorDefinitions.hh"
+#include "TensorLineDefinitions.hh"
 #include "utils.hh"
 
 using namespace cpp_utils;
 
 using doctest::Approx;
 
-using TPBT1_2 = pev::TensorProductBezierTriangle<double, double, 1, 2>;
-using TPBT1_3 = pev::TensorProductBezierTriangle<double, double, 1, 3>;
-using TPBT3 = pev::TensorProductBezierTriangle<double, double, 3>;
-using Triangle = pev::TensorProductBezierTriangle<pev::Vec3d, double, 1>;
+using TPBT1_2 = tl::TensorProductBezierTriangle<double, double, 1, 2>;
+using TPBT1_3 = tl::TensorProductBezierTriangle<double, double, 1, 3>;
+using TPBT3 = tl::TensorProductBezierTriangle<double, double, 3>;
+using Triangle = tl::TensorProductBezierTriangle<tl::Vec3d, double, 1>;
 // todo: test other variants of the class
 
 using Coeffs1_2 = TPBT1_2::Coeffs;
@@ -59,9 +59,9 @@ TEST_CASE("Testing polynomial reproduction for Degree 3")
             {
                 auto split = TPBT3(_poly3).split<0>();
 
-                auto tris = Triangle{{pev::Vec3d{1., 0., 0.},
-                                      pev::Vec3d{0., 1., 0.},
-                                      pev::Vec3d{0., 0., 1.}}}
+                auto tris = Triangle{{tl::Vec3d{1., 0., 0.},
+                                      tl::Vec3d{0., 1., 0.},
+                                      tl::Vec3d{0., 0., 1.}}}
                                     .split();
 
                 THEN("Each triangle must reproduce the original function in "
@@ -128,9 +128,9 @@ TEST_CASE("Testing polynomial reproduction for degrees 1, 2")
                 }
             }
 
-            auto tris = Triangle{{pev::Vec3d{1., 0., 0.},
-                                  pev::Vec3d{0., 1., 0.},
-                                  pev::Vec3d{0., 0., 1.}}}
+            auto tris = Triangle{{tl::Vec3d{1., 0., 0.},
+                                  tl::Vec3d{0., 1., 0.},
+                                  tl::Vec3d{0., 0., 1.}}}
                                 .split();
 
             WHEN("We try to split it into 4 new triangles in the first space")
@@ -261,9 +261,9 @@ TEST_CASE("Testing polynomial reproduction for degrees 1, 3")
                 }
             }
 
-            auto tris = Triangle{{pev::Vec3d{1., 0., 0.},
-                                  pev::Vec3d{0., 1., 0.},
-                                  pev::Vec3d{0., 0., 1.}}}
+            auto tris = Triangle{{tl::Vec3d{1., 0., 0.},
+                                  tl::Vec3d{0., 1., 0.},
+                                  tl::Vec3d{0., 0., 1.}}}
                                 .split();
 
             WHEN("We try to split it into 4 new triangles in the first space")
@@ -568,37 +568,37 @@ TEST_CASE_TEMPLATE("Test SameSign functions", T, SameSignTypes)
 {
     SUBCASE("Positive numbers")
     {
-        REQUIRE(pev::sameSign(std::vector<T>{1, 2, 3, 4, 5}) == 1);
+        REQUIRE(tl::sameSign(std::vector<T>{1, 2, 3, 4, 5}) == 1);
     }
     SUBCASE("Negative numbers")
     {
-        REQUIRE(pev::sameSign(std::vector<T>{-1, -2, -1, -3, -4}) == -1);
+        REQUIRE(tl::sameSign(std::vector<T>{-1, -2, -1, -3, -4}) == -1);
     }
     SUBCASE("Positive or negative numbers containing 0")
     {
-        REQUIRE(pev::sameSign(std::vector<T>{0, 2, 3, 4, 5}) == 0);
-        REQUIRE(pev::sameSign(std::vector<T>{-1, -2, 0, -3, -4}) == 0);
+        REQUIRE(tl::sameSign(std::vector<T>{0, 2, 3, 4, 5}) == 0);
+        REQUIRE(tl::sameSign(std::vector<T>{-1, -2, 0, -3, -4}) == 0);
     }
     SUBCASE("Differently signed numbers")
     {
-        REQUIRE(pev::sameSign(std::vector<T>{1, -2, 0, 3, -4}) == 0);
+        REQUIRE(tl::sameSign(std::vector<T>{1, -2, 0, 3, -4}) == 0);
 
     }
     SUBCASE("Single Element")
     {
-        REQUIRE(pev::sameSign(std::vector<T>{5}) == 1);
-        REQUIRE(pev::sameSign(std::vector<T>{-3}) == -1);
-        REQUIRE(pev::sameSign(std::vector<T>{0}) == 0);
+        REQUIRE(tl::sameSign(std::vector<T>{5}) == 1);
+        REQUIRE(tl::sameSign(std::vector<T>{-3}) == -1);
+        REQUIRE(tl::sameSign(std::vector<T>{0}) == 0);
     }
     SUBCASE("Two Elements")
     {
-        REQUIRE(pev::sameSign(std::vector<T>{5, 2}) == 1);
-        REQUIRE(pev::sameSign(std::vector<T>{-3, -7}) == -1);
-        REQUIRE(pev::sameSign(std::vector<T>{0, 0}) == 0);
-        REQUIRE(pev::sameSign(std::vector<T>{-3, 7}) == 0);
-        REQUIRE(pev::sameSign(std::vector<T>{-13, 0}) == 0);
-        REQUIRE(pev::sameSign(std::vector<T>{0, 79}) == 0);
-        REQUIRE(pev::sameSign(std::vector<T>{45, 0}) == 0);
-        REQUIRE(pev::sameSign(std::vector<T>{0, -16}) == 0);
+        REQUIRE(tl::sameSign(std::vector<T>{5, 2}) == 1);
+        REQUIRE(tl::sameSign(std::vector<T>{-3, -7}) == -1);
+        REQUIRE(tl::sameSign(std::vector<T>{0, 0}) == 0);
+        REQUIRE(tl::sameSign(std::vector<T>{-3, 7}) == 0);
+        REQUIRE(tl::sameSign(std::vector<T>{-13, 0}) == 0);
+        REQUIRE(tl::sameSign(std::vector<T>{0, 79}) == 0);
+        REQUIRE(tl::sameSign(std::vector<T>{45, 0}) == 0);
+        REQUIRE(tl::sameSign(std::vector<T>{0, -16}) == 0);
     }
 }

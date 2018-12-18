@@ -1,15 +1,15 @@
-#ifndef CPP_TENSOR_SUJUDI_HAIMES_EVALUATOR_HH
-#define CPP_TENSOR_SUJUDI_HAIMES_EVALUATOR_HH
+#ifndef CPP_TENSOR_CORE_LINES_EVALUATOR_HH
+#define CPP_TENSOR_CORE_LINES_EVALUATOR_HH
 
 #include "EvaluatorUtils.hh"
 
 #include <array>
 
-namespace pev
+namespace tl
 {
-class TensorSujudiHaimesEvaluator
+class TensorCoreLinesEvaluator
 {
-    using Self = TensorSujudiHaimesEvaluator;
+    using Self = TensorCoreLinesEvaluator;
     template <typename T, std::size_t... Degrees>
     using TPBT = TensorProductBezierTriangle<T, double, Degrees...>;
 
@@ -30,14 +30,14 @@ public:
         }
     };
 
-    TensorSujudiHaimesEvaluator() = default;
+    TensorCoreLinesEvaluator() = default;
 
-    TensorSujudiHaimesEvaluator(const DoubleTri& tri,
-                                const TensorInterp& t,
-                                const std::array<TensorInterp, 3>& dt,
-                                const Options& opts);
+    TensorCoreLinesEvaluator(const DoubleTri& tri,
+                             const TensorInterp& t,
+                             const std::array<TensorInterp, 3>& dt,
+                             const Options& opts);
 
-    TensorSujudiHaimesEvaluator(
+    TensorCoreLinesEvaluator(
             const DoubleTri& tri,
             const std::array<TPBT<double, 1, 2>, 3>& target_funcs_t,
             const std::array<TPBT<double, 0, 3>, 3>& target_funcs_dt,
@@ -125,7 +125,7 @@ private:
                       "Split space must be 0 (position) or 1 (direction)");
 
         auto part = [&](std::size_t i) {
-            return TensorSujudiHaimesEvaluator(
+            return TensorCoreLinesEvaluator(
                     _tri.split<D>(i),
                     {_target_funcs_t[0].split<D>(i),
                      _target_funcs_t[1].split<D>(i),
@@ -141,8 +141,8 @@ private:
     }
 };
 
-static_assert(is_evaluator<TensorSujudiHaimesEvaluator>::value,
-              "TensorSujudiHaimesEvaluator is not a valid evaluator!");
+static_assert(is_evaluator<TensorCoreLinesEvaluator>::value,
+              "TensorCoreLinesEvaluator is not a valid evaluator!");
 }
 
 #endif

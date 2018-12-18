@@ -1,9 +1,9 @@
-#ifndef CPP_PARALLEL_EIGENVECTOR_DEFINITIONS_HH
-#define CPP_PARALLEL_EIGENVECTOR_DEFINITIONS_HH
+#ifndef CPP_TENSOR_LINE_DEFINITIONS_HH
+#define CPP_TENSOR_LINE_DEFINITIONS_HH
 
 #include <Eigen/Core>
 
-namespace pev
+namespace tl
 {
 
 using Vec3d = Eigen::Vector3d;
@@ -22,9 +22,9 @@ enum class ERank : int
 
 
 /**
- * Parallel eigenvector point.
+ * Tensor line solution point.
  */
-struct PEVPoint
+struct TLPoint
 {
     Vec3d pos; ///< position
     ERank s_rank; ///< rank of eigenvector of tensor field S
@@ -42,6 +42,6 @@ struct PEVPoint
     double line_stability; ///< Measure of numeric stability of the solution
 };
 
-} // namespace pev
+} // namespace tl
 
 #endif

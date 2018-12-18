@@ -1,5 +1,5 @@
-#ifndef PEV_UTILS_HH
-#define PEV_UTILS_HH
+#ifndef TL_UTILS_HH
+#define TL_UTILS_HH
 
 #include <cpp_utils/cpp_utils.h>
 
@@ -16,7 +16,7 @@
 
 #define BOOST_RESULT_OF_USE_DECLTYPE
 
-namespace pev
+namespace tl
 {
 
 struct MinNotZero
@@ -118,6 +118,6 @@ std::string print(const T& in)
     return out.str();
 }
 
-} // namespace pev
+} // namespace tl
 
-#endif // PEV_UTILS_HH
+#endif // TL_UTILS_HH

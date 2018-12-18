@@ -1,14 +1,14 @@
 #ifndef CPP_EVALUATOR_HH
 #define CPP_EVALUATOR_HH
 
-#include "ParallelEigenvectorDefinitions.hh"
+#include "TensorLineDefinitions.hh"
 #include "TensorProductBezierTriangles.hh"
 
 #include <iterator>
 #include <type_traits>
 #include <utility>
 
-namespace pev
+namespace tl
 {
 
 using Triangle = TensorProductBezierTriangle<Vec3d, double, 1>;
@@ -103,6 +103,9 @@ struct is_evaluator<E,
 {
 };
 
-} // namespace pev
+template<typename E>
+inline constexpr bool is_evaluator_v = is_evaluator<E>::value;
+
+} // namespace tl
 
 #endif

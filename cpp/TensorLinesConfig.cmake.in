@@ -1,0 +1,15 @@
+# - Config file for TensorLines
+# It defines the following variables
+#  TENSORLINES_FOUND        - the library has been found
+#  TENSORLINES_INCLUDE_DIRS - include directories for TensorLines
+#  TENSORLINES_LIBRARIES    - libraries to link against
+
+get_filename_component(TENSORLINES_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
+set(TENSORLINES_INCLUDE_DIRS "@CONF_INCLUDE_DIRS@")
+
+if(NOT TARGET tensor_lines AND NOT TensorLines_BINARY_DIR)
+	include("${TENSORLINES_CMAKE_DIR}/TensorLinesTargets.cmake")
+endif()
+
+set(TENSORLINES_LIBRARIES)
+set(TENSORLINES_FOUND TRUE)

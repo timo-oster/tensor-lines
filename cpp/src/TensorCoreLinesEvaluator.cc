@@ -1,4 +1,4 @@
-#include "TensorSujudiHaimesEvaluator.hh"
+#include "TensorCoreLinesEvaluator.hh"
 
 #include <Eigen/Geometry>
 
@@ -12,14 +12,14 @@
 
 using namespace cpp_utils;
 
-namespace pev
+namespace tl
 {
 
 template <typename T, std::size_t... Degrees>
 using TPBT = TensorProductBezierTriangle<T, double, Degrees...>;
 
 std::pair<std::array<TPBT<double, 1, 2>, 3>, std::array<TPBT<double, 0, 3>, 3>>
-tensorSujudiHaimesCoeffs(const TensorInterp& t,
+tensorCoreLinesCoeffs(const TensorInterp& t,
                          const std::array<TensorInterp, 3>& dt,
                          const Triangle& r)
 {
@@ -69,17 +69,17 @@ tensorSujudiHaimesCoeffs(const TensorInterp& t,
 }
 
 
-using TSHE = TensorSujudiHaimesEvaluator;
+using TSHE = TensorCoreLinesEvaluator;
 
-TSHE::TensorSujudiHaimesEvaluator(const DoubleTri& tri,
-                                  const TensorInterp& t,
-                                  const std::array<TensorInterp, 3>& dt,
-                                  const Options& opts)
+TSHE::TensorCoreLinesEvaluator(const DoubleTri& tri,
+                               const TensorInterp& t,
+                               const std::array<TensorInterp, 3>& dt,
+                               const Options& opts)
         : _tri(tri),
           _opts(opts)
 {
     std::tie(_target_funcs_t, _target_funcs_dt) =
-            tensorSujudiHaimesCoeffs(t, dt, tri.dir_tri);
+            tensorCoreLinesCoeffs(t, dt, tri.dir_tri);
 }
 
 

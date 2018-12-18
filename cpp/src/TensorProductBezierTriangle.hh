@@ -9,7 +9,7 @@
 #include <utility>
 #include <stdexcept>
 
-namespace pev
+namespace tl
 {
 template <std::size_t D, typename T, typename C, std::size_t... Degrees>
 struct TensorProductDerivativeType;
@@ -390,6 +390,6 @@ class TensorProductBezierTriangle
 {
 };
 
-} // namespace pev
+} // namespace tl
 
 #endif

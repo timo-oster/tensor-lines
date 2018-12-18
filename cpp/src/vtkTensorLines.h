@@ -1,25 +1,25 @@
-#ifndef CPP_VTK_PARALLEL_EIGENVECTORS_HH
-#define CPP_VTK_PARALLEL_EIGENVECTORS_HH
+#ifndef CPP_VTK_TENSOR_LINES_HH
+#define CPP_VTK_TENSOR_LINES_HH
 
 #include "vtkAlgorithm.h"
 
 class vtkPolyData;
 
-class VTK_EXPORT vtkParallelEigenvectors : public vtkAlgorithm
+class VTK_EXPORT vtkTensorLines : public vtkAlgorithm
 {
 public:
-    vtkTypeMacro(vtkParallelEigenvectors,vtkAlgorithm)
-    enum LineType
+    vtkTypeMacro(vtkTensorLines,vtkAlgorithm)
+    enum LineType : int
     {
-        ParallelEigenvectors,
-        TensorSujudiHaimes,
-        TensorTopology
+        TensorTopology = 0,
+        TensorCoreLines = 1,
+        ParallelEigenvectors = 2
     };
 
-    static vtkParallelEigenvectors* New();
+    static vtkTensorLines* New();
 
-    vtkParallelEigenvectors(const vtkParallelEigenvectors&) = delete;
-    void operator=(const vtkParallelEigenvectors&) = delete;
+    vtkTensorLines(const vtkTensorLines&) = delete;
+    void operator=(const vtkTensorLines&) = delete;
 
     double GetTolerance() const
     {
@@ -28,6 +28,7 @@ public:
     void SetTolerance(double value)
     {
         _tolerance = value;
+        this->Modified();
     }
 
     double GetClusterEpsilon() const
@@ -37,24 +38,27 @@ public:
     void SetClusterEpsilon(double value)
     {
         _cluster_epsilon = value;
+        this->Modified();
     }
 
     std::size_t GetMaxCandidates() const
     {
         return _max_candidates;
     }
-    void SetMaxCandidates(std::size_t& value)
+    void SetMaxCandidates(int value)
     {
         _max_candidates = value;
+        this->Modified();
     }
 
-    LineType GetLineType() const
+    int GetLineType() const
     {
         return _line_type;
     }
-    void SetLineType(LineType lt)
+    void SetLineType(int lt)
     {
-        _line_type = lt;
+        _line_type = LineType(lt);
+        this->Modified();
     }
 
     // Get the output data object for a port on this algorithm.
@@ -67,8 +71,8 @@ public:
                                vtkInformationVector*) override;
 
 protected:
-    vtkParallelEigenvectors();
-    ~vtkParallelEigenvectors() VTK_OVERRIDE {}
+    vtkTensorLines();
+    ~vtkTensorLines() VTK_OVERRIDE {}
 
     // This is called by the superclass.
     // This is the method you should override.
@@ -105,7 +109,7 @@ private:
     double _tolerance = 1e-6;
     double _cluster_epsilon = 1e-4;
     std::size_t _max_candidates = 100;
-    LineType _line_type = LineType::ParallelEigenvectors;
+    LineType _line_type = LineType::TensorCoreLines;
     //ETX
 };
 

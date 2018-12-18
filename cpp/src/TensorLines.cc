@@ -1,7 +1,7 @@
-#include "ParallelEigenvectors.hh"
+#include "TensorLines.hh"
 
 #include "TensorProductBezierTriangles.hh"
-#include "TensorSujudiHaimesEvaluator.hh"
+#include "TensorCoreLinesEvaluator.hh"
 #include "TensorTopologyEvaluator.hh"
 #include "ParallelEigenvectorsEvaluator.hh"
 
@@ -22,7 +22,7 @@ using namespace cpp_utils;
 
 namespace
 {
-using namespace pev;
+using namespace tl;
 
 /**
  * Representative Solution in a cluster of similar solutions
@@ -97,7 +97,7 @@ template <typename Evaluator>
 std::vector<ClusterRepr<Evaluator>>
 findRepresentatives(const std::vector<std::vector<Evaluator>>& clusters)
 {
-    static_assert(is_evaluator<Evaluator>::value,
+    static_assert(is_evaluator_v<Evaluator>,
                   "findRepresentatives requires a valid Evaluator!");
     auto result = std::vector<ClusterRepr<Evaluator>>{};
     for(const auto& c : clusters)
@@ -124,7 +124,7 @@ findRepresentatives(const std::vector<std::vector<Evaluator>>& clusters)
  * @param s_interp First tensor field on the triangle
  * @param t_interp Second tensor field on the triangle
  * @param tri Spatial triangle
- * @return List of PEVPoints with context info
+ * @return List of TLPoints with context info
  */
 template <typename Evaluator>
 PointList
@@ -133,6 +133,8 @@ computeContextInfo(const std::vector<ClusterRepr<Evaluator>>& representatives,
                    const TensorInterp& t_interp,
                    const Triangle& tri)
 {
+    static_assert(is_evaluator_v<Evaluator>,
+                  "computeContextInfo requires a valid Evaluator!");
     auto points = PointList{};
     points.reserve(representatives.size());
 
@@ -194,7 +196,7 @@ computeContextInfo(const std::vector<ClusterRepr<Evaluator>>& representatives,
                                .sum();
 
         points.push_back(
-                PEVPoint{tri(result_center),
+                TLPoint{tri(result_center),
                          ERank(s_order),
                          ERank(t_order),
                          result_dir,
@@ -213,13 +215,15 @@ computeContextInfo(const std::vector<ClusterRepr<Evaluator>>& representatives,
 
 template <typename Evaluator>
 PointList
-computeContextInfoSH(const std::vector<ClusterRepr<Evaluator>>& representatives,
+computeContextInfoTCL(const std::vector<ClusterRepr<Evaluator>>& representatives,
                      const TensorInterp& t_interp,
                      const TensorInterp& tx_interp,
                      const TensorInterp& ty_interp,
                      const TensorInterp& tz_interp,
                      const Triangle& tri)
 {
+    static_assert(is_evaluator_v<Evaluator>,
+                  "computeContextInfoTCL requires a valid Evaluator!");
     auto points = PointList{};
     points.reserve(representatives.size());
 
@@ -304,7 +308,7 @@ computeContextInfoSH(const std::vector<ClusterRepr<Evaluator>>& representatives,
                         .determinant()));
 
         points.push_back(
-                PEVPoint{tri(result_center),
+                TLPoint{tri(result_center),
                          ERank(t_order),
                          ERank(dt_order),
                          result_dir,
@@ -325,6 +329,8 @@ PointList computeContextInfoTopo(
         const std::vector<ClusterRepr<Evaluator>>& representatives,
         const Triangle& tri)
 {
+    static_assert(is_evaluator_v<Evaluator>,
+                  "computeContextInfoTopo requires a valid Evaluator!");
     auto points = PointList{};
     points.reserve(representatives.size());
 
@@ -335,7 +341,7 @@ PointList computeContextInfoTopo(
         auto result_center = pos_tri({1. / 3., 1. / 3., 1. / 3.});
 
         points.push_back(
-                PEVPoint{tri(result_center),
+                TLPoint{tri(result_center),
                          ERank::First,
                          ERank::First,
                          Vec3d::Zero(),
@@ -353,7 +359,7 @@ PointList computeContextInfoTopo(
 
 
 template <typename Evaluator,
-          typename = std::enable_if_t<is_evaluator<Evaluator>::value>>
+          typename = std::enable_if_t<is_evaluator_v<Evaluator>>>
 boost::optional<std::vector<Evaluator>>
 rootSearch(const Evaluator& start_ev,
            std::size_t max_candidates,
@@ -405,6 +411,8 @@ parallelEigenvectorSearch(const TensorInterp& s,
                           uint64_t* max_level = nullptr)
 {
     auto result = std::vector<ParallelEigenvectorsEvaluator>{};
+    // Stores directions for which the search was terminated because of
+    // too many splits
     auto failed_dirs = std::vector<Vec3d>{};
 
     auto compute_tri = [&](const Triangle& r) {
@@ -444,8 +452,8 @@ parallelEigenvectorSearch(const TensorInterp& s,
 }
 
 
-std::pair<std::vector<TensorSujudiHaimesEvaluator>, std::vector<Vec3d>>
-tensorSujudiHaimesSearch(const TensorInterp& t,
+std::pair<std::vector<TensorCoreLinesEvaluator>, std::vector<Vec3d>>
+tensorCoreLinesSearch(const TensorInterp& t,
                          const std::array<TensorInterp, 3>& dt,
                          const Triangle& tri,
                          double tolerance,
@@ -453,11 +461,13 @@ tensorSujudiHaimesSearch(const TensorInterp& t,
                          uint64_t* num_splits = nullptr,
                          uint64_t* max_level = nullptr)
 {
-    auto result = std::vector<TensorSujudiHaimesEvaluator>{};
+    auto result = std::vector<TensorCoreLinesEvaluator>{};
+    // Stores directions for which the search was terminated because of
+    // too many splits
     auto failed_dirs = std::vector<Vec3d>{};
 
     auto compute_tri = [&](const Triangle& r) {
-        auto start_ev = TensorSujudiHaimesEvaluator(
+        auto start_ev = TensorCoreLinesEvaluator(
                 {tri, r}, t, dt, {tolerance});
         auto solutions =
                 rootSearch(start_ev, max_candidates, num_splits, max_level);
@@ -517,13 +527,13 @@ tensorTopologySearch(const TensorInterp& t,
 } // namespace
 
 
-namespace pev
+namespace tl
 {
 
-PEVResult findParallelEigenvectors(const std::array<Mat3d, 3>& s,
+TLResult findParallelEigenvectors(const std::array<Mat3d, 3>& s,
                                    const std::array<Mat3d, 3>& t,
                                    const std::array<Vec3d, 3>& x,
-                                   const PEVOptions& opts)
+                                   const TLOptions& opts)
 {
     auto start_tri =
             Triangle{{Vec3d{1., 0., 0.}, Vec3d{0., 1., 0.}, Vec3d{0., 0., 1.}}};
@@ -551,9 +561,9 @@ PEVResult findParallelEigenvectors(const std::array<Mat3d, 3>& s,
 }
 
 
-PEVResult findParallelEigenvectors(const std::array<Mat3d, 3>& s,
+TLResult findParallelEigenvectors(const std::array<Mat3d, 3>& s,
                                    const std::array<Mat3d, 3>& t,
-                                   const PEVOptions& opts)
+                                   const TLOptions& opts)
 {
     return findParallelEigenvectors(
             s,
@@ -563,10 +573,10 @@ PEVResult findParallelEigenvectors(const std::array<Mat3d, 3>& s,
 }
 
 
-PEVResult findTensorSujudiHaimes(const std::array<Mat3d, 3>& t,
+TLResult findTensorCoreLines(const std::array<Mat3d, 3>& t,
                                  const std::array<Mat3d, 3>& dt,
                                  const std::array<Vec3d, 3>& x,
-                                 const PEVOptions& opts)
+                                 const TLOptions& opts)
 {
     auto start_tri =
             Triangle{{Vec3d{1., 0., 0.}, Vec3d{0., 1., 0.}, Vec3d{0., 0., 1.}}};
@@ -583,7 +593,7 @@ PEVResult findTensorSujudiHaimes(const std::array<Mat3d, 3>& t,
 
     auto num_splits = uint64_t{0};
     auto max_level = uint64_t{0};
-    auto tris = tensorSujudiHaimesSearch(tt,
+    auto tris = tensorCoreLinesSearch(tt,
                                          {tx, ty, tz},
                                          start_tri,
                                          opts.tolerance*tolerance_scale,
@@ -595,25 +605,25 @@ PEVResult findTensorSujudiHaimes(const std::array<Mat3d, 3>& t,
 
     auto representatives = findRepresentatives(clustered_tris);
 
-    return {computeContextInfoSH(representatives, tt, tx, ty, tz, xt),
+    return {computeContextInfoTCL(representatives, tt, tx, ty, tz, xt),
             tris.second};
 }
 
 
-PEVResult findTensorSujudiHaimes(const std::array<Mat3d, 3>& t,
+TLResult findTensorCoreLines(const std::array<Mat3d, 3>& t,
                                  const std::array<Mat3d, 3>& dt,
-                                 const PEVOptions& opts)
+                                 const TLOptions& opts)
 {
-    return findTensorSujudiHaimes(
+    return findTensorCoreLines(
             t,
             dt,
             {Vec3d{1., 0., 0.}, Vec3d{0., 1., 0.}, Vec3d{0., 0., 1.}},
             opts);
 }
 
-PEVResult findTensorTopology(const std::array<Mat3d, 3>& t,
+TLResult findTensorTopology(const std::array<Mat3d, 3>& t,
                              const std::array<Vec3d, 3>& x,
-                             const PEVOptions& opts)
+                             const TLOptions& opts)
 {
     auto start_tri =
             Triangle{{Vec3d{1., 0., 0.}, Vec3d{0., 1., 0.}, Vec3d{0., 0., 1.}}};
@@ -643,8 +653,8 @@ PEVResult findTensorTopology(const std::array<Mat3d, 3>& t,
 }
 
 
-PEVResult findTensorTopology(const std::array<Mat3d, 3>& t,
-                             const PEVOptions& opts)
+TLResult findTensorTopology(const std::array<Mat3d, 3>& t,
+                             const TLOptions& opts)
 {
     return findTensorTopology(
             t,
@@ -652,4 +662,4 @@ PEVResult findTensorTopology(const std::array<Mat3d, 3>& t,
             opts);
 }
 
-} // namespace pev
+} // namespace tl
