@@ -97,8 +97,6 @@ public:
      */
     double condition() const;
 
-    friend double distance(const Self& t1, const Self& t2);
-
     friend bool operator==(const Self& t1, const Self& t2);
 
     friend bool operator!=(const Self& t1, const Self& t2);
@@ -138,6 +136,9 @@ private:
         return {part(0), part(1), part(2), part(3)};
     }
 };
+
+double distance(const ParallelEigenvectorsEvaluator& t1,
+                const ParallelEigenvectorsEvaluator& t2);
 
 static_assert(is_evaluator<ParallelEigenvectorsEvaluator>::value,
               "ParallelEigenvectorsEvaluator is not a valid evaluator!");

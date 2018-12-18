@@ -98,8 +98,6 @@ public:
      */
     double condition() const;
 
-    friend double distance(const Self& t1, const Self& t2);
-
     friend bool operator==(const Self& t1, const Self& t2);
 
     friend bool operator!=(const Self& t1, const Self& t2);
@@ -140,6 +138,9 @@ private:
         return {part(0), part(1), part(2), part(3)};
     }
 };
+
+double distance(const TensorCoreLinesEvaluator& t1,
+                const TensorCoreLinesEvaluator& t2);
 
 static_assert(is_evaluator<TensorCoreLinesEvaluator>::value,
               "TensorCoreLinesEvaluator is not a valid evaluator!");

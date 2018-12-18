@@ -93,8 +93,6 @@ public:
      */
     double condition() const;
 
-    friend double distance(const Self& t1, const Self& t2);
-
     friend bool operator==(const Self& t1, const Self& t2);
 
     friend bool operator!=(const Self& t1, const Self& t2);
@@ -109,6 +107,9 @@ private:
 
     Options _opts = Options{};
 };
+
+double distance(const TensorTopologyEvaluator& t1,
+                const TensorTopologyEvaluator& t2);
 
 static_assert(is_evaluator<TensorTopologyEvaluator>::value,
               "TensorTopologyEvaluator is not a valid evaluator!");

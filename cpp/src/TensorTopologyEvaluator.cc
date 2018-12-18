@@ -150,7 +150,7 @@ double TSHE::error() const
 
 double distance(const TSHE& t1, const TSHE& t2)
 {
-    return distance(t1._tri, t2._tri);
+    return distance(t1.tris(), t2.tris());
 }
 
 

@@ -140,7 +140,7 @@ double PEVE::condition() const
 
 double distance(const PEVE& t1, const PEVE& t2)
 {
-    return distance(t1._tri, t2._tri);
+    return distance(t1.tris(), t2.tris());
 }
 
 
